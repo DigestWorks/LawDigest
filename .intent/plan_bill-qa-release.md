@@ -14,7 +14,7 @@ date: 2026-11-03
 | --- | --- |
 | `services/ai/src/lawdigest_ai/rag/{chatbot,embedding,vector_store}.py` | 현재 SDK 검색·임베딩·구조화 답변 계약 |
 | 새 `rag/{schemas,settings,repository,indexing,api,limits}.py` | 입력/출력·원문 대조·인덱스·내부 API·요청 한도 |
-| `services/ai/tools/index_rag_bills.py`, `requirements-rag.txt`, `rag.env.example` | dry_run 기본 인덱스 명령, 전용 의존성·설정 예시 |
+| `services/ai/tools/index_rag_bills.py`, `requirements-rag.txt`, `rag.env.example`, `pyproject.toml`의 rag 추가 의존성 | dry_run 기본 인덱스 명령, 전용 의존성·설정 예시 |
 | `services/ai/tests/rag/` | 근거·인덱스·API·오류·한도·공식 SDK 경계 회귀 |
 | `services/web/app/api/qa/route.ts`, `lib/ragProxy.ts` | 내부 인증·상태·질문 프록시, 요청 크기·시간 제한 |
 | `services/web/app/ask/{page,layout,AskClient}.tsx`, `components/qa/`, `hooks/useRagConversation.ts`, `store/RagConversationState.tsx` | 실제 질문·후속 대화·출처·취소·재시도·복원 |
