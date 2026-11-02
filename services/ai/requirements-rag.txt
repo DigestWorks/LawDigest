@@ -1,0 +1,10 @@
+# Dedicated HTTP service environment; compatible with the existing Qdrant 1.15 server.
+fastapi>=0.135,<0.136
+uvicorn>=0.41,<0.42
+openai>=2.24,<2.25
+qdrant-client>=1.15,<1.16
+pydantic>=2.10,<3
+pymysql>=1.1,<2
+python-dotenv>=1,<2
+tiktoken>=0.12,<1
+requests>=2.31,<3

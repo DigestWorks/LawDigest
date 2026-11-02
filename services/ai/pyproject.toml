@@ -28,6 +28,15 @@ dependencies = [
   "langfuse>=3,<4",
 ]
 
+[project.optional-dependencies]
+rag = [
+  "fastapi>=0.135,<0.136",
+  "uvicorn>=0.41,<0.42",
+  "tiktoken>=0.12,<1",
+  "openai>=2.24,<2.25",
+  "qdrant-client>=1.15,<1.16",
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

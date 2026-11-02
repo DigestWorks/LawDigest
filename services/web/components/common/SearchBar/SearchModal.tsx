@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { buildSearchHref, readRecentSearches, saveRecentSearches } from '@/lib/search';
 import SearchBar from './SearchBar';
+import RagEntry from '@/components/qa/RagEntry';
 
 export default function SearchModal() {
   const router = useRouter();
@@ -70,6 +71,7 @@ export default function SearchModal() {
           <DialogDescription>법안명, 의원명, 정당명으로 찾아보세요.</DialogDescription>
         </DialogHeader>
         <SearchBar onSearch={search} initialValue={modal.keyword} />
+        {modal.show && <RagEntry onNavigate={() => setModal({ show: false })} />}
         <section className="flex flex-col gap-3" aria-label="최근 검색어">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">최근 검색어</h2>

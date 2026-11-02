@@ -173,7 +173,7 @@ function Nav() {
     router.push(navItems[targetIndex].href);
   }, [navItems, router, setNavIndex]);
 
-  const isSearchActive = pathname.startsWith('/search') || searchModal.show;
+  const isSearchActive = pathname.startsWith('/search') || pathname.startsWith('/ask') || searchModal.show;
 
   return (
     <>

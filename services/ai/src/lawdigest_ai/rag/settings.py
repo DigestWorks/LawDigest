@@ -1,0 +1,64 @@
+from dataclasses import dataclass, field
+import os
+
+from dotenv import load_dotenv
+
+
+@dataclass(frozen=True)
+class RagSettings:
+    collection: str = "lawdigest_rag_active"
+    embedding_model: str = "text-embedding-3-small"
+    dimensions: int = 1536
+    model: str = "gpt-4o-mini"
+    top_k: int = 5
+    min_score: float = 0.35
+    qdrant_url: str | None = None
+    qdrant_key: str | None = field(default=None, repr=False)
+    openai_key: str = field(default="", repr=False)
+    openai_base_url: str = "https://api.openai.com/v1"
+    internal_token: str = field(default="", repr=False)
+    db_mode: str = "prod"
+    concurrent_requests: int = 2
+    requests_per_window: int = 5
+    window_seconds: int = 300
+    daily_requests: int = 500
+
+    @classmethod
+    def from_env(cls):
+        if os.getenv("RAG_ENV_FILE"):
+            load_dotenv(os.environ["RAG_ENV_FILE"])
+        from lawdigest_ai import config
+
+        settings = cls(
+            collection=os.getenv("RAG_COLLECTION", "lawdigest_rag_active"),
+            embedding_model=os.getenv("RAG_EMBEDDING_MODEL", config.EMBEDDING_MODEL),
+            dimensions=int(os.getenv("RAG_VECTOR_SIZE", "1536")),
+            model=os.getenv("RAG_MODEL", "gpt-4o-mini"),
+            top_k=int(os.getenv("RAG_TOP_K", "5")),
+            min_score=float(os.getenv("RAG_MIN_SCORE", "0.35")),
+            qdrant_url=os.getenv("RAG_QDRANT_URL") or os.getenv("QDRANT_URL"),
+            qdrant_key=os.getenv("QDRANT_API_KEY"),
+            openai_key=os.getenv("RAG_OPENAI_API_KEY") or config.get_openai_api_key(),
+            openai_base_url=config.OPENAI_BASE_URL,
+            internal_token=os.getenv("RAG_INTERNAL_TOKEN", ""),
+            db_mode=os.getenv("RAG_DB_MODE", "prod"),
+            concurrent_requests=int(os.getenv("RAG_CONCURRENT_REQUESTS", "2")),
+            requests_per_window=int(os.getenv("RAG_REQUESTS_PER_WINDOW", "5")),
+            window_seconds=int(os.getenv("RAG_WINDOW_SECONDS", "300")),
+            daily_requests=int(os.getenv("RAG_DAILY_REQUESTS", "500")),
+        )
+        if not 1 <= settings.top_k <= 8 or not 0 <= settings.min_score <= 1:
+            raise ValueError("질의응답 검색 설정 범위가 올바르지 않습니다.")
+        if settings.db_mode not in {"prod", "test"} or settings.dimensions < 1:
+            raise ValueError("질의응답 저장소 설정이 올바르지 않습니다.")
+        if not all(
+            value > 0
+            for value in [
+                settings.concurrent_requests,
+                settings.requests_per_window,
+                settings.window_seconds,
+                settings.daily_requests,
+            ]
+        ):
+            raise ValueError("질의응답 요청 한도는 양수여야 합니다.")
+        return settings
