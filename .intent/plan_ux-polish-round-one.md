@@ -18,21 +18,21 @@ date: 2026-11-03
 | --- | --- |
 | `services/web/components.json`, `components/ui/` 아래 필요한 컴포넌트, `lib/utils.ts` | 새 shadcn 설정·공용 컴포넌트. 기존 cn 유틸이 있으면 재사용한다. 이후 웹 경로는 services/web 기준이다. |
 | `package.json`, `package-lock.json`, `styles/globals.css`, `tailwind.config.js` | 필요한 UI 의존성·토큰만 추가하고 다크 피드 탭을 보정한다. |
-| `lib/billQueries.ts`, `lib/search.ts`, `lib/billStage.ts` | 새 공용 query options·입력/URL·단계 해석. 기존 유틸과 통합 가능하면 중복 생성하지 않는다. |
+| `lib/billQueries.ts`, `lib/search.ts`, `lib/billStage.ts`, `lib/feedState.ts`, `lib/ListHydrationBoundary.tsx`, `hooks/useListScrollRestoration.ts` | 공용 query options·입력/URL·단계 해석·조건별 목록과 읽던 위치 보존. |
 | `components/Bill/BillList/BillList.tsx`, `hooks/useIntersect.ts` | 페이지 관찰·로딩·끝 상태 공용화. |
 | `components/Feed/Feed/{Feed,FollowingFeed}.tsx`, `components/Feed/Feed/apis/{apis,queries}.ts`, `app/page.tsx` | 피드 캐시·URL 상태·서버 hydration. |
 | `app/{congressman,party}/[id]/components/BillContainer/BillContainer.tsx`, 해당 `apis/` 파일 | 발의 유형별 캐시·페이지 끝 처리·복제 상태 제거. |
-| `app/following/apis/{apis,queries}.ts`, `app/mypage/`의 BillList 호출부 | 공용 목록 변경에 필요한 호출부와 페이지 크기 반영. |
+| `app/following/apis/{apis,queries}.ts` | 공용 목록 변경에 필요한 호출부와 페이지 크기 반영. 마이페이지 호출부는 기존 호환 props로 유지한다. |
 | `app/search/apis/{apis,queries}.ts`, `app/search/[id]/{page,SearchResultClient}.tsx`, `app/search/[id]/components/{SearchList,SearchCongressman,SearchParty}.tsx` | 검색 hydration·유형별 상태·결과 정렬·펼치기. |
 | `components/common/SearchBar/{SearchBar,SearchModal,SearchBarButton}.tsx`, `components/common/Button/SearchButton.tsx` | 공용 검색 Dialog·폼·최근 검색어·포커스. |
-| `components/Layout/{Header/Header,Nav/Nav}.tsx`, `store/SearchModalState.tsx`, `app/explore/components/TrendingKeywords.tsx` | 검색 진입·경로·상태 공유. 자연어 질문은 후속 RAG 계약과 연결할 수 있게 구분한다. |
-| `constants/bill.ts`, `types/type/{bill/bill,search/searchCongressmanParty}.ts` | 단계·결과·null 표결·추가 응답 필드 계약. |
+| `components/Layout/{Header/Header,Nav/Nav}.tsx`, `store/SearchModalState.tsx` | 검색 진입·경로·상태 공유. 탐색 인기 검색어는 기존 공용 URL 경로를 유지한다. 자연어 질문은 후속 RAG 계약으로 추적한다. |
+| `constants/bill.ts`, `types/type/{bill/bill,search/searchBill,search/searchCongressmanParty}.ts`, `hooks/useTabType.ts`, `tsconfig.json` | 단계·결과·null 표결·추가 응답 필드 계약과 튜플 타입. components.json 추가 후 기존 @/components 배럴을 정확히 가리키는 별칭을 명시한다. |
 | `app/bill/[id]/components/{BillDetail/BillDetail,ProgressStage/ProgressStage,ProcessResult/ProcessResult,ProcessResult/VoteResultBoard,AnotherBill/AnotherBillList,AnotherBill/AnotherBill}.tsx`, `components/common/Chart/HalfDonutChart.tsx`, `app/bill/[id]/{page.tsx,apis/}` | 종료·미수집 표시, 실제 표결 분모, 개정안 페이지 연결과 메타 정합. |
-| `components/Bill/BillList/Bill/{SafeBillSummaryHtml,Bill}.tsx` | 일반 요약 콘텐츠와 별도 펼치기 버튼. |
+| `components/Bill/BillList/Bill/{SafeBillSummaryHtml,Bill}.tsx`, `renderBillSummaryMarkdown.ts` | 일반 요약 콘텐츠와 별도 펼치기 버튼. 복합 마크다운에서도 실제 접힌 높이를 제한한다. |
 | `services/backend/src/main/java/com/everyones/lawmaking/controller/{SearchController,BillController}.java` | 아래 백엔드 파일들도 같은 Java 패키지 기준. 입력 검증·개정안 페이지 API. |
-| `facade/{SearchFacade,BillFacade}.java`, `service/{BillService,CongressmanService}.java`, `repository/{BillRepository,CongressmanRepository}.java` | 안전한 검색식·관련도·검색 ID 순서·의원 정렬·개정안 페이징. |
-| `common/dto/{SimilarBill,SearchCongressmanDto}.java`, `common/dto/response/`의 상세·개정안 페이지 응답, `global/error/GlobalExceptionHandler.java`, 검색식 유틸 새 파일 | 응답 호환·대수와 결과 정보·400 매핑. |
-| 관련 웹 회귀 테스트와 백엔드 SearchController·BillService·개정안 API 테스트 | 사용자 동작·계약·경계 조건을 검증한다. |
+| `facade/{SearchFacade,BillFacade}.java`, `service/{BillService,CongressmanService,PartyService}.java`, `repository/{BillRepository,CongressmanRepository,PartyRepository}.java` | 안전한 검색식·관련도·검색 ID 순서·의원 정렬·정당 검색 LIKE 예약문자·개정안 페이징. |
+| `common/dto/{SimilarBill,SearchCongressmanDto}.java`, `common/dto/response/`의 상세·개정안 페이지 응답, `global/error/{GlobalExceptionHandler,BillException,RequestParameterException}.java`, `global/util/SearchQuery.java` | 응답 호환·대수와 결과 정보·400/404 매핑. |
+| 웹 요약·단계·표결·검색 캐시·hydration·검색 유틸 회귀 테스트, 백엔드 SearchController·BillService·SimilarBillService·BillSearchMysqlTest | 사용자 동작·계약·경계 조건을 검증한다. MySQL native 검색과 마지막 페이지를 실제 격리 DB에서 검증한다. |
 
 ## 작업 순서
 

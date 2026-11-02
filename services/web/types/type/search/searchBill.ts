@@ -1,7 +1,7 @@
 import { Pagination } from '../common';
-import { BillProps } from '../bill';
+import { BillResponse } from '../bill';
 
 export interface SearchBillResponse {
-  search_response: BillProps;
+  search_response: BillResponse[];
   pagination_response: Pagination;
 }

@@ -3,6 +3,7 @@ package com.everyones.lawmaking.repository;
 import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
 import com.everyones.lawmaking.domain.entity.Bill;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -118,19 +119,24 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     @Query("SELECT b FROM Bill b " +
             "WHERE b.billName = :billName " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
-            "AND b.id != :billId ")
-    List<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId);
+            "AND b.id != :billId ORDER BY b.proposeDate DESC, b.id DESC")
+    Page<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId, Pageable pageable);
 
-    @Query(value = "select bsd.bill_id\n" +
-            "from BillSearchDocument bsd\n" +
-            "join Bill b on b.bill_id = bsd.bill_id\n" +
-            "where b.ingest_status = 'READY'\n" +
-            "and match(bsd.search_text) against(concat('*',:keyword,'*') in boolean mode) > 0\n" +
-            "order by b.propose_date desc,\n" +
-            "match(bsd.search_text) against(concat('*',:keyword,'*') in boolean mode) desc,\n" +
-            "bsd.bill_id desc ;"
-            , nativeQuery = true)
-    Slice<String> findBillByKeyword(Pageable pageable,@Param("keyword") String keyword);
+    @Query(value = """
+            SELECT bsd.bill_id FROM BillSearchDocument bsd
+            JOIN Bill b ON b.bill_id = bsd.bill_id
+            WHERE b.ingest_status = 'READY'
+              AND MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) > 0
+            ORDER BY CASE
+              WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
+              WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
+              WHEN b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 2
+              ELSE 3 END,
+              MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) DESC,
+              b.propose_date DESC, bsd.bill_id DESC
+            """, nativeQuery = true)
+    Slice<String> findBillByKeyword(Pageable pageable, @Param("keyword") String keyword,
+            @Param("namePattern") String namePattern, @Param("expression") String expression);
 
 
 

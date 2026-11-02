@@ -8,6 +8,7 @@ import com.everyones.lawmaking.common.dto.response.*;
 import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.global.error.CongressmanException;
 import com.everyones.lawmaking.global.util.PaginationUtil;
+import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.repository.CongressmanRepository;
 import com.everyones.lawmaking.repository.CongressmanRepositoryCustom;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 
 
 @Service
@@ -68,8 +70,14 @@ public class CongressmanService {
     }
 
     public SearchDataResponse searchCongressman(String searchWord) {
-        var congressmanList = congressmanRepository.findBySearchWord(searchWord);
+        var congressmanList = congressmanRepository.findBySearchWord(
+                SearchQuery.escapeLike(searchWord));
         var searchResponse =  congressmanList.stream()
+                .sorted(Comparator
+                        .comparing((Congressman person) -> !searchWord.equals(person.getName()))
+                        .thenComparing(person -> !Boolean.TRUE.equals(person.getState()))
+                        .thenComparing(Congressman::getName, Comparator.nullsLast(String::compareTo))
+                        .thenComparing(Congressman::getId))
                 .map(SearchCongressmanDto::from)
                 .toList();
 

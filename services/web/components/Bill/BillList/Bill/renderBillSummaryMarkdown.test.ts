@@ -95,7 +95,7 @@ describe('getSummaryVisibilityClassNames', () => {
   it('피드 접힘 상태에서는 본문을 줄이고 더 보기 버튼을 보인다', () => {
     expect(getSummaryVisibilityClassNames({ detail: false, expanded: false })).toEqual({
       moreButtonClassName: 'text-gray-2 dark:text-gray-3',
-      summaryClassName: 'line-clamp-[8]',
+      summaryClassName: 'lawdigest-summary-collapsed',
     });
   });
 

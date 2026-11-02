@@ -1,15 +1,10 @@
 import http from '@/api/config/core';
-import { ValueOf, FeedResponse, FeedPopularResponse } from '@/types';
-import { STAGE_TAB_KO } from '@/constants';
-import { Dispatch, SetStateAction } from 'react';
+import { FeedResponse, FeedPopularResponse } from '@/types';
 
-export const getBillByStage = async (
-  page: number,
-  stage: ValueOf<'전체' & typeof STAGE_TAB_KO> | Dispatch<SetStateAction<ValueOf<typeof STAGE_TAB_KO>>>,
-) =>
+export const getBillByStage = async (page: number, stage: string) =>
   http.get<FeedResponse>({
     url: '/bill/mainfeed',
-    params: { page, size: 3, stage },
+    params: { page, size: 10, stage },
   });
 
 export const getBillPopular = async () =>

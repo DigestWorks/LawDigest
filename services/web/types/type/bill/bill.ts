@@ -34,21 +34,25 @@ export interface BillResponse {
     public_proposer_party_name: string;
   }[];
   is_book_mark: boolean;
-  similar_bills: {
-    billTitle: string;
+  similar_bills_count?: number;
+  similar_bills?: {
+    billTitle: string | null;
     billId: string;
     billName: string;
     billProposers: string;
     billStage: string;
+    billResult?: string | null;
+    assemblyNumber?: number;
+    proposeDate?: string | null;
     party: {
       party_id: number;
       party_image_url: string;
       party_name: string;
     }[];
   }[];
-  vote_result_response: {
-    approval_count: number;
-    total_vote_count: number;
+  vote_result_response?: {
+    approval_count: number | null;
+    total_vote_count: number | null;
     party_vote_list: {
       party_info: {
         party_id: number;
@@ -57,7 +61,15 @@ export interface BillResponse {
       };
       party_approval_count: number;
     }[];
-  };
+  } | null;
+}
+
+export type SimilarBill = NonNullable<BillResponse['similar_bills']>[number];
+
+export interface SimilarBillsResponse {
+  bill_list: SimilarBill[];
+  total_count: number;
+  pagination_response: { last_page: boolean; page_number: number };
 }
 
 export interface BillProps extends BillResponse {

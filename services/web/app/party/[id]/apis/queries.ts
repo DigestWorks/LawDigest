@@ -1,25 +1,17 @@
 'use client';
 
-import { useSuspenseInfiniteQuery, QueryClient, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
-import { Dispatch, SetStateAction } from 'react';
+import { useInfiniteQuery, QueryClient, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
+import { nextBillPage } from '@/lib/billQueries';
 import { BILL_TAB } from '@/constants';
 import { ValueOf } from '@/types';
 import { getBillByParty, getPartyDetail, getPartyCongressman, patchPartyFollow } from './api';
 
-export const useGetBillByParty = (
-  id: number,
-  type: ValueOf<typeof BILL_TAB> | Dispatch<SetStateAction<ValueOf<typeof BILL_TAB>>>,
-) =>
-  useSuspenseInfiniteQuery({
-    queryKey: ['/party/bill', id],
+export const useGetBillByParty = (id: number, type: ValueOf<typeof BILL_TAB>) =>
+  useInfiniteQuery({
+    queryKey: ['/party/bill', id, type],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillByParty(id, type, pageParam),
     initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      // eslint-disable-next-line no-nested-ternary
-      return last_page ? (page_number === 0 ? 1 : undefined) : page_number + 1;
-    },
+    getNextPageParam: nextBillPage,
   });
 
 export const useGetPartyDetail = ({ partyId, queryClient }: { partyId: number; queryClient: QueryClient }) =>

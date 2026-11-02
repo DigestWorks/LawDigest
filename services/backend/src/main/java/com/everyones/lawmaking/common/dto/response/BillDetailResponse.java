@@ -16,6 +16,7 @@ import java.util.List;
 @JsonNaming(value = PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class BillDetailResponse extends BillDto {
     private List<SimilarBill> similarBills;
+    private long similarBillsCount;
     private VoteResultResponse voteResultResponse;
 
 
@@ -25,6 +26,10 @@ public class BillDetailResponse extends BillDto {
 
     public void setSimilarBills(List<SimilarBill> similarBills) {
         this.similarBills = similarBills;
+    }
+
+    public void setSimilarBillsCount(long count) {
+        this.similarBillsCount = count;
     }
 
     public void setVoteResultResponse(VoteResultResponse voteResultResponse) {

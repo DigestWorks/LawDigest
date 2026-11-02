@@ -1,80 +1,78 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, useCallback, Dispatch, SetStateAction } from 'react';
-import { IconSearchbar } from '@/public/svgs';
-import { Button, Input } from '@heroui/react';
-import { useAtomValue } from 'jotai';
-import { useResetAtom } from 'jotai/utils';
-import { searchModalState } from '@/store';
+import { FormEvent, useId, useRef, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { normalizeSearch, SEARCH_MAX_LENGTH } from '@/lib/search';
 
 export default function SearchBar({
-  setRecentKeywords,
+  onSearch,
+  initialValue = '',
 }: {
-  setRecentKeywords: Dispatch<SetStateAction<string[] | undefined>>;
+  onSearch: (keyword: string) => void;
+  initialValue?: string;
 }) {
-  const router = useRouter();
-  const [value, setValue] = useState('');
-  const searchModal = useAtomValue(searchModalState);
-  const resetSearchModal = useResetAtom(searchModalState);
-
-  const onSubmitSearch = useCallback(
-    (event: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      const newKeyword = value.trim();
-
-      if (newKeyword !== '') {
-        const recentKeywords = JSON.parse(localStorage.getItem('recentKeywords') || '[]');
-
-        if (recentKeywords.find((v: string) => v === newKeyword)) {
-          const newRecentKeywords = [...recentKeywords.filter((v: string) => v !== newKeyword), newKeyword];
-          localStorage.setItem('recentKeywords', JSON.stringify(newRecentKeywords));
-          setRecentKeywords(newRecentKeywords);
-        } else {
-          const newRecentKeywords = [...recentKeywords, newKeyword];
-          localStorage.setItem('recentKeywords', JSON.stringify(newRecentKeywords));
-          setRecentKeywords(newRecentKeywords);
-        }
-
-        router.push(`/search/${value.trim()}`);
-      } else {
-        setValue('');
-      }
-
-      setValue('');
-      resetSearchModal();
-    },
-    [value],
-  );
+  const [value, setValue] = useState(initialValue);
+  const [error, setError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const id = useId();
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const keyword = normalizeSearch(value);
+    if (!keyword) {
+      setError('검색어를 입력해 주세요.');
+      input.current?.focus();
+      return;
+    }
+    onSearch(keyword);
+  };
 
   return (
-    <form
-      onSubmit={onSubmitSearch}
-      className="w-full rounded-2xl flex justify-center items-center gap-[10px] md:w-[600px] mx-auto my-5">
-      <Input
-        autoFocus={searchModal.show}
-        value={value}
-        onValueChange={setValue}
-        onClear={() => router.push('/search')}
-        isClearable
-        radius="lg"
-        classNames={{
-          input: ['bg-transparent', 'text-black/90', 'truncate'],
-          inputWrapper: [
-            'h-[40px]',
-            'w-full',
-            'shadow-sm',
-            'group-data-[focused=true]:bg-default-200/50',
-            '!cursor-text',
-          ],
-        }}
-        placeholder="법안, 의원, 정당명으로 검색"
-        endContent={
-          <Button size="sm" isIconOnly className="bg-transparent" onClick={onSubmitSearch}>
-            <IconSearchbar />
-          </Button>
-        }
-      />
+    <form onSubmit={submit} role="search">
+      <FieldGroup>
+        <Field data-invalid={Boolean(error)}>
+          <FieldLabel htmlFor={id} className="sr-only">
+            법안·의원·정당 검색어
+          </FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              ref={input}
+              id={id}
+              value={value}
+              autoFocus
+              maxLength={SEARCH_MAX_LENGTH}
+              onChange={(event) => {
+                setValue(event.target.value);
+                setError('');
+              }}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${id}-error` : undefined}
+              placeholder="법안, 의원, 정당명으로 검색"
+              autoComplete="off"
+              enterKeyHint="search"
+            />
+            <InputGroupAddon align="inline-end">
+              {value && (
+                <InputGroupButton
+                  size="icon-lg"
+                  aria-label="검색어 지우기"
+                  onClick={() => {
+                    setValue('');
+                    setError('');
+                    input.current?.focus();
+                  }}>
+                  <X />
+                </InputGroupButton>
+              )}
+              <InputGroupButton type="submit" size="icon-lg" aria-label="검색">
+                <Search />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+          {error && <FieldError id={`${id}-error`}>{error}</FieldError>}
+        </Field>
+      </FieldGroup>
     </form>
   );
 }

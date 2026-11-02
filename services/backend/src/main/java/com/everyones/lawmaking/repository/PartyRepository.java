@@ -24,7 +24,7 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
     List<Party> findFollowingPartyByUserId(@Param("userId") long userId);
 
     @Query("SELECT p FROM Party p " +
-            "WHERE p.name LIKE %:searchWord% ")
+            "WHERE p.name LIKE %:searchWord% ESCAPE '!' ORDER BY p.name, p.id ")
     List<Party> findBySearchWord(@Param("searchWord") String searchWord);
 
 

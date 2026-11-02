@@ -10,7 +10,7 @@ export const getBillByParty = async (
 ) =>
   http.get<FeedResponse>({
     url: `/party/bill`,
-    params: { party_id: partyId, type, page, size: 3 },
+    params: { party_id: partyId, type, page, size: 10 },
   });
 
 export const getPartyDetail = (partyId: number) =>

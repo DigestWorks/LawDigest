@@ -10,6 +10,7 @@ import com.everyones.lawmaking.common.dto.response.BillListResponse;
 import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
 import com.everyones.lawmaking.common.dto.response.BillViewCountResponse;
 import com.everyones.lawmaking.common.dto.response.CountDto;
+import com.everyones.lawmaking.common.dto.response.SimilarBillListResponse;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.LikeService;
@@ -53,6 +54,12 @@ public class BillFacade {
     public BillViewCountResponse updateViewCount(String billId) {
         redisService.addToViewsQueue(billId);
         return billService.updateViewCount(billId);
+    }
+
+    @Transactional(readOnly = true)
+    public SimilarBillListResponse getSimilarBills(
+            String billId, Pageable pageable) {
+        return billService.getSimilarBills(billId, pageable);
     }
 
     public BillListResponse getBillsFromRepresentativeProposer(String congressmanId, Pageable pageable, String stage) {

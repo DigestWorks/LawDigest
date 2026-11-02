@@ -81,7 +81,7 @@ export const getFeedSummaryMarkdown = (markdown: string) => {
 
 export const getSummaryVisibilityClassNames = ({ detail, expanded }: { detail: boolean; expanded: boolean }) => ({
   moreButtonClassName: detail || expanded ? 'hidden' : 'text-gray-2 dark:text-gray-3',
-  summaryClassName: detail || expanded ? '' : 'line-clamp-[8]',
+  summaryClassName: detail || expanded ? '' : 'lawdigest-summary-collapsed',
 });
 
 const closeList = (html: string[], inList: boolean) => (inList ? [...html, '</ul>'] : html);

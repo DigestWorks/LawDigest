@@ -7,6 +7,8 @@ import com.everyones.lawmaking.common.dto.response.BillDetailResponse;
 import com.everyones.lawmaking.common.dto.response.BillLikeResponse;
 import com.everyones.lawmaking.common.dto.response.BillListResponse;
 import com.everyones.lawmaking.common.dto.response.BillViewCountResponse;
+import com.everyones.lawmaking.common.dto.response.SimilarBillListResponse;
+import com.everyones.lawmaking.global.error.RequestParameterException;
 import com.everyones.lawmaking.facade.BillFacade;
 import com.everyones.lawmaking.facade.LikeFacade;
 import com.everyones.lawmaking.global.BaseResponse;
@@ -151,6 +153,17 @@ public class BillController {
             @PathVariable("bill_id") String billId) {
         var result = billFacade.getBillByBillId(billId);
         return BaseResponse.ok(result);
+    }
+
+    @GetMapping("/similar/{bill_id}")
+    public BaseResponse<SimilarBillListResponse> getSimilarBills(
+            @PathVariable("bill_id") String billId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        if (page < 0 || size < 1 || size > 50) {
+            throw new RequestParameterException();
+        }
+        return BaseResponse.ok(billFacade.getSimilarBills(billId, PageRequest.of(page, size)));
     }
 
     @Operation(summary = "법안 조회수 증가", description = "법안 id로 조회수를 증가시킵니다.")
