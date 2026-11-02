@@ -32,7 +32,7 @@ date: 2026-11-03
 | `services/backend/src/main/java/com/everyones/lawmaking/controller/{SearchController,BillController}.java` | 아래 백엔드 파일들도 같은 Java 패키지 기준. 입력 검증·개정안 페이지 API. |
 | `facade/{SearchFacade,BillFacade}.java`, `service/{BillService,CongressmanService,PartyService}.java`, `repository/{BillRepository,CongressmanRepository,PartyRepository}.java` | 안전한 검색식·관련도·검색 ID 순서·의원 정렬·정당 검색 LIKE 예약문자·개정안 페이징. |
 | `common/dto/{SimilarBill,SearchCongressmanDto}.java`, `common/dto/response/`의 상세·개정안 페이지 응답, `global/error/{GlobalExceptionHandler,BillException,RequestParameterException}.java`, `global/util/SearchQuery.java` | 응답 호환·대수와 결과 정보·400/404 매핑. |
-| 웹 요약·단계·표결·검색 캐시·hydration·검색 유틸 회귀 테스트, 백엔드 SearchController·BillService·SimilarBillService·BillSearchMysqlTest | 사용자 동작·계약·경계 조건을 검증한다. MySQL native 검색과 마지막 페이지를 실제 격리 DB에서 검증한다. |
+| 웹 요약·단계·표결·검색 캐시·hydration·검색 유틸 회귀 테스트, 백엔드 SearchController·BillService·SimilarBillService·BillSearchMysqlTest, `services/data/tests/test_backend_bill_visibility_guards.py` | 사용자 동작·계약·경계 조건을 검증한다. MySQL native 검색과 마지막 페이지를 실제 격리 DB에서 검증한다. 기존 READY 검색 검사는 SQL 키워드 대소문자를 구분하지 않도록 유지한다. |
 
 ## 작업 순서
 
