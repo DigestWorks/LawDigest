@@ -1,6 +1,7 @@
 package com.everyones.lawmaking.service;
 
 import com.everyones.lawmaking.common.dto.SearchPartyDto;
+import com.everyones.lawmaking.common.dto.PartySeatCount;
 import com.everyones.lawmaking.common.dto.response.FollowingPartyResponse;
 import com.everyones.lawmaking.common.dto.response.ParliamentaryPartyResponse;
 import com.everyones.lawmaking.common.dto.response.PartyDetailResponse;
@@ -33,7 +34,13 @@ public class PartyService {
     public PartyDetailResponse getPartyById(long partyId) {
         var party = partyRepository.findPartyDetailById(partyId)
                 .orElseThrow(() -> new PartyException.PartyNotFound(Map.of(PARTY_ID_KEY_STRING, Long.toString(partyId))));
-        return PartyDetailResponse.from(party);
+        var seatCounts = partyRepository.findActiveSeatCounts();
+        var seats = seatCounts.stream()
+                .filter(count -> count.partyId() != null && count.partyId() == partyId)
+                .findFirst()
+                .orElse(new PartySeatCount(partyId, party.getName(), party.getPartyImageUrl(), 0, 0, 0));
+        int totalSeats = Math.toIntExact(seatCounts.stream().mapToLong(PartySeatCount::totalCount).sum());
+        return PartyDetailResponse.from(party, seats, totalSeats);
     }
 
     public List<FollowingPartyResponse> getFollowingParty(long userId) {
@@ -73,8 +80,13 @@ public class PartyService {
     }
 
     public List<ParliamentaryPartyResponse> getParliamentaryParty() {
-        return partyRepository.findByIsParliamentary(true).stream()
-                .sorted(Comparator.comparing(ParliamentaryPartyResponse::getCongressmanCount).reversed())
+        return partyRepository.findActiveSeatCounts().stream()
+                .map(seats -> new ParliamentaryPartyResponse(
+                        seats.partyId() == null ? 0 : seats.partyId(),
+                        seats.partyName() == null ? "소속 미확인" : seats.partyName(),
+                        seats.partyImageUrl(), seats.totalCount()))
+                .sorted(Comparator.comparing(ParliamentaryPartyResponse::getCongressmanCount).reversed()
+                        .thenComparing(ParliamentaryPartyResponse::getPartyId))
                 .toList();
     }
 

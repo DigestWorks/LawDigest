@@ -15,7 +15,9 @@ export default function PartyList() {
   const isDark = theme === 'dark';
   const query = useGetParliamentaryParties();
   const { data, isLoading } = query;
-  const parties = [...(data?.data ?? [])].sort((a, b) => b.congressman_count - a.congressman_count);
+  const parties = (data?.data ?? [])
+    .filter((party) => party.party_id > 0)
+    .sort((a, b) => b.congressman_count - a.congressman_count);
 
   if (isLoading) {
     return <div className="py-10 text-center text-[14px] text-gray-2">정당을 불러오는 중…</div>;

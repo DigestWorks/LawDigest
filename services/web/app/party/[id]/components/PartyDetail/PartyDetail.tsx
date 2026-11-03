@@ -27,14 +27,15 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
     total_congressman_count,
     proportional_congressman_count,
     district_congressman_count,
+    unclassified_congressman_count = 0,
     representative_bill_count,
     public_bill_count,
     follow_count,
     website_url,
     followed,
   } = party;
-  const whole_representative_count = proportional_congressman_count + district_congressman_count;
-  const seatRatio = ((100 * whole_representative_count) / total_congressman_count).toFixed(2);
+  const partySeats = proportional_congressman_count + district_congressman_count + unclassified_congressman_count;
+  const seatRatio = total_congressman_count > 0 ? ((100 * partySeats) / total_congressman_count).toFixed(2) : null;
 
   return (
     <section className="flex flex-col items-center mx-5 xl:mx-0 mt-5 gap-7 xl:w-[320px]">
@@ -48,11 +49,12 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
 
         <div className="text-sm">
           <p>
-            의석수: {whole_representative_count}석 / {total_congressman_count}석{' '}
-            <span className="text-gray-2 dark:text-gray-3">{seatRatio}%</span>
+            의석수: {partySeats}석 / {total_congressman_count}석{' '}
+            {seatRatio !== null && <span className="text-gray-2 dark:text-gray-3">{seatRatio}%</span>}
           </p>
           <p>
             지역구 {district_congressman_count}석, 비례대표 {proportional_congressman_count}석
+            {unclassified_congressman_count > 0 && ` · 선출 구분 미확인 ${unclassified_congressman_count}석`}
           </p>
         </div>
       </Card>

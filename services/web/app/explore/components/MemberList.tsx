@@ -59,7 +59,7 @@ export default function MemberList() {
                   style={{ background: getPartyColor(member.party_name) }}>
                   {member.party_name}
                 </span>
-                <span className="text-gray-2">대표발의 {member.propose_count.toLocaleString()}건</span>
+                <span className="text-gray-2">22대 대표발의 {member.propose_count.toLocaleString()}건</span>
               </div>
             </div>
           </Link>

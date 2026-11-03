@@ -9,11 +9,13 @@ import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.service.StatisticsService;
 import com.everyones.lawmaking.service.BillService;
+import com.everyones.lawmaking.service.PartyService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** 격리된 로컬 MySQL DB에서 운영과 같은 ngram FULLTEXT 쿼리를 실행한다. */
 @DataJpaTest
+@Import(CongressmanRepositoryCustom.class)
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -39,6 +42,7 @@ class BillSearchMysqlTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PartyRepository parties;
     @Autowired private CongressmanRepository congressmen;
+    @Autowired private CongressmanRepositoryCustom rankings;
     @Autowired private StatisticsRepository statistics;
     @Autowired private BillTimelineRepository timelines;
     @Autowired private PlatformTransactionManager transactions;
@@ -67,6 +71,7 @@ class BillSearchMysqlTest {
                 """);
         jdbc.update("DELETE FROM BillSearchDocument");
         timelines.deleteAll();
+        jdbc.update("DELETE FROM RepresentativeProposer");
         repository.deleteAll();
         congressmen.deleteAll();
         parties.deleteAll();
@@ -183,6 +188,51 @@ class BillSearchMysqlTest {
             assertThat(timeline.getTreatmentCount()).isEqualTo(2);
             assertThat(stats.getResultBreakdown()).extracting(result -> result.getResult())
                     .containsExactlyInAnyOrder("원안가결", "결과 기록 없음", "결과 확인 필요");
+        });
+    }
+
+    @Test
+    void activeRosterDefinesSeatsAndCurrentReadyBillsDefineRankings() {
+        var independent = parties.saveAndFlush(Party.builder().name("무소속").districtCongressmanCount(12).build());
+        congressmen.saveAndFlush(Congressman.builder().id("reelected").name("가의원").state(true)
+                .assemblyNumber(21).party(independent).district("비례대표").build());
+        congressmen.saveAndFlush(Congressman.builder().id("zero").name("나의원").state(true)
+                .assemblyNumber(22).party(independent).build());
+        congressmen.saveAndFlush(Congressman.builder().id("inactive").name("다의원").state(false)
+                .assemblyNumber(22).party(independent).district("서울").build());
+        congressmen.saveAndFlush(Congressman.builder().id("unassigned").name("라의원").state(true)
+                .assemblyNumber(22).district("서울").build());
+        jdbc.update("UPDATE Bill SET assembly_number = 21 WHERE bill_id = 'body'");
+        jdbc.update("UPDATE Bill SET ingest_status = 'PENDING' WHERE bill_id = 'other'");
+        jdbc.update("""
+                INSERT INTO RepresentativeProposer (bill_id, congressman_id, party_id)
+                VALUES ('exact', 'reelected', ?), ('body', 'reelected', ?), ('other', 'reelected', ?)
+                """, independent.getId(), independent.getId(), independent.getId());
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var partyService = new PartyService(parties);
+            var detail = partyService.getPartyById(independent.getId());
+            var memberList = congressmen.findByPartyId(independent.getId()).getContent();
+            assertThat(detail.getTotalCongressmanCount()).isEqualTo(3);
+            assertThat(detail.getDistrictCongressmanCount()).isZero();
+            assertThat(detail.getProportionalCongressmanCount()).isEqualTo(1);
+            assertThat(detail.getUnclassifiedCongressmanCount()).isEqualTo(1);
+            assertThat(memberList).hasSize(2);
+            assertThat(partyService.getParliamentaryParty()).extracting(r -> r.getCongressmanCount())
+                    .containsExactly(2L, 1L);
+            assertThat(rankings.findCongressmanRanking(null, 0, 10)).satisfiesExactly(
+                    member -> {
+                        assertThat(member.getCongressmanId()).isEqualTo("reelected");
+                        assertThat(member.getProposeCount()).isEqualTo(1);
+                    },
+                    member -> {
+                        assertThat(member.getCongressmanId()).isEqualTo("zero");
+                        assertThat(member.getProposeCount()).isZero();
+                    },
+                    member -> {
+                        assertThat(member.getCongressmanId()).isEqualTo("unassigned");
+                        assertThat(member.getPartyId()).isZero();
+                    });
         });
     }
 

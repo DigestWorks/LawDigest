@@ -1,10 +1,10 @@
 package com.everyones.lawmaking.common.dto.response;
 
 import com.everyones.lawmaking.domain.entity.Party;
+import com.everyones.lawmaking.common.dto.PartySeatCount;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -25,6 +25,7 @@ public class PartyDetailResponse {
     private int proportionalCongressmanCount;
     @NotNull
     private int districtCongressmanCount;
+    private int unclassifiedCongressmanCount;
     @NotNull
     private int totalCongressmanCount;
     @NotNull
@@ -51,16 +52,17 @@ public class PartyDetailResponse {
     private String policyCommitteeChairman;
 
 
-    public static PartyDetailResponse from(Party party) {
+    public static PartyDetailResponse from(Party party, PartySeatCount seats, int totalSeats) {
         var partyFollow = party.getPartyFollow();
         return PartyDetailResponse.builder()
                 .partyId(party.getId())
                 .partyName(party.getName())
                 .partyImgUrl(party.getPartyImageUrl())
                 .websiteUrl(party.getWebsiteUrl())
-                .proportionalCongressmanCount(party.getProportionalCongressmanCount())
-                .districtCongressmanCount(party.getDistrictCongressmanCount())
-                .totalCongressmanCount(0)
+                .proportionalCongressmanCount(Math.toIntExact(seats.proportionalCount()))
+                .districtCongressmanCount(Math.toIntExact(seats.districtCount()))
+                .unclassifiedCongressmanCount(seats.unclassifiedCount())
+                .totalCongressmanCount(totalSeats)
                 .representativeBillCount(party.getRepresentativeBillCount())
                 .publicBillCount(party.getPublicBillCount())
                 .partyLeader(party.getPartyLeader())

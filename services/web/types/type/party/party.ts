@@ -5,6 +5,7 @@ export interface PartyDetailResponse {
   total_congressman_count: number;
   proportional_congressman_count: number;
   district_congressman_count: number;
+  unclassified_congressman_count?: number;
   representative_bill_count: number;
   public_bill_count: number;
   follow_count: number;
