@@ -18,12 +18,13 @@ export default function RagAnswer({ answer, turnId }: { answer: Answer; turnId: 
             {paragraph.source_keys.map((key) => {
               const source = answer.sources.find((item) => item.key === key);
               return source ? (
-                <a
+                <Link
                   key={key}
                   className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-                  href={`#source-${turnId}-${key}`}>
+                  href={`#source-${turnId}-${key}`}
+                  replace>
                   {key} · {source.bill_name}
-                </a>
+                </Link>
               ) : null;
             })}
           </div>
