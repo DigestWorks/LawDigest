@@ -28,6 +28,7 @@
 - 세 제공자의 운영 OAuth 시작 요청과 취소 응답 경로를 비인증 상태에서 대조했다. 취소 응답의 HTTP 302는 모두 운영 웹 콜백에 오류를 전달했다. Google 웹 콜백은 취소 안내 없이 로그인 화면으로 돌아갔다. 실제 제공자 인증과 취소는 별도 검증한다.
 - 인증 전 실패 콜백이 설정된 웹 출처만 사용하도록 4차 후보를 보완했다. 허용된 콜백과 기본 경로, 잘못된 출처와 URL 형식, 실제 Spring 콜백 경로를 검사했다.
 - 테스트 웹 로그인은 HTTP 502였고 테스트 프로필의 콜백 호스트는 DNS NXDOMAIN이었다. [테스트 로그인 복구 #164](https://github.com/DigestWorks/LawDigest/issues/164)
+- 서버에서 테스트 3020 리스너와 PM2 항목이 없고 기존 테스트 release 심링크가 남아 있었다. 운영·개발 웹의 로컬 로그인은 HTTP 200이었다. 원격 dev `887efce`로 문서의 테스트 배포 스크립트를 실행했고, App Router에 영향을 주는 구형 Next.js 14.0.2를 확인해 활성화 전에 중단했다. 공개 테스트 로그인은 여전히 502다. GitHub 비교에서 dev는 운영 main `dcb2ae2`의 조상이며 336커밋 차이다. [Next.js 보안 공지](https://nextjs.org/blog/security-update-2025-12-11) · [dev와 main 비교](https://github.com/DigestWorks/LawDigest/compare/dev...main)
 
 ## Blocker 16건
 
