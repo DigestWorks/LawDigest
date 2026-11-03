@@ -3,6 +3,7 @@ package com.everyones.lawmaking.common.dto.response;
 import com.everyones.lawmaking.common.dto.*;
 import com.everyones.lawmaking.common.dto.bill.BillDto;
 import com.everyones.lawmaking.common.dto.proposer.RepresentativeProposerDto;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,8 @@ import java.util.List;
 public class BillDetailResponse extends BillDto {
     private List<SimilarBill> similarBills;
     private long similarBillsCount;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long previousSimilarBillsCount;
     private VoteResultResponse voteResultResponse;
 
 
@@ -30,6 +33,10 @@ public class BillDetailResponse extends BillDto {
 
     public void setSimilarBillsCount(long count) {
         this.similarBillsCount = count;
+    }
+
+    public void setPreviousSimilarBillsCount(long count) {
+        this.previousSimilarBillsCount = count;
     }
 
     public void setVoteResultResponse(VoteResultResponse voteResultResponse) {

@@ -40,7 +40,7 @@ export function validPublicId(id: string) {
 
 export const getPublicBill = cache((id: string) => {
   if (!validPublicId(id)) notFound();
-  return fetchPublicDetail<BillResponse>(`/bill/detail/${encodeURIComponent(id)}`);
+  return fetchPublicDetail<BillResponse>(`/bill/detail/${encodeURIComponent(id)}?current_assembly=true`);
 });
 export const getPublicCongressman = cache((id: string) => {
   if (!validPublicId(id)) notFound();

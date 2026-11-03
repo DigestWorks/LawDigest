@@ -39,6 +39,7 @@ export interface BillResponse {
   }[];
   is_book_mark: boolean;
   similar_bills_count?: number;
+  previous_similar_bills_count?: number;
   similar_bills?: {
     billTitle: string | null;
     billId: string;

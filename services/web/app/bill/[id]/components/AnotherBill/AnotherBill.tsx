@@ -15,7 +15,9 @@ export default function AnotherBill({
   assemblyNumber,
   proposeDate,
   party,
-}: SimilarBill) {
+  previous,
+}: SimilarBill & { previous?: boolean }) {
+  const status = billResult?.trim() || (previous && billStage ? `마지막 단계 ${billStage}` : billStage);
   const proposers = billProposers
     ?.replace(/([가-힣])의원/g, '$1 의원')
     .replace(/의원\s*등\s*(\d+)\s*인/g, '의원 등 $1인');
@@ -26,9 +28,7 @@ export default function AnotherBill({
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
         <p className="text-sm font-semibold lg:text-base">{billHeadline(billName, billTitle)}</p>
         <p className="text-sm text-muted-foreground">
-          {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, billResult || billStage]
-            .filter(Boolean)
-            .join(' · ')}
+          {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, status].filter(Boolean).join(' · ')}
         </p>
         {proposers && <p className="text-xs text-muted-foreground">{proposers}</p>}
       </Link>

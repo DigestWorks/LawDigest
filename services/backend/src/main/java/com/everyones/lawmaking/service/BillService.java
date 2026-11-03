@@ -72,7 +72,7 @@ public class BillService {
                 .toList();
     }
 
-    public BillDetailResponse getBillWithDetail(String billId) {
+    public BillDetailResponse getBillWithDetail(String billId, boolean currentOnly) {
         var bill = billRepository.findBillById(billId)
                 .orElseThrow(() -> new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId)));
         if (bill.getIngestStatus() != IngestStatusType.READY) {
@@ -80,23 +80,29 @@ public class BillService {
         }
 
         var billDetailResponse = getBillDetailInfoFrom(bill);
-        var similarPage = billRepository.findSimilarBills(bill.getBillName(), bill.getId(),
-                PageRequest.of(0, 5));
+        int assembly = BillInfoConstant.getCurrentAssemblyNumber();
+        var similarPage = billRepository.findSimilarBills(bill.getBillName(), billId,
+                currentOnly ? Boolean.TRUE : null, assembly, PageRequest.of(0, 5));
         var similarBills = similarPage
                 .stream()
                 .map(SimilarBill::from)
                 .toList();
         billDetailResponse.setSimilarBills(similarBills);
         billDetailResponse.setSimilarBillsCount(similarPage.getTotalElements());
+        if (currentOnly) {
+            billDetailResponse.setPreviousSimilarBillsCount(
+                    billRepository.countSimilarBills(bill.getBillName(), billId, false, assembly));
+        }
         return billDetailResponse;
     }
 
     public SimilarBillListResponse getSimilarBills(
-            String billId, Pageable pageable) {
+            String billId, Boolean current, Pageable pageable) {
         var bill = billRepository.findBillById(billId)
                 .filter(item -> item.getIngestStatus() == IngestStatusType.READY)
                 .orElseThrow(() -> new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId)));
-        var page = billRepository.findSimilarBills(bill.getBillName(), billId, pageable);
+        var page = billRepository.findSimilarBills(bill.getBillName(), billId, current,
+                BillInfoConstant.getCurrentAssemblyNumber(), pageable);
         return new SimilarBillListResponse(
                 page.map(SimilarBill::from).getContent(), PaginationResponse.from(page), page.getTotalElements());
     }

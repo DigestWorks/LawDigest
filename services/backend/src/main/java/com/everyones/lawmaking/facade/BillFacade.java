@@ -32,8 +32,8 @@ public class BillFacade {
     private final VoteRecordService voteRecordService;
     private final VotePartyService votePartyService;
 
-    public BillDetailResponse getBillByBillId(String billId) {
-        var billDto =  billService.getBillWithDetail(billId);
+    public BillDetailResponse getBillByBillId(String billId, boolean currentOnly) {
+        var billDto = billService.getBillWithDetail(billId, currentOnly);
         var userId = AuthenticationUtil.getUserId();
         var voteRecord = voteRecordService.getVoteRecordByBillId(billId);
         var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
@@ -55,8 +55,8 @@ public class BillFacade {
 
     @Transactional(readOnly = true)
     public SimilarBillListResponse getSimilarBills(
-            String billId, Pageable pageable) {
-        return billService.getSimilarBills(billId, pageable);
+            String billId, Boolean current, Pageable pageable) {
+        return billService.getSimilarBills(billId, current, pageable);
     }
 
     public BillListResponse getBillsFromRepresentativeProposer(String congressmanId, Pageable pageable, String stage) {

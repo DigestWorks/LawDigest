@@ -156,8 +156,9 @@ public class BillController {
     @GetMapping("/detail/{bill_id}")
     public BaseResponse<BillDetailResponse> getBillWithDetail(
             @Parameter(example = "PRC_G2O3O1N2O1M1K1L5A0A8Z2Z2Y7W6X3")
-            @PathVariable("bill_id") String billId) {
-        var result = billFacade.getBillByBillId(billId);
+            @PathVariable("bill_id") String billId,
+            @RequestParam(name = "current_assembly", defaultValue = "false") boolean currentOnly) {
+        var result = billFacade.getBillByBillId(billId, currentOnly);
         return BaseResponse.ok(result);
     }
 
@@ -165,11 +166,12 @@ public class BillController {
     public BaseResponse<SimilarBillListResponse> getSimilarBills(
             @PathVariable("bill_id") String billId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(name = "current_assembly", required = false) Boolean current) {
         if (page < 0 || size < 1 || size > 50) {
             throw new RequestParameterException();
         }
-        return BaseResponse.ok(billFacade.getSimilarBills(billId, PageRequest.of(page, size)));
+        return BaseResponse.ok(billFacade.getSimilarBills(billId, current, PageRequest.of(page, size)));
     }
 
     @Operation(summary = "법안 조회수 증가", description = "법안 id로 조회수를 증가시킵니다.")

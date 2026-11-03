@@ -131,12 +131,20 @@ class BillSearchMysqlTest {
         String name = "의료법 일부개정법률안(대안)";
         insert("same-old", 4, name, "2024-01-01", name);
         insert("same-new", 5, name, "2026-08-01", name);
-        var first = repository.findSimilarBills(name, "exact", PageRequest.of(0, 1));
-        var last = repository.findSimilarBills(name, "exact", PageRequest.of(1, 1));
+        var first = repository.findSimilarBills(name, "exact", null, 22, PageRequest.of(0, 1));
+        var last = repository.findSimilarBills(name, "exact", null, 22, PageRequest.of(1, 1));
         assertThat(first.getContent()).extracting(Bill::getId).containsExactly("same-new");
         assertThat(first.getTotalElements()).isEqualTo(2);
         assertThat(last.getContent()).extracting(Bill::getId).containsExactly("same-old");
         assertThat(last.hasNext()).isFalse();
+
+        jdbc.update("UPDATE Bill SET assembly_number=21, bill_result='임기만료폐기' WHERE bill_id='same-old'");
+        var current = repository.findSimilarBills(name, "exact", true, 22, PageRequest.of(0, 1));
+        var previous = repository.findSimilarBills(name, "exact", false, 22, PageRequest.of(0, 1));
+        assertThat(current.getContent()).extracting(Bill::getId).containsExactly("same-new");
+        assertThat(current.getTotalElements()).isEqualTo(1);
+        assertThat(previous.getContent()).extracting(Bill::getBillResult).containsExactly("임기만료폐기");
+        assertThat(repository.countSimilarBills(name, "exact", false, 22)).isEqualTo(1);
     }
 
     @Test
