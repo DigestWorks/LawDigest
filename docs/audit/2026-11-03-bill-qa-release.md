@@ -95,3 +95,20 @@ Python AI 서비스가 임베딩·Qdrant 검색·읽기 전용 MySQL 대조·구
 - `.intent/intent_bill-qa-release.md`, `spec_bill-qa-release.md`, `plan_bill-qa-release.md`
 - [승인된 handoff](./2026-11-02-handoff.md), [1차 검증](./2026-11-03-ux-polish-round-one.md)
 - [OpenAI 구조화 출력](https://developers.openai.com/api/docs/guides/structured-outputs), [Qdrant 1.15 검색 API](https://api.qdrant.tech/v-1-15-x/api-reference/search/query-points)
+
+## 백필 이후 운영 원문 스냅샷 재검증
+
+`32bb81d`의 인덱스 CLI를 운영 읽기 전용 모드로 실행했다. 로컬 E5 토크나이저로 전체 청크를 계산하고 서버에 권한 600으로 스냅샷을 저장했다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 제21대 | 23,022건 · 최신 발의일 2024-05-29 |
+| 제22대 | 20,420건 · 최신 발의일 2026-11-02 |
+| 전체 원문·청크 | 43,442건 · 55,487개 |
+| 임베딩 | `intfloat/multilingual-e5-small:onnx-qint8@614241f622f53c4eeff9890bdc4f31cfecc418b3` · 384차원 |
+| 스냅샷 SHA-256 | `d5180c35df2e83eec98e7de35616085f0fe9ea6bd14de7ac933a052a191bb2d7` |
+| 신규 후보 | `lawdigest_rag_v1_e5_20261103_d5180c35` |
+
+- 이전 스냅샷 대비 제22대 원문 2,438건이 늘었다. 제외된 법안은 0건이고, 공통 법안의 ID·법안명·대수·발의일·원문은 모두 일치했다.
+- 서버의 `/tmp/lawdigest-rag-snapshot-refresh.fleA7c/ready-21-22.json` 파일 해시가 CLI 결과와 일치했다. Qdrant 루프백 읽기 전용 조회에서 후보 컬렉션과 `lawdigest_rag_active` 별칭은 모두 미등록이었다.
+- 이번 실행 범위는 운영 DB 조회, 로컬 청크 계산과 스냅샷 저장이다. 인덱스 적재, 활성 별칭 전환, 답변 생성은 각각 운영 검증이 남아 있다.
