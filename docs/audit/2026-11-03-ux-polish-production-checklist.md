@@ -22,10 +22,10 @@
 
 | 항목 | 운영 검증 상태 | 현재 근거 |
 | --- | --- | --- |
-| [FEED-01](2026-11-02-ux-polish-findings.md?plain=1#L283) 리포트 탭과 법안 탭이 같은 목록을 보여 준다 | 대기 |  |
+| [FEED-01](2026-11-02-ux-polish-findings.md?plain=1#L283) 리포트 탭과 법안 탭이 같은 목록을 보여 준다 | 운영 재현 | 리포트·법안 탭 로딩 후 첫 카드 3개의 상세 주소와 순서가 일치 |
 | [FEED-02](2026-11-02-ux-polish-findings.md?plain=1#L292) 피드 최신 법안이 4개월 전(2026-07-09)에 멈춰 있다 | 운영 재현 | 11월 3일 공개 피드 첫 3건 모두 2026-07-09 발의 |
 | [DETAIL-01](2026-11-02-ux-polish-findings.md?plain=1#L608) 심사 진행 단계가 체계자구 심사·정부이송·철회 법안에서 '위원회 심사'로 잘못 표시되고 단계명에 오타가 있음 | 대기 |  |
-| [TIMELINE-01](2026-11-02-ux-polish-findings.md?plain=1#L907) 타임라인 최신 날짜가 2026-03-27에 멈춰 있다 (단계 동기화 파이프라인 중단) | 대기 |  |
+| [TIMELINE-01](2026-11-02-ux-polish-findings.md?plain=1#L907) 타임라인 최신 날짜가 2026-03-27에 멈춰 있다 (단계 동기화 파이프라인 중단) | 운영 재현 | 화면 첫 날짜 3.27 금. API 첫 날짜 2026-03-27 |
 | [SEARCH-01](2026-11-02-ux-polish-findings.md?plain=1#L1451) 법안 검색 결과가 첫 5건에서 멈추고 더 불러오지 않음 | 대기 |  |
 | [SEARCH-02](2026-11-02-ux-polish-findings.md?plain=1#L1460) 1글자 검색어가 서버 500과 전체 페이지 오류로 이어짐 | 대기 |  |
 | [SEARCH-03](2026-11-02-ux-polish-findings.md?plain=1#L1469) 특수문자가 들어간 검색어가 FULLTEXT 문법 오류로 500 | 대기 |  |
@@ -49,14 +49,14 @@
 | [SHELL-04](2026-11-02-ux-polish-findings.md?plain=1#L38) 회원탈퇴 기능이 어떤 화면에서도 도달할 수 없다 | 대기 |  |
 | [SHELL-05](2026-11-02-ux-polish-findings.md?plain=1#L47) 푸터가 없어 서비스 소개, 데이터 출처, 문의, 이용약관, 개인정보처리방침에 접근할 수 없다 | 대기 |  |
 | [SHELL-07](2026-11-02-ux-polish-findings.md?plain=1#L56) 탐색 화면 아이콘 3개를 위해 4MB Material Symbols 폰트를 모든 페이지에서 render-blocking으로 불러온다 | 부분 확인 | 운영 탐색 HTML에서 전역 Material Symbols 스타일시트와 리가처 3개 확인 |
-| [SHELL-08](2026-11-02-ux-polish-findings.md?plain=1#L65) 페이지 제목에 '타임라인 페이지' 같은 잔재가 남아 있고 사이트 이름이 붙지 않으며 공유 미리보기가 모두 홈과 같다 | 대기 |  |
+| [SHELL-08](2026-11-02-ux-polish-findings.md?plain=1#L65) 페이지 제목에 '타임라인 페이지' 같은 잔재가 남아 있고 사이트 이름이 붙지 않으며 공유 미리보기가 모두 홈과 같다 | 운영 재현 | 탐색·타임라인 브라우저 제목에 페이지가 붙고 og:title·og:url은 홈 값. canonical 없음 |
 | [SHELL-09](2026-11-02-ux-polish-findings.md?plain=1#L74) 존재하지 않는 법안·의원·정당 URL이 404가 아니라 HTTP 200과 '페이지가 작동하지 않습니다' 오류 화면을 낸다 | 대기 |  |
 | [SHELL-10](2026-11-02-ux-polish-findings.md?plain=1#L83) 전역 loading 화면이 'AI 기반 입법정보 제공 플랫폼' 문구와 큰 로고로 모든 페이지 전환을 덮고 헤더 구성까지 바뀐다 | 대기 |  |
-| [SHELL-12](2026-11-02-ux-polish-findings.md?plain=1#L92) 모바일 플로팅 내비에 다크 모드 스타일이 없어 어두운 화면 위에 밝은 유리판이 뜬다 | 대기 |  |
-| [SHELL-13](2026-11-02-ux-polish-findings.md?plain=1#L101) 모바일 플로팅 내비 최소 폭이 374px이라 360~390px 기기에서 좌우 여백이 사라지고 360px에서는 잘린다 | 대기 |  |
+| [SHELL-12](2026-11-02-ux-polish-findings.md?plain=1#L92) 모바일 플로팅 내비에 다크 모드 스타일이 없어 어두운 화면 위에 밝은 유리판이 뜬다 | 운영 재현 | 다크 모드 360px에서 하단 내비 배경 rgba(255,255,255,0.42) |
+| [SHELL-13](2026-11-02-ux-polish-findings.md?plain=1#L101) 모바일 플로팅 내비 최소 폭이 374px이라 360~390px 기기에서 좌우 여백이 사라지고 360px에서는 잘린다 | 운영 재현 | 360px에서 하단 내비 왼쪽 -7px, 검색 버튼 오른쪽 367px |
 | [SHELL-15](2026-11-02-ux-polish-findings.md?plain=1#L110) 아이콘 전용 컨트롤에 접근 가능한 이름이 없고 일부는 href="#" 링크로 구현돼 있으며 포커스 표시가 제거돼 있다 | 대기 |  |
 | [SHELL-16](2026-11-02-ux-polish-findings.md?plain=1#L119) robots.txt와 sitemap.xml이 없다 | 운영 재현 | 11월 3일 운영 웹 robots.txt와 sitemap.xml 모두 HTTP 404 |
-| [FEED-03](2026-11-02-ux-polish-findings.md?plain=1#L300) 피드에 데이터 최신성 표시가 없고 날짜가 원시 ISO 형식이다 | 대기 |  |
+| [FEED-03](2026-11-02-ux-polish-findings.md?plain=1#L300) 피드에 데이터 최신성 표시가 없고 날짜가 원시 ISO 형식이다 | 운영 재현 | 피드 상단에 최신 발의일 없음. 첫 카드 날짜가 2026-07-09로 표시됨 |
 | [FEED-04](2026-11-02-ux-polish-findings.md?plain=1#L309) 하이드레이션 직후 목록을 비우고 다시 불러와 빈 화면과 스피너가 뜬다 | 대기 |  |
 | [FEED-05](2026-11-02-ux-polish-findings.md?plain=1#L318) 서버 prefetch 결과를 dehydrate 하지 않아 요청이 중복된다 | 대기 |  |
 | [FEED-06](2026-11-02-ux-polish-findings.md?plain=1#L327) 법안 상세에서 뒤로 오면 탭·정렬·필터·스크롤 위치가 모두 초기화된다 | 대기 |  |
@@ -84,7 +84,7 @@
 | [DETAIL-11](2026-11-02-ux-polish-findings.md?plain=1#L698) 상세로 이동할 때마다 전체 화면 로고 스플래시와 'AI 기반 입법정보 제공 플랫폼' 문구가 뜸 | 대기 |  |
 | [DETAIL-13](2026-11-02-ux-polish-findings.md?plain=1#L707) 단계별 날짜·소관위원회·의안번호·데이터 기준일이 없어 정보의 최신성을 판단할 수 없음 | 대기 |  |
 | [DETAIL-14](2026-11-02-ux-polish-findings.md?plain=1#L716) 보조 텍스트·미래 단계·단계 번호의 명도 대비가 WCAG AA에 크게 못 미침 | 대기 |  |
-| [TIMELINE-02](2026-11-02-ux-polish-findings.md?plain=1#L916) 날짜 제목에 연도와 데이터 기준일이 없어 오래된 데이터인지 알 수 없다 | 대기 |  |
+| [TIMELINE-02](2026-11-02-ux-polish-findings.md?plain=1#L916) 날짜 제목에 연도와 데이터 기준일이 없어 오래된 데이터인지 알 수 없다 | 운영 재현 | 첫 날짜 제목이 3.27 금으로 표시되고 연도 및 수집 기준일이 표시되지 않음 |
 | [TIMELINE-03](2026-11-02-ux-polish-findings.md?plain=1#L925) 본회의 심사 항목 960건 전부가 '투표 정보가 없습니다'로 표시된다 | 대기 |  |
 | [TIMELINE-04](2026-11-02-ux-polish-findings.md?plain=1#L934) '처리법안 17,481'은 처리된 법안이 아니라 위원회 회부 이상 단계의 법안 수다 | 대기 |  |
 | [TIMELINE-05](2026-11-02-ux-polish-findings.md?plain=1#L943) '가결법안' 수치가 화면마다 다르다 (896 / 828 / 858) | 대기 |  |
@@ -159,5 +159,5 @@
 | [JOURNEY-01](2026-11-02-ux-polish-findings.md?plain=1#L2820) 모바일 플로팅 내비(z-70)가 모달, 검색 모달, 스낵바, 맨 위로 버튼 위에 그려진다 | 대기 |  |
 | [JOURNEY-02](2026-11-02-ux-polish-findings.md?plain=1#L2828) 토큰 재발급 API가 실패해도 200 'success'를 돌려줘서 세션 만료를 클라이언트가 알 수 없다 | 대기 |  |
 | [JOURNEY-03](2026-11-02-ux-polish-findings.md?plain=1#L2836) 비로그인·라이트 테마 첫 방문에서도 모든 페이지가 hydration 오류(React #418)를 낸다 | 대기 |  |
-| [JOURNEY-04](2026-11-02-ux-polish-findings.md?plain=1#L2844) 카카오톡 링크 스크래퍼에는 og 메타가 </html> 뒤에 붙어 내려간다(Next.js streaming metadata) | 대기 |  |
+| [JOURNEY-04](2026-11-02-ux-polish-findings.md?plain=1#L2844) 카카오톡 링크 스크래퍼에는 og 메타가 </html> 뒤에 붙어 내려간다(Next.js streaming metadata) | 부분 확인 | 정당 표본의 Kakao UA 응답은 og:title이 head 밖, Facebook UA는 head 안. 실제 공유 미리보기 대기 |
 | [JOURNEY-05](2026-11-02-ux-polish-findings.md?plain=1#L2852) API JSON 응답이 압축되지 않고 피드 카드마다 원문 제안이유와 공동발의자 전체 목록을 보낸다 | 운영 재현 | 11월 3일 공개 API 피드 3건 38,150바이트. gzip 요청에도 Content-Encoding 없음 |
