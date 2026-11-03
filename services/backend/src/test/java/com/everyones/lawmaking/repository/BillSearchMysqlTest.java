@@ -1,10 +1,13 @@
 package com.everyones.lawmaking.repository;
 
+import com.everyones.lawmaking.common.dto.BillDetailInfo;
 import com.everyones.lawmaking.domain.entity.Bill;
+import com.everyones.lawmaking.domain.entity.BillTimeline;
 import com.everyones.lawmaking.domain.entity.IngestStatusType;
 import com.everyones.lawmaking.domain.entity.Party;
 import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.global.util.SearchQuery;
+import com.everyones.lawmaking.service.StatisticsService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +38,9 @@ class BillSearchMysqlTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PartyRepository parties;
     @Autowired private CongressmanRepository congressmen;
+    @Autowired private StatisticsRepository statistics;
+    @Autowired private BillTimelineRepository timelines;
+    @Autowired private PlatformTransactionManager transactions;
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry properties) {
@@ -57,6 +65,7 @@ class BillSearchMysqlTest {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """);
         jdbc.update("DELETE FROM BillSearchDocument");
+        timelines.deleteAll();
         repository.deleteAll();
         congressmen.deleteAll();
         parties.deleteAll();
@@ -133,6 +142,35 @@ class BillSearchMysqlTest {
                 .extracting(Party::getName).containsExactly("기호%정당");
         assertThat(congressmen.findBySearchWord(SearchQuery.escapeLike("_")).getContent())
                 .extracting(Congressman::getName).containsExactly("김_민");
+    }
+
+    @Test
+    void freshnessIncludesUnsummarizedReadyBillsAndKeepsTimelineDateSeparate() {
+        repository.saveAndFlush(Bill.builder().id("raw-new").billNumber(10).assemblyNumber(22)
+                .billName("원문만 수집된 법안").summary("제안 이유와 주요 내용").gptSummary("   ")
+                .proposeDate(LocalDate.of(2026, 11, 3)).ingestStatus(IngestStatusType.READY).build());
+        repository.saveAndFlush(Bill.builder().id("pending-new").billNumber(11).assemblyNumber(22)
+                .billName("검토 중인 법안").proposeDate(LocalDate.of(2026, 11, 4))
+                .ingestStatus(IngestStatusType.PENDING).build());
+        repository.saveAndFlush(Bill.builder().id("old-assembly").billNumber(12).assemblyNumber(21)
+                .billName("이전 대수 법안").proposeDate(LocalDate.of(2026, 11, 5))
+                .ingestStatus(IngestStatusType.READY).build());
+        jdbc.update("UPDATE Bill SET gpt_summary = ? WHERE bill_id = ?", "기존 AI 요약", "exact");
+        timelines.saveAndFlush(BillTimeline.builder().bill(repository.findById("exact").orElseThrow()).billTimelineStage("위원회 심사")
+                .statusUpdateDate(LocalDate.of(2026, 3, 27)).build());
+
+        var result = new StatisticsService(statistics, timelines).getFreshness();
+        assertThat(result.assemblyNumber()).isEqualTo(22);
+        assertThat(result.latestProposalDate()).isEqualTo(LocalDate.of(2026, 11, 3));
+        assertThat(result.latestTimelineDate()).isEqualTo(LocalDate.of(2026, 3, 27));
+        assertThat(result.readyBillCount()).isEqualTo(4);
+        assertThat(result.pendingSummaryCount()).isEqualTo(3);
+
+        var detail = new TransactionTemplate(transactions).execute(status ->
+                BillDetailInfo.from(repository.findById("exact").orElseThrow()));
+        assertThat(detail.getBillNumber()).isEqualTo(1);
+        assertThat(detail.getStageDates()).containsExactly(
+                new BillDetailInfo.StageDate("위원회 심사", LocalDate.of(2026, 3, 27)));
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {

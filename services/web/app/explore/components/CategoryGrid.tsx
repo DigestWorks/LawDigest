@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { motion } from 'framer-motion';
 import { getCategoryMeta } from '@/config/categories';
 import { useGetCategoryCounts } from '../apis';
@@ -10,13 +12,24 @@ interface CategoryGridProps {
 }
 
 export default function CategoryGrid({ selected, onSelect }: CategoryGridProps) {
-  const { data, isLoading } = useGetCategoryCounts();
+  const query = useGetCategoryCounts();
+  const { data, isLoading } = query;
   const counts = (data?.data ?? []).filter((c) => c.category && c.category !== 'unknown');
 
   if (isLoading) {
     return <div className="py-10 text-center text-[14px] text-gray-2">분야를 불러오는 중…</div>;
   }
 
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="분야 목록을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (counts.length === 0) return <SectionEmpty>등록된 분야가 없습니다.</SectionEmpty>;
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {counts.map(({ category, count }) => {

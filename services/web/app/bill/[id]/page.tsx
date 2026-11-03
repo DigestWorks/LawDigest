@@ -1,9 +1,9 @@
 import { Metadata } from 'next';
 import { SubHeader } from '@/components';
-import getQueryClient from '@/lib/getQueryClient';
+import { getPublicBill } from '@/lib/publicDetail';
 import { getMetadata } from '@/utils';
 import { BillDetail } from './components';
-import { useGetBillDetail, usePatchViewCount } from './apis';
+import { usePatchViewCount } from './apis';
 
 type BillDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -11,12 +11,10 @@ type BillDetailPageProps = {
 
 export const generateMetadata = async ({ params }: BillDetailPageProps): Promise<Metadata> => {
   const { id } = await params;
-  const queryClient = getQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data } = await useGetBillDetail(id, queryClient);
+  const { data } = await getPublicBill(id);
 
   return getMetadata({
-    title: data.bill_info_dto.title,
+    title: data.bill_info_dto.title?.trim() || data.bill_info_dto.bill_name,
     description: `${data.bill_info_dto.propose_date} 발의, 처리 상태: ${data.bill_info_dto.bill_result || data.bill_info_dto.bill_stage}, '${data.bill_info_dto.bill_name}' 관련 발의안`,
     asPath: `/bill/${id}`,
   });
@@ -24,9 +22,7 @@ export const generateMetadata = async ({ params }: BillDetailPageProps): Promise
 
 export default async function BillDetailPage({ params }: BillDetailPageProps) {
   const { id } = await params;
-  const queryClient = getQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data } = await useGetBillDetail(id, queryClient);
+  const { data } = await getPublicBill(id);
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const viewCount = await usePatchViewCount(id)
     .then((res) => res.data.view_count)

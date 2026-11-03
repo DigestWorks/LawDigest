@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,13 +13,24 @@ import { useGetParliamentaryParties } from '../apis';
 export default function PartyList() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { data, isLoading } = useGetParliamentaryParties();
+  const query = useGetParliamentaryParties();
+  const { data, isLoading } = query;
   const parties = [...(data?.data ?? [])].sort((a, b) => b.congressman_count - a.congressman_count);
 
   if (isLoading) {
     return <div className="py-10 text-center text-[14px] text-gray-2">정당을 불러오는 중…</div>;
   }
 
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="원내 정당을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (!parties.length) return <SectionEmpty>등록된 원내 정당이 없습니다.</SectionEmpty>;
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
       {parties.map((party) => (

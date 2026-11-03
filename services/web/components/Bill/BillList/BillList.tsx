@@ -25,7 +25,7 @@ export default function BillList({
   const uniqueBills = filterUniqueBills(bills);
 
   return (
-    <section className="xl:w-[840px] pb-28">
+    <section className="max-w-full xl:w-[840px] pb-28">
       {uniqueBills.map((bill) => (
         <Bill key={bill.bill_info_dto.bill_id} {...bill} detail={detail} />
       ))}

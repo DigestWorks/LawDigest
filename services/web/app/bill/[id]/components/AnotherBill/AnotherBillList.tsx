@@ -18,7 +18,7 @@ export default function AnotherBillList({ bill_info_dto, similar_bills = [], sim
       pageParams: [0],
       pages: [
         {
-          code: '200',
+          code: 200,
           message: '',
           data: {
             bill_list: similar_bills.slice(0, 5),

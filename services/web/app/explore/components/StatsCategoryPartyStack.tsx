@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { getCategoryMeta } from '@/config/categories';
@@ -23,7 +25,8 @@ const ETC_COLOR = '#999999';
 
 /** 분야×정당 구성 — 상위 분야별로 정당 스택 세로 막대. */
 export default function StatsCategoryPartyStack() {
-  const { data, isError, isLoading } = useGetStatisticsCategoryParty();
+  const query = useGetStatisticsCategoryParty();
+  const { data, isLoading } = query;
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const cells = useMemo(() => data?.data ?? [], [data]);
 
@@ -77,7 +80,16 @@ export default function StatsCategoryPartyStack() {
   }
 
   // 신규 API 미배포 환경에서는 카드 자체를 숨긴다.
-  if (isError || rows.length === 0) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="분야별 정당 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (rows.length === 0) return <SectionEmpty>분야별 정당 통계가 없습니다.</SectionEmpty>;
 
   const stackKeys = [...parties, ETC_KEY];
   const chartConfig = stackKeys.reduce<Record<string, { label: string; color: string }>>((acc, key) => {

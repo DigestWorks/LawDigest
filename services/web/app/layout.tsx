@@ -8,6 +8,7 @@ import { QueryClientProvider, HeroUIProvider, NextThemesProvider, StateProvider 
 import { GoToTopButton, Snackbar } from '@/components';
 import SearchModal from '@/components/common/SearchBar/SearchModal';
 import Nav from '@/components/Layout/Nav/Nav';
+import SiteFooter from '@/components/Layout/SiteFooter';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -90,6 +91,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
                     <Snackbar />
                     <GoToTopButton />
                   </main>
+                  <SiteFooter />
                   {/* Nav는 모든 페이지 전환에서 유지되도록 루트 레이아웃에 배치 */}
                   <Nav />
                 </div>

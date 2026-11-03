@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, Cell, XAxis, YAxis } from 'recharts';
 import { getPartyColor } from '@/constants/party';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -53,7 +55,19 @@ export default function StatsPartyPerformance() {
     );
   }
 
-  if (rows.length === 0) return null;
+  if (!rows.length && (performance.isError || fallback.isError)) {
+    return (
+      <SectionError
+        message="정당별 발의·가결 통계를 불러오지 못했습니다."
+        pending={performance.isFetching || fallback.isFetching}
+        onRetry={() => {
+          if (performance.isError) void performance.refetch();
+          if (fallback.isError) void fallback.refetch();
+        }}
+      />
+    );
+  }
+  if (!rows.length) return <SectionEmpty>정당별 통계가 없습니다.</SectionEmpty>;
 
   return (
     <StatsCard

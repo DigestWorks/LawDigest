@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 public class BillInfoDto {
 
     private String billId;
+    private int billNumber;
     private String billName;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd", timezone = "Asia/Seoul")
     private LocalDate proposeDate;
@@ -36,6 +37,7 @@ public class BillInfoDto {
     @QueryProjection
     public BillInfoDto(Bill bill) {
         this.billId = bill.getId();
+        this.billNumber = bill.getBillNumber();
         this.billName = bill.getBillName();
         this.proposeDate = bill.getProposeDate();
         this.summary = bill.getSummary();
@@ -55,6 +57,7 @@ public class BillInfoDto {
         var billLikeCount = bill.getBillLike().size();
         return BillInfoDto.builder()
                 .billId(bill.getId())
+                .billNumber(bill.getBillNumber())
                 .billName(bill.getBillName())
                 .proposeDate(bill.getProposeDate())
                 .summary(bill.getSummary())

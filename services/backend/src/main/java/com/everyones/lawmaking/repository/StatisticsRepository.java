@@ -1,6 +1,7 @@
 package com.everyones.lawmaking.repository;
 
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
+import com.everyones.lawmaking.common.dto.BillFreshnessStatsDto;
 import com.everyones.lawmaking.common.dto.CategoryPartyCountDto;
 import com.everyones.lawmaking.common.dto.CommitteeCountDto;
 import com.everyones.lawmaking.common.dto.PartyBillCountDto;
@@ -18,6 +19,16 @@ import java.util.List;
 
 @Repository
 public interface StatisticsRepository extends JpaRepository<Bill, String> {
+
+    @Query("""
+            SELECT new com.everyones.lawmaking.common.dto.BillFreshnessStatsDto(
+                MAX(b.proposeDate), COUNT(b),
+                SUM(CASE WHEN b.gptSummary IS NULL OR TRIM(b.gptSummary) = '' THEN 1 ELSE 0 END))
+            FROM Bill b
+            WHERE b.assemblyNumber = :assembly
+              AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY
+            """)
+    BillFreshnessStatsDto findBillFreshness(@Param("assembly") int assembly);
 
     @Query("SELECT new com.everyones.lawmaking.common.dto.StatisticsOverviewDto(" +
             "COUNT(b), " +

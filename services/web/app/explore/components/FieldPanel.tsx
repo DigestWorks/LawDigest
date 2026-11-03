@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { useState } from 'react';
 import { getCategoryMeta } from '@/config/categories';
 import TrendingKeywords from './TrendingKeywords';
 import CategoryGrid from './CategoryGrid';
@@ -28,9 +28,7 @@ export default function FieldPanel() {
               {getCategoryMeta(selected).label} 분야 법안
             </h2>
           </div>
-          <Suspense fallback={<div className="py-10 text-center text-[14px] text-gray-2">법안을 불러오는 중…</div>}>
-            <CategoryBills key={selected} category={selected} />
-          </Suspense>
+          <CategoryBills key={selected} category={selected} />
         </section>
       )}
     </div>

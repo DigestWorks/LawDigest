@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -33,7 +35,8 @@ const dotTransition = (index: number) => ({
 export default function SeatDistribution() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { data } = useGetParliamentaryParties();
+  const partiesQuery = useGetParliamentaryParties();
+  const { data } = partiesQuery;
   const { data: billStats } = useGetStatisticsByParty();
 
   const parties = useMemo(
@@ -96,7 +99,23 @@ export default function SeatDistribution() {
     return { positions, r };
   }, [seats, total]);
 
-  if (total === 0) return null;
+  if (partiesQuery.isPending) {
+    return (
+      <p role="status" className="py-4 text-sm text-muted-foreground">
+        의석 분포 불러오는 중…
+      </p>
+    );
+  }
+  if (partiesQuery.isError && !data) {
+    return (
+      <SectionError
+        message="의석 분포를 불러오지 못했습니다."
+        pending={partiesQuery.isFetching}
+        onRetry={() => void partiesQuery.refetch()}
+      />
+    );
+  }
+  if (total === 0) return <SectionEmpty>의석 분포 자료가 없습니다.</SectionEmpty>;
 
   const hemiR = Math.max(1, Math.min(1.9, OUTER_R * rowGap * 0.4));
   const isFocused = focusedId != null;

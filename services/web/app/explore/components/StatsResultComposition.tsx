@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsResultBreakdown } from '../apis';
@@ -24,7 +26,8 @@ const EXTRA_PALETTE = ['#99999980', '#55555580', '#96BCFA80', '#E0E0E080'];
 
 /** 처리 결과 구성 — 100% 스택 단일 막대 + 범례. */
 export default function StatsResultComposition() {
-  const { data, isError, isLoading } = useGetStatisticsResultBreakdown();
+  const query = useGetStatisticsResultBreakdown();
+  const { data, isLoading } = query;
   const rows = data?.data ?? [];
 
   if (isLoading) {
@@ -41,7 +44,16 @@ export default function StatsResultComposition() {
   }
 
   // 신규 API 미배포 환경에서는 카드 자체를 숨긴다.
-  if (isError || rows.length === 0) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="처리 결과 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (rows.length === 0) return <SectionEmpty>처리 결과 통계가 없습니다.</SectionEmpty>;
 
   const total = rows.reduce((sum, r) => sum + r.count, 0) || 1;
   const unknownResults = rows.filter((r) => !RESULT_COLORS[r.result]).map((r) => r.result);
