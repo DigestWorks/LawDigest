@@ -184,6 +184,10 @@ Markdown의 두 번째 수준 헤딩은 한 번씩만 쓴다. 표준 헤딩은 �
 
 2026-11-03 운영 읽기 전용 조사에서 제22대 공개 AI 요약 17,750건 중 66건에 중복 섹션이 있었고, 제21대 23,022건에서는 발견하지 못했다. 66건 모두 중복 섹션에 서로 다른 내용이 있다. 재생성 전 원본 SHA-256을 확인할 대상 목록은 서버 `/tmp/lawdigest-category-audit.owgotyCy/duplicate-summary-audit.json`에 있다. 목록 SHA-256은 `2ccdd78d16786bcaca6c1aa723914fa0c790594afc3198b42c3c6478278846bc`이다. 재생성된 산출물을 검증한 뒤 운영 저장은 별도 승인으로 실행한다.
 
+2026-11-03에 66건의 의안 번호·원문과 저장 요약 해시를 읽기 전용으로 다시 확인했다. 재생성 입력은 서버 `/tmp/lawdigest-category-audit.owgotyCy/summary-regeneration/review-inputs-66.json`에 모드 0600으로 보관했다. SHA-256은 `ec4146a478ae4e4c716be4bb413f504b7dc0ee7796e771f70203b8190a6cf64e`이다.
+
+운영 계정의 기본 PATH에는 Codex가 없다. `/home/ubuntu/.nvm/versions/node/v24.13.1/bin/codex`에서 CLI 0.147.0을 확인했다. 격리 작업 경로에서 기존 설정 모델 `gpt-5.4-mini`로 대표 법안 1건을 시도했으나 서버의 ChatGPT 인증이 만료되어 HTTP 401을 받았다. 원본 요약은 그대로 있다. 관리자 인증이 복구되면 먼저 대표 법안 1건을 다시 생성하고 원문 대조와 섹션 검증을 마친 뒤 66건 처리로 이어간다. [OpenAI Docs의 서버 로그인 절차](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
+
 ### 배치 실패 자동 재시도
 
 배치 세션에서 실패한 항목만 새 단건 Codex 세션에서 다시 실행한다. 정상 항목은 건드리지 않는다. 기본값은 1회다.
