@@ -13,6 +13,16 @@ Lawdigest의 AI 가공 파이프라인 코드다. 법안 요약, provider batch 
 | `src/lawdigest_ai/rag/` | RAG 챗봇과 벡터 검색 |
 | `tests/` | AI 서비스 단위 테스트 |
 
+## 법안 질의응답
+
+`rag/api.py`의 내부 FastAPI와 웹 `/ask`를 연결한다. 답변 문단의 출처 ID를 검사하고, 검색된 원문을 현재 DB와 대조한다. 근거가 없으면 생성 호출을 건너뛰고 자료 부족 상태를 반환한다. 모델 오류와 불완전한 답변은 오류 상태로 전달한다.
+
+Python 3.12 이상의 전용 HTTP 환경은 `requirements-rag.txt`, 패키지 추가 의존성은 `pip install '.[rag]'`를 사용한다. 기본 임베딩은 서버 CPU에서 실행하는 384차원 E5-small이며, 답변 생성은 별도 모델을 사용한다. [운영 배포·모델 준비·인덱스 승인·복구 절차](../../deploy/PROD_RAG_DEPLOY.md)를 따른다. API·화면 코드의 구현과 운영 출시 확인은 별도로 기록한다. 과거 `tools/update_vector_db.py`의 실험 기본값은 출시 인덱스에 사용하지 않는다.
+
+```bash
+PYTHONPATH=services/ai/src:services/ai pytest services/ai/tests/rag -q
+```
+
 ## 에이전트 기반 법안 리포트
 
 자세한 운영 문서는 아래를 기준으로 본다.
