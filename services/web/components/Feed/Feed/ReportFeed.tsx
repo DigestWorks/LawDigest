@@ -47,7 +47,7 @@ export default function ReportFeed({ scrollKey }: { scrollKey: string }) {
               href={`/report/${encodeURIComponent(report.bill_id)}`}
               className="block space-y-2 rounded-lg border bg-background p-4 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
               <p className="text-sm text-muted-foreground">{reportDateLabel(report.published_at)}</p>
-              <h3 className="text-lg font-semibold">{report.title}</h3>
+              <h2 className="text-lg font-semibold">{report.title}</h2>
               <p className="text-sm text-muted-foreground">{report.bill_name}</p>
             </Link>
           </li>
