@@ -28,17 +28,15 @@ export default function CategoryGrid() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {counts.map(({ category, count }) => {
-        const meta = getCategoryMeta(category);
+        const { icon: Icon, label, color } = getCategoryMeta(category);
         return (
           <Link
             key={category}
             href={`/explore/category/${category}`}
             prefetch={false}
             className="flex min-w-0 flex-col items-start gap-2 rounded-2xl border bg-background p-4 text-left shadow-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-            <span aria-hidden="true" className="material-symbols-outlined text-[26px]" style={{ color: meta.color }}>
-              {meta.icon}
-            </span>
-            <span className="break-words text-[15px] font-bold">{meta.label}</span>
+            <Icon aria-hidden="true" className="size-[26px]" style={{ color }} />
+            <span className="break-words text-[15px] font-bold">{label}</span>
             <span className="text-[13px] text-muted-foreground">관련 법안 {count.toLocaleString()}건</span>
           </Link>
         );

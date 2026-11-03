@@ -467,14 +467,15 @@ export default function Bill({
                     <span>{view_count}</span>
                   </div>
                   <Tooltip content="링크 복사하기" className="dark:text-white">
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      className="bg-transparent"
+                    <ActionButton
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9"
                       aria-label="법안 링크 복사"
                       onClick={handleCopyClipBoard}>
                       <IconExport />
-                    </Button>
+                    </ActionButton>
                   </Tooltip>
                 </div>
 
@@ -507,14 +508,15 @@ export default function Bill({
                   </div>
                 </div>
                 <Tooltip content="링크 복사하기">
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    className="bg-transparent"
+                  <ActionButton
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-9"
                     aria-label="법안 링크 복사"
                     onClick={handleCopyClipBoard}>
                     <IconExport />
-                  </Button>
+                  </ActionButton>
                 </Tooltip>
               </CardFooter>
             )}

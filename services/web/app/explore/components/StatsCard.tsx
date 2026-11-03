@@ -1,5 +1,6 @@
 'use client';
 
+import { type LucideIcon } from 'lucide-react';
 import { ReactNode } from 'react';
 import clsx from 'clsx';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -7,14 +8,14 @@ import { motion, useReducedMotion } from 'framer-motion';
 interface StatsCardProps {
   title: string;
   subtitle?: ReactNode;
-  icon?: string;
+  icon?: LucideIcon;
   delay?: number;
   className?: string;
   children: ReactNode;
 }
 
 /** 통계 카드 공용 셸 — 뷰포트 진입 시 fade-up 등장(reduced-motion 존중). */
-export default function StatsCard({ title, subtitle, icon, delay = 0, className, children }: StatsCardProps) {
+export default function StatsCard({ title, subtitle, icon: Icon, delay = 0, className, children }: StatsCardProps) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -29,7 +30,7 @@ export default function StatsCard({ title, subtitle, icon, delay = 0, className,
       )}>
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-[14px] font-bold text-primary-3 dark:text-gray-0.5">
-          {icon && <span className="material-symbols-outlined text-[17px] text-gray-2">{icon}</span>}
+          {Icon && <Icon aria-hidden="true" className="size-[17px] shrink-0 text-muted-foreground" />}
           {title}
         </h2>
         {subtitle && <span className="shrink-0 text-[12px] text-gray-2">{subtitle}</span>}

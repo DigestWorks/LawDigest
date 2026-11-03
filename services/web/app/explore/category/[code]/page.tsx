@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function CategoryPage({ params }: Props) {
   const { code } = await params;
   if (!isCategoryCode(code)) notFound();
-  const meta = getCategoryMeta(code);
+  const { icon: Icon, color, label } = getCategoryMeta(code);
   return (
     <section className="mx-auto min-w-0 w-full max-w-[900px] space-y-4 px-5 py-6" aria-labelledby="category-heading">
       <Button asChild variant="outline">
@@ -30,10 +30,8 @@ export default async function CategoryPage({ params }: Props) {
       </Button>
       <header className="space-y-2">
         <h1 id="category-heading" className="flex items-center gap-2 text-2xl font-bold">
-          <span aria-hidden="true" className="material-symbols-outlined" style={{ color: meta.color }}>
-            {meta.icon}
-          </span>
-          {meta.label} 분야 법안
+          <Icon aria-hidden="true" className="size-6 shrink-0" style={{ color }} />
+          {label} 분야 법안
         </h1>
         <DataFreshnessNote />
       </header>

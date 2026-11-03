@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useMemo, useRef, useState } from 'react';
@@ -211,7 +212,7 @@ export default function SeatDistribution() {
                   onClick={() => setFocusedId(null)}
                   aria-label="정당 포커스 해제"
                   className="absolute right-0 top-0 grid h-7 w-7 place-items-center rounded-full text-gray-2 hover:bg-gray-0.5 dark:hover:bg-dark-l">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+                  <X aria-hidden="true" className="size-[18px]" />
                 </button>
 
                 <div className="flex items-center justify-between gap-2 pr-8">

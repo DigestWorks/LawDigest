@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { getDateStatus } from '@/utils';
 import { Divider, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { IconKebab } from '@/public/svgs';
@@ -16,48 +16,6 @@ import {
 } from '../apis';
 import NotificationItem from './NotificationItem';
 
-const initialData = [
-  [
-    {
-      title: '',
-      notification_id: 0,
-      content: '',
-      target: '',
-      type: '',
-      extra: '',
-      created_date: '',
-      notification_image_url_list: [''],
-      read: false,
-    },
-  ],
-  [
-    {
-      title: '',
-      notification_id: 0,
-      content: '',
-      target: '',
-      type: '',
-      extra: '',
-      created_date: '',
-      notification_image_url_list: [''],
-      read: false,
-    },
-  ],
-  [
-    {
-      title: '',
-      notification_id: 0,
-      content: '',
-      target: '',
-      type: '',
-      extra: '',
-      created_date: '',
-      notification_image_url_list: [''],
-      read: false,
-    },
-  ],
-];
-
 export default function NotificationList() {
   const { data: notificationCount } = useGetNotificationCount();
   const { data: notifications } = useGetNotification();
@@ -66,33 +24,9 @@ export default function NotificationList() {
   const mutateDelete = useDeleteNotification();
   const mutateReadAll = usePutNotificationReadAll();
   const mutateDeleteAll = useDeleteNotificationAll();
-  const [listByDateStatus, setListByDateStatus] = useState(() =>
-    notifications
-      ? Array.from(Array(3), (v, i) =>
-          // eslint-disable-next-line no-nested-ternary
-          i === 0
-            ? notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 한 주')
-            : i === 1
-              ? notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 한 달')
-              : notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 알림'),
-        )
-      : initialData,
+  const listByDateStatus = ['지난 한 주', '지난 한 달', '지난 알림'].map(
+    (status) => notifications?.filter(({ created_date }) => getDateStatus(created_date) === status) ?? [],
   );
-
-  useEffect(() => {
-    if (notifications) {
-      setListByDateStatus(
-        Array.from(Array(3), (v, i) =>
-          // eslint-disable-next-line no-nested-ternary
-          i === 0
-            ? notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 한 주')
-            : i === 1
-              ? notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 한 달')
-              : notifications.filter((notification) => getDateStatus(notification.created_date) === '지난 알림'),
-        ),
-      );
-    }
-  }, [notifications]);
 
   const onClickRead = useCallback(
     (notificationId: number, isClickByButton: boolean) => {
@@ -156,11 +90,11 @@ export default function NotificationList() {
           )}
           <Dropdown>
             <DropdownTrigger>
-              <Button isIconOnly size="sm" className="bg-transparent">
+              <Button isIconOnly size="sm" className="bg-transparent" aria-label="전체 알림 관리">
                 <IconKebab isPassed />
               </Button>
             </DropdownTrigger>
-            <DropdownMenu>
+            <DropdownMenu aria-label="전체 알림 관리">
               <DropdownItem key="read-all" onClick={onClickReadAll}>
                 모두 읽음 표시
               </DropdownItem>
@@ -198,7 +132,6 @@ export default function NotificationList() {
             (listByDateStatus[1].length === 0 ? (
               <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">지난 한 달 알림이 없습니다.</p>
             ) : (
-              listByDateStatus &&
               listByDateStatus[1].map((notification) => (
                 <NotificationItem
                   key={notification.notification_id}
@@ -218,7 +151,6 @@ export default function NotificationList() {
             (listByDateStatus[2].length === 0 ? (
               <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">지난 알림이 없습니다.</p>
             ) : (
-              listByDateStatus &&
               listByDateStatus[2].map((notification) => (
                 <NotificationItem
                   key={notification.notification_id}

@@ -1,5 +1,6 @@
 'use client';
 
+import { Donut } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useMemo, useState } from 'react';
@@ -29,7 +30,7 @@ export default function StatsCategoryDonut() {
 
   if (isLoading) {
     return (
-      <StatsCard title="분야별 분포" icon="donut_small" delay={0.15}>
+      <StatsCard title="분야별 분포" icon={Donut} delay={0.15}>
         <div className="flex items-center gap-4">
           <SkeletonBar className="h-[168px] w-[168px] shrink-0 rounded-full" />
           <div className="grid flex-1 grid-cols-1 gap-2">
@@ -69,7 +70,7 @@ export default function StatsCategoryDonut() {
   const active = activeIndex !== null ? segments[activeIndex] : null;
 
   return (
-    <StatsCard title="분야별 분포" icon="donut_small" subtitle={`${raw.length}개 분야`} delay={0.15}>
+    <StatsCard title="분야별 분포" icon={Donut} subtitle={`${raw.length}개 분야`} delay={0.15}>
       <div className="flex items-center gap-4">
         <ChartContainer config={chartConfig} className="aspect-square h-[168px] w-[168px] shrink-0">
           <PieChart>

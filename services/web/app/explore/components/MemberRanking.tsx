@@ -1,5 +1,6 @@
 'use client';
 
+import { TrendingUp } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { CSSProperties } from 'react';
@@ -37,7 +38,7 @@ export default function MemberRanking() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-1.5">
-        <span className="material-symbols-outlined text-[20px] text-theme-alert">trending_up</span>
+        <TrendingUp aria-hidden="true" className="size-5 shrink-0 text-theme-alert" />
         <h2 className="text-[15px] font-bold text-primary-3 dark:text-gray-0.5">발의 활발한 의원</h2>
       </div>
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">

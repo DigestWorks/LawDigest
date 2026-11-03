@@ -80,11 +80,11 @@ export default function NotificationItem({
 
         <Dropdown>
           <DropdownTrigger>
-            <Button isIconOnly size="sm" className="bg-transparent">
+            <Button isIconOnly size="sm" className="bg-transparent" aria-label={`${title} 알림 관리`}>
               <IconKebab isPassed />
             </Button>
           </DropdownTrigger>
-          <DropdownMenu>
+          <DropdownMenu aria-label={`${title} 알림 관리`}>
             <DropdownItem key="read" onClick={() => onClickRead(notification_id, true)}>
               읽음 표시
             </DropdownItem>

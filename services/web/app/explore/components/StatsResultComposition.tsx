@@ -1,5 +1,6 @@
 'use client';
 
+import { ChartPie } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { Bar, BarChart, XAxis, YAxis } from 'recharts';
@@ -34,7 +35,7 @@ export default function StatsResultComposition() {
 
   if (isLoading) {
     return (
-      <StatsCard title="처리 결과 구성" icon="data_usage" delay={0.1}>
+      <StatsCard title="처리 결과 구성" icon={ChartPie} delay={0.1}>
         <SkeletonBar className="h-[52px] w-full" />
         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
           {Array.from({ length: 4 }, (_, i) => (
@@ -78,7 +79,7 @@ export default function StatsResultComposition() {
   }, {}) satisfies ChartConfig;
 
   return (
-    <StatsCard title="처리 결과 구성" icon="data_usage" subtitle={`${total.toLocaleString()}건 기준`} delay={0.1}>
+    <StatsCard title="처리 결과 구성" icon={ChartPie} subtitle={`${total.toLocaleString()}건 기준`} delay={0.1}>
       <ChartContainer config={chartConfig} className="aspect-auto h-[52px] w-full">
         <BarChart data={[composition]} layout="vertical" margin={{ left: 0, right: 0, top: 4, bottom: 4 }}>
           <XAxis type="number" hide />

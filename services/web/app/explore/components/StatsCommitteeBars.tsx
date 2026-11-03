@@ -1,5 +1,6 @@
 'use client';
 
+import { Landmark } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts';
@@ -22,7 +23,7 @@ export default function StatsCommitteeBars() {
 
   if (isLoading) {
     return (
-      <StatsCard title="위원회별 접수 현황" icon="account_balance" delay={0.15}>
+      <StatsCard title="위원회별 접수 현황" icon={Landmark} delay={0.15}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
             <SkeletonBar key={i} className="h-[18px] w-full" />
@@ -53,7 +54,7 @@ export default function StatsCommitteeBars() {
   }));
 
   return (
-    <StatsCard title="위원회별 접수 현황" icon="account_balance" subtitle={`상위 ${rows.length}개`} delay={0.15}>
+    <StatsCard title="위원회별 접수 현황" icon={Landmark} subtitle={`상위 ${rows.length}개`} delay={0.15}>
       <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: rows.length * 30 + 8 }}>
         <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 42, top: 0, bottom: 0 }}>
           <XAxis type="number" hide />

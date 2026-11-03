@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronRight } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useTheme } from 'next-themes';
@@ -66,7 +67,7 @@ export default function PartyList() {
             <p className="text-[15px] font-bold text-primary-3 dark:text-gray-0.5">{party.party_name}</p>
             <p className="mt-0.5 text-[12px] text-gray-2">소속 의원 {party.congressman_count.toLocaleString()}명</p>
           </div>
-          <span className="material-symbols-outlined text-[20px] text-gray-2">chevron_right</span>
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       ))}
     </div>
