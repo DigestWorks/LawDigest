@@ -899,7 +899,7 @@ class DatabaseManager:
                     assembly_number = new.assembly_number,
                     party_id = new.party_id,
                     district = new.district,
-                    elect_sort = new.elect_sort,
+                    elect_sort = COALESCE(new.elect_sort, Congressman.elect_sort),
                     commits = new.commits,
                     elected = new.elected,
                     homepage = new.homepage,
