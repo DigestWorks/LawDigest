@@ -210,12 +210,22 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 
 ## 4. 스케줄 운영
 
-Airflow 대신 `systemd timer` 또는 cron을 사용합니다. 우선은 수동 실행으로 검증하고, 스케줄이 필요해지면 아래 순서로 timer를 추가합니다.
+서버 timer 구성은 `deploy/pipeline/`에 있다. 작업별 등록과 개별 운영 실행에는 사용자 승인이 필요하다.
 
-1. `/usr/local/bin/lawdigest-pipeline-wrapper`에 `PYTHONPATH`와 작업 디렉터리를 고정
-2. `bill-ingest`, `bill-status-sync`, `ai-summary`를 각각 별도 timer로 등록
-3. timer stdout/stderr는 journald와 `pipeline-runs.jsonl` 양쪽에서 확인
-4. 실패 알림은 모니터링 사이트 또는 별도 notifier에서 후속 구현
+| 작업 | KST 예정 시간 | 1회 실행 범위 |
+| --- | --- | --- |
+| 수집 | 01:10 | 제22대, 실행일 포함 최근 3일 |
+| 상태 동기화 | 03:10 | 공식 의원 명부와 제22대 최근 3일의 단계·표결 |
+| AI 요약 | 05:10 | 미작성 요약 최대 40건, Codex 동시 실행 1개 |
+| 분야 분류 | 08:30 | 제22대의 분류 값이 NULL인 법안, 로컬 규칙 기반 |
+
+1. 승인된 수집·상태 동기화 런타임을 먼저 검증한다. 과거 백필은 각 기간과 쓰기 범위를 따로 승인한다. AI 요약의 Codex CLI와 인증, 분야 분류의 DB 컬럼은 각각 실행 전에 확인한다.
+2. 등록 승인을 받은 뒤 체크아웃에서 `sudo ./deploy/pipeline/install-pipeline-timers.sh --install`로 유닛과 래퍼를 복사한다. 서버 관리자가 `/etc/lawdigest-pipeline/runtime.env`를 소유자 root, 모드 0600으로 준비한다. `LAWDIGEST_PIPELINE_ROOT`에는 배포한 체크아웃, `LAWDIGEST_PIPELINE_PYTHON`에는 해당 실행 환경의 Python 절대 경로를 지정한다. 기존 API·DB 환경은 필요한 항목을 비공개 파일로 옮긴다. Codex 경로가 기본 PATH 밖에 있으면 이 파일에서 PATH를 지정한다.
+3. 승인된 timer만 `sudo systemctl daemon-reload` 뒤 `sudo systemctl enable --now lawdigest-bill-ingest.timer`처럼 이름을 지정해 활성화한다.
+4. 실행별 승인 후 작업명, 실행일(KST), 고유 실행 ID, 배포 커밋 SHA를 공백으로 구분한 한 줄을 `/etc/lawdigest-pipeline/approvals/<작업명>`에 root 소유, 모드 0600으로 설치한다. 예시 형식은 `bill-ingest 2026-11-04 approval-12345678 <commit-sha>`다. 승인 ID는 영문·숫자·밑줄·하이픈 8~80자다. 동일한 작업·날짜·ID는 한 번만 사용할 수 있다. 실패 뒤 다시 실행하려면 새 승인을 받는다.
+5. `systemctl list-timers 'lawdigest-*'`와 `journalctl -u lawdigest-pipeline@bill-ingest.service`에서 예정 시각과 실행 결과를 확인한다. 수집·상태·요약은 `/var/log/lawdigest-pipeline/pipeline-runs.jsonl`도 대조한다. 분야 분류 건수는 journald에서 확인한다. 승인 누락, 부분 실패, 공식 데이터 응답 검증 실패는 7일 성공 기록에 포함하지 않는다.
+
+네 작업은 하나의 잠금을 사용한다. 예정 실행이 겹치면 최대 15분 기다리고, 잠금을 얻지 못하면 실패로 남긴다. 중단 기간의 수집은 승인된 기간을 지정해 별도로 실행한다. timer를 정지할 때는 대상 이름을 지정해 `sudo systemctl disable --now lawdigest-bill-ingest.timer`처럼 실행한다.
 
 ---
 
@@ -250,7 +260,7 @@ Airflow 파일을 완전히 삭제하기 전까지는 과거 DAG의 파라미터
 최신 법안의 Open API 상세·발의자 응답이 비어 있을 때 공식 의안정보시스템의 전체 제안자 명단으로 보완한다. 전체 개수·페이지와 대표 역할을 확인하지 못하거나 의원 코드가 모호하면 재시도 가능한 미해결로 남긴다. 원문 재수집은 기존 AI 요약·제목·태그를 보존한다.
 
 - 의원 부분 추가는 `update_lawmaker_info(rows)`로 수행하며 다른 의원을 비활성화하지 않는다. 전체 동기화는 선언된 전체 건수와 모든 페이지·코드 유일성을 확인한 `WorkFlowManager.update_lawmakers_data()`에서 `full_snapshot=True`를 명시한다.
-- 먼저 dry_run에서 처리 건수·거절 사유를 확인하고, 필요한 의원 코드가 DB에 있는지 읽기 전용으로 대조한다. 11월 2일 표본은 29건 처리가 가능하지만 운영 DB에 의원 코드 1개가 없어 적재 전에 보완해야 한다.
+- 먼저 dry_run에서 처리 건수·거절 사유를 확인하고, 필요한 의원 코드가 DB에 있는지 읽기 전용으로 대조한다. 11월 2일 표본 29건의 모의 처리에서 의원 코드 1개가 누락됐다. 별도 승인으로 김형연 의원을 등록했고 공개 프로필에서 조회된다. 법안 적재는 별도 승인 대기다.
 - 운영 artifact 해시와 대상 개수·날짜·테이블 범위를 준비한 뒤 쓰기 실행마다 사용자 승인을 받는다. timer 등록도 별도 승인 대상이다.
 - 매시간 호출되던 기존 cron은 존재하지 않는 저장소 경로를 가리킨다. 승인된 timer를 등록할 때 중복 실행과 기존 cron 정리를 함께 확인한다. 현재 timer를 등록하거나 cron을 변경하지 않았다.
 - 원문 적재 뒤 AI 요약·분야·상태/표결·검색 문서 갱신, 운영 화면을 차례로 검증한다. 원문 적재 성공으로 전체 백필 완료를 판정하지 않는다.
