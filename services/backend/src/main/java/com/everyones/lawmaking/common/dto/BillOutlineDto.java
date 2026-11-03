@@ -28,6 +28,10 @@ public class BillOutlineDto {
 
 
     public static BillOutlineDto from(Bill bill) {
+        return from(bill, bill.getBillResult());
+    }
+
+    public static BillOutlineDto from(Bill bill, String result) {
         var representProposers = bill.getRepresentativeProposer();
         List<PartyDto> partyList = new ArrayList<>();
         for (RepresentativeProposer representativeProposer : representProposers) {
@@ -41,7 +45,7 @@ public class BillOutlineDto {
                 .billId(bill.getId())
                 .billName(bill.getBillName())
                 .billStage(bill.getStage())
-                .billResult(bill.getBillResult())
+                .billResult(result)
                 .billProposers(bill.getProposers())
                 .billTitle(bill.getTitle())
                 .build();

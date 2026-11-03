@@ -410,32 +410,54 @@ class BillSearchMysqlTest {
     }
 
     @Test
-    void plenaryIncludesBillsWithoutRepresentativesAndUsesBulkVoteLookups() {
+    void plenaryUsesDatedResultsAndKeepsVotesOnUnambiguousDates() {
         var party = parties.saveAndFlush(Party.builder().name("표결 정당").build());
+        jdbc.update("UPDATE Bill SET bill_result='원안가결' WHERE bill_id IN ('body', 'other')");
         jdbc.update("""
                 INSERT INTO VoteRecord (bill_id,total_vote_count,votes_for_count,votes_againt_count,abstention_count)
-                VALUES ('exact',100,80,15,5)
+                VALUES ('exact',100,80,15,5), ('other',120,90,25,5)
                 """);
         jdbc.update("INSERT INTO VoteParty (bill_id,party_id,votes_for_count) VALUES ('exact',?,55)", party.getId());
+        jdbc.update("""
+                INSERT INTO BillTimeline (bill_id,bill_timeline_stage,status_update_date,bill_result)
+                VALUES ('exact','본회의 심의','2026-01-28',NULL),
+                       ('exact','본회의 심의','2026-01-29','수정가결'),
+                       ('body','본회의 심의','2026-01-29',NULL),
+                       ('other','본회의 심의','2026-01-29','부결'),
+                       ('other','본회의 심의','2026-01-29','원안가결')
+                """);
         var date = LocalDate.of(2026, 1, 29);
-        var dates = mock(BillTimelineService.class);
-        when(dates.findPlenaryBillIds(date)).thenReturn(List.of("exact", "other"));
         var recordService = spy(new VoteRecordService(voteRecords));
         var partyService = spy(new VotePartyService(voteParties));
-        var facade = new TimelineFacade(dates, new BillService(repository, statistics, activity),
-                partyService, recordService);
+        var facade = new TimelineFacade(new BillTimelineService(timelines),
+                new BillService(repository, statistics, activity), partyService, recordService);
 
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             var plenary = facade.getPlenaryBills(date);
-            assertThat(plenary).hasSize(2).anySatisfy(item -> {
+            assertThat(plenary).hasSize(3);
+            assertThat(plenary).anySatisfy(item -> {
                 assertThat(item.getBillInfo().getBillId()).isEqualTo("exact");
+                assertThat(item.getBillInfo().getBillResult()).isEqualTo("수정가결");
                 assertThat(item.getApprovalVoteCount()).isEqualTo(80);
                 assertThat(item.getPartyVoteList()).singleElement().satisfies(vote ->
                         assertThat(vote.getPartyApprovalCount()).isEqualTo(55));
+            }).anySatisfy(item -> {
+                assertThat(item.getBillInfo().getBillId()).isEqualTo("body");
+                assertThat(item.getBillInfo().getBillResult()).isEqualTo("원안가결");
+            }).anySatisfy(item -> {
+                assertThat(item.getBillInfo().getBillId()).isEqualTo("other");
+                assertThat(item.getBillInfo().getBillResult()).isNull();
+                assertThat(item.getApprovalVoteCount()).isNull();
+                assertThat(item.getPartyVoteList()).isEmpty();
+            });
+            assertThat(facade.getPlenaryBills(date.minusDays(1))).singleElement().satisfies(item -> {
+                assertThat(item.getBillInfo().getBillResult()).isNull();
+                assertThat(item.getApprovalVoteCount()).isNull();
+                assertThat(item.getPartyVoteList()).isEmpty();
             });
         });
-        verify(recordService).getRecordsForBills(anyList());
-        verify(partyService).getPartyVotesForBills(anyList());
+        verify(recordService, times(2)).getRecordsForBills(anyList());
+        verify(partyService, times(2)).getPartyVotesForBills(anyList());
         verify(recordService, never()).getVoteRecordByBillId(anyString());
         verify(partyService, never()).getVotePartyListWithPartyByBillId(anyString());
     }
