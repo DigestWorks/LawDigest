@@ -12,6 +12,7 @@ from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 from .open_assembly import OpenAssemblyBillClient
+from .likms_proposers import ProposerSourceError, fetch_likms_proposers
 
 try:
     from tqdm import tqdm
@@ -260,6 +261,11 @@ class DataFetcher:
 
         if not all_pages:
             df = pd.DataFrame(all_data)
+            df.attrs.update(
+                source_total_count=total_count,
+                source_complete=len(df) == total_count,
+                source_all_pages=False,
+            )
             print(f"\n🎉 다운로드 완료! 총 {len(df)}개의 데이터를 수집했습니다. 📊")
             return df
 
@@ -291,6 +297,11 @@ class DataFetcher:
                         break
 
         df = pd.DataFrame(all_data)
+        df.attrs.update(
+            source_total_count=total_count,
+            source_complete=len(df) == total_count,
+            source_all_pages=True,
+        )
         print(f"\n🎉 다운로드 완료! 총 {len(df)}개의 데이터를 수집했습니다. 📊")
         return df
         
@@ -809,20 +820,39 @@ class DataFetcher:
             if 'HJ_NM' in df_lawmakers.columns and hj_name:
                 candidates = candidates[candidates['HJ_NM'] == hj_name]
             if 'POLY_NM' in df_lawmakers.columns and party:
-                candidates = candidates[candidates['POLY_NM'] == party]
+                same_party = candidates[candidates['POLY_NM'] == party]
+                if not same_party.empty:
+                    candidates = same_party
 
             if not candidates.empty:
-                return normalize_str(candidates.iloc[0]['MONA_CD'])
-
-            # 한자/정당 정보가 일치하지 않는 경우 이름만으로 재검색
-            candidates = df_lawmakers[df_lawmakers['HG_NM'] == name]
-            if not candidates.empty:
-                return normalize_str(candidates.iloc[0]['MONA_CD'])
+                codes = {normalize_str(value) for value in candidates['MONA_CD']} - {None}
+                return codes.pop() if len(codes) == 1 else None
 
             return None
         # --- (내부 헬퍼 함수 끝) ---
 
         aggregated = {}
+
+        bill_numbers = {
+            str(row.get('bill_id')): self._stringify_bill_number(row.get('billNumber'))
+            for row in local_df_bills.to_dict('records')
+        }
+
+        def fetch_official_list(bill_id):
+            bill_no = bill_numbers.get(bill_id)
+            if not bill_no:
+                return None
+            try:
+                return fetch_likms_proposers(
+                    self.session, bill_id, bill_no, df_lawmakers.to_dict('records')
+                )
+            except (ProposerSourceError, requests.RequestException) as exc:
+                reason = str(exc) if isinstance(exc, ProposerSourceError) else "HTTP 조회 실패"
+                tqdm.write(
+                    f"⚠️ [WARN] 공식 화면 발의자 확인 미완료: "
+                    f"bill_id={bill_id}, error_type={type(exc).__name__}, reason={reason}"
+                )
+                return None
 
         verbose = kwargs.pop('verbose', False)
 
@@ -856,6 +886,11 @@ class DataFetcher:
                 )
                 if not df_tmp.empty:
                     break
+                if attempt == 0:
+                    official = fetch_official_list(bill_id)
+                    if official is not None:
+                        aggregated[bill_id] = official
+                        break
                 if attempt < max_retry:
                     wait_seconds = min(2 ** attempt, 8)
                     tqdm.write(
@@ -869,6 +904,8 @@ class DataFetcher:
                  print(df_tmp.iloc[0].to_dict())
 
             if df_tmp.empty:
+                if aggregated[bill_id]['representativeProposerIdList']:
+                    continue
                 tqdm.write(f"⚠️ [WARN] bill_id {bill_id}에 대한 발의자 데이터를 찾을 수 없습니다.")
                 continue
 
@@ -876,8 +913,12 @@ class DataFetcher:
             if 'BILL_ID' not in df_tmp.columns:
                 df_tmp['BILL_ID'] = bill_id
 
+            complete_api_relations = True
             for row in df_tmp.to_dict('records'):
                 row_bill_id = normalize_str(row.get('BILL_ID', bill_id))
+                if row_bill_id != bill_id:
+                    complete_api_relations = False
+                    continue
                 target = ensure_entry(row_bill_id)
                 if target is None:
                     continue
@@ -911,6 +952,9 @@ class DataFetcher:
                         party=proposer_party,
                     )
 
+                if proposer_code is None or proposer_role is None:
+                    complete_api_relations = False
+
                 is_representative = proposer_role and ('대표' in proposer_role)
 
                 if is_representative:
@@ -920,6 +964,14 @@ class DataFetcher:
                 else:
                     append_unique(target['publicProposerIdList'], proposer_code)
                     append_unique(target['ProposerName'], proposer_name)
+
+            target = aggregated[bill_id]
+            if not complete_api_relations or not target['representativeProposerIdList']:
+                official = fetch_official_list(bill_id)
+                if official is None:
+                    aggregated.pop(bill_id, None)
+                else:
+                    aggregated[bill_id] = official
 
         if not aggregated:
             print("⚠️ [WARN] 어떤 법안에서도 발의자 정보를 수집하지 못했습니다.")
@@ -940,15 +992,6 @@ class DataFetcher:
         df_coactors = df_coactors[
             ['bill_id', 'representativeProposerIdList', 'publicProposerIdList', 'ProposerName']
         ]
-
-        # 대표발의자가 비어있으면 공동발의자의 첫 번째 사람을 대표발의자로 간주 (법안 데이터 특성상 맨 앞이 대표발의자인 경우가 많음)
-        def fill_missing_representative(row):
-            if not row['representativeProposerIdList'] and row['publicProposerIdList']:
-                 # 첫번째 사람을 추가
-                 row['representativeProposerIdList'] = [row['publicProposerIdList'][0]]
-            return row
-
-        df_coactors = df_coactors.apply(fill_missing_representative, axis=1)
 
         filtered_count = len(df_coactors)
         # 공동발의자가 있는 데이터만 남기기
