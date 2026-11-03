@@ -943,15 +943,18 @@ class DataFetcher:
                 target = ensure_entry(row_bill_id)
                 if target is None:
                     continue
-                proposer_role = normalize_str(
-                    row.get('PUBL_PROPOSER') 
-                    or row.get('REP_DIV')
+                proposer_role = normalize_str(row.get('PUBL_PROPOSER')) or normalize_str(row.get('REP_DIV'))
+                proposer_code = (
+                    normalize_str(row.get('PPSR_CD'))
+                    or normalize_str(row.get('PUBL_PRPSR_CD'))
+                    or normalize_str(row.get('RPRSNT_PRPSR_CD'))
                 )
-                proposer_code = normalize_str(
-                    row.get('PPSR_CD')
-                    or row.get('PUBL_PRPSR_CD')
-                    or row.get('RPRSNT_PRPSR_CD')
-                )
+                # BILLINFOPPSR의 발의자 행은 NASS_CD를 쓰고 대표발의에만 REP_DIV를 채운다.
+                if normalize_str(row.get('PPSR_ROLE')) == '발의자':
+                    assembly_code = normalize_str(row.get('NASS_CD'))
+                    if assembly_code:
+                        proposer_code = proposer_code or assembly_code
+                        proposer_role = proposer_role or '발의자'
                 proposer_name = normalize_str(
                     row.get('PPSR_NM')
                     or row.get('PUBL_PRPSR_NM')
