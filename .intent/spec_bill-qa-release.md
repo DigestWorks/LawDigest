@@ -43,8 +43,10 @@ flowchart LR
 
 운영 Qdrant 서버 1.15.3, 설치된 클라이언트 1.17.0에는 기존 search 메서드가 없다. 기본 bills 컬렉션은 없고 lawdigest_bills는 112건·2025-09-17~19다. 전용 서비스는 서버와 호환되는 SDK와 query_points 계약을 사용한다.
 
-기본 임베딩은 384차원 multilingual-E5-small의 고정 revision·int8 ONNX 파일이다. 해시·토큰 길이·모델 ID를 확인한다. 질문에는 `query:`, 원문에는 `passage:`를 사용하고, 같은 임베딩 모델의 벡터만 검색한다. `text-embedding-3-small`은 명시적인 호환 설정에 남긴다. 답변 생성은 기존 gpt-5.4-mini의 별도 연결이다.
+기본 임베딩은 384차원 multilingual-E5-small의 고정 revision·int8 ONNX 파일이다. 해시·토큰 길이·모델 ID를 확인한다. 질문에는 `query:`, 원문에는 `passage:`를 사용하고, 같은 임베딩 모델의 벡터만 검색한다. `text-embedding-3-small`은 명시적인 호환 설정에 남긴다. 답변 생성은 별도 Codex CLI 프로세스에서 gpt-6.1-terra를 실행한다.
 
 Python 회귀·실제 Qdrant 검색·구조화 출력 검증, 웹 lint/test/type/build, 데스크톱·375px·다크 화면에서 질문→답변→출처→뒤로 가기·취소·재시도를 확인한다. 공개 법안으로 실제 모델 응답도 검증한다. 임시 로컬 인덱스 검증과 운영 출시 검증을 구분한다. 운영 인덱스·배포·같은 조작까지 확인한 뒤 관련 결함을 닫는다.
 
 공식 근거: [OpenAI 구조화 출력](https://developers.openai.com/api/docs/guides/structured-outputs), [Qdrant 1.15 Query API](https://api.qdrant.tech/v-1-15-x/api-reference/search/query-points), [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/).
+
+요청마다 임시 작업 공간에서 구조화 출력 스키마를 사용한다. CLI 사용자 설정과 도구를 끄고 서비스 환경의 DB 키는 전달하지 않는다. 인용 검증과 근거 부족 계약을 유지한다.
