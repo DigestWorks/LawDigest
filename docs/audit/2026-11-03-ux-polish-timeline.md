@@ -75,3 +75,11 @@
 - 서버 `/tmp/lawdigest-stage190-review.2tt9uknu/`의 `official-stage-review-190.json` SHA-256은 `e806f7ebb25efb879eb3cb66d503048da70fe4fd0103a3a86d359ebe25834304`, `apply-stages-188.py`는 `524a49be409b909971ddedad23b8bc6ec6e29120581b492acd8360fcc6a2cac0`이다.
 - 격리 MySQL에서 마지막 행의 쓰기 실패 시 전체 롤백, 범위 밖 행과 수정 시각 보존, 재실행 차단을 확인했다. 운영에서는 한 트랜잭션으로 `Bill.stage`만 정정했고, 커밋 후 단계·처리 결과·발의일·공개 상태를 전체 대조했다.
 - 운영 상세에서 의안 2218854의 현재 단계가 STEP 03 체계·자구 심사에서 STEP 06 공포로 바뀌었고, 원안가결과 찬성 248표·총투표 250표가 표시됐다. 다른 단계의 정합성과 정기 동기화는 별도 확인한다.
+
+### 과거 접수 상태 280건의 위원회 심사 정정
+
+7월 10일 전 발의돼 접수로 남아 있던 제22대 공개 법안 289건을 국회 `ALLBILL` 단건으로 대조했다. 280건은 의안 ID·번호·대수·법률안 구분·발의일이 일치하고 처리 결과가 비어 있으며 소관위원회 단계 날짜가 확인됐다. 대안반영폐기 결과가 새로 확인된 8건과 식별 정보가 다른 1건을 분리했다.
+
+- 서버 `/tmp/lawdigest-receipt289-review.qbija0_7/`의 `official-receipt-stage-review-289.json` SHA-256은 `3b489e7456973137ff603596787ddd08a393285ddbd2e7463e5d3e32d1d397f0`, 실행기 `apply-receipt-stages-280.py`는 `3b1792f9c6e4e679d40950bfd7ab34d872abde2873e295202eb0c66cd26906b3`다.
+- 격리 MySQL에서 마지막 쓰기 실패의 전체 롤백, 빈 처리 결과·수정 시각과 범위 밖 행 보존, 재실행 차단을 확인했다. 운영에서는 단계만 정정했다. 커밋 후 전 건을 대조했고, 공개 상세 API에서 의안 2219825의 위원회 심사와 빈 처리 결과를 확인했다.
+- 별도 범위인 결과 없는 정부이송 2건과 철회 6건은 국회 `ALLBILL`과 `BILLRCP`에서 모두 철회로 일치했다. `official-missing-results-8.json` SHA-256은 `99066a1b6009ffe0565a62d22cd9c96ba4e9d4eb4b802966178412bd945abcfb`다.
