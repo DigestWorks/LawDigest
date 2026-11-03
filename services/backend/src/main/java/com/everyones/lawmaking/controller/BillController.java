@@ -66,13 +66,15 @@ public class BillController {
             @Schema(type = "string", allowableValues = {"접수", "위원회심사",
                     "본회의 심의", "공포"})
             @RequestParam(name = "stage", required = false) String stage,
+            @Parameter(description = "국회 대수 필터", schema = @Schema(allowableValues = {"21", "22", "all"}))
+            @RequestParam(name = "assembly", required = false) String assembly,
             @RequestParam(name = "compact", defaultValue = "false") boolean compact
     ) {
         var pageable = PageRequest.of(page, size);
         if(StringUtils.hasText(stage) && !BillStageType.containsValue(stage)) {
             throw new IllegalArgumentException(stage);
         }
-        var result = billFacade.getBillList(pageable, stage);
+        var result = billFacade.getBillList(pageable, stage, assembly);
         var response = limitToRequestedSize(result, size);
         return BaseResponse.ok(compact ? BillCardDto.page(response) : response);
     }
@@ -93,7 +95,7 @@ public class BillController {
             @RequestParam(name = "stage") String stage
     ) {
         var pageable = PageRequest.of(page, size);
-        var result = billFacade.getBillList(pageable, stage);
+        var result = billFacade.getBillList(pageable, stage, null);
         return BaseResponse.ok(limitToRequestedSize(result, size));
     }
 

@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+import type { FeedAssembly } from '@/lib/feedState';
 import { Pagination } from '@/types/type/common/pagination';
 import { getBillByStage } from '@/components/Feed/Feed/apis/apis';
 import { getSearchBill, getSearchCongressmanParty } from '@/app/search/apis/apis';
@@ -8,10 +9,10 @@ export function nextBillPage(response: { data: { pagination_response: Pagination
   return page && !page.last_page && Number.isInteger(page.page_number) ? page.page_number + 1 : undefined;
 }
 
-export const feedQueryOptions = (stage: string) =>
+export const feedQueryOptions = (stage: string, assembly: FeedAssembly) =>
   infiniteQueryOptions({
-    queryKey: ['/bill/mainfeed', stage],
-    queryFn: ({ pageParam }) => getBillByStage(pageParam, stage),
+    queryKey: ['/bill/mainfeed', stage, assembly],
+    queryFn: ({ pageParam }) => getBillByStage(pageParam, stage, assembly),
     initialPageParam: 0,
     getNextPageParam: nextBillPage,
     staleTime: 60_000,

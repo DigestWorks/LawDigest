@@ -125,8 +125,8 @@ public class BillFacade {
         return billService.getBillStateCount();
     }
     @Transactional(readOnly = true)
-    public BillListResponse getBillList(Pageable pageable, String stage) {
-        return billService.getBillList(pageable, stage);
+    public BillListResponse getBillList(Pageable pageable, String stage, String assembly) {
+        return billService.getBillList(pageable, stage, assembly);
     }
     @Transactional(readOnly = true)
     public BillListResponse getBillListByCategory(Pageable pageable, String category) {

@@ -13,7 +13,8 @@ export interface BillResponse {
     bill_like_count: number;
     bill_stage: string;
     title: string;
-    bill_result: string;
+    bill_result?: string | null;
+    assembly_number?: number;
     proposer_kind?: 'CONGRESSMAN' | 'CHAIRMAN' | 'GOVERNMENT' | string | null;
     proposers?: string | null;
     committee?: string | null;

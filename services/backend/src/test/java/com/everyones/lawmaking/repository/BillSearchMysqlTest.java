@@ -16,6 +16,7 @@ import com.everyones.lawmaking.service.VoteRecordService;
 import com.everyones.lawmaking.facade.TimelineFacade;
 import java.util.List;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
@@ -177,6 +178,47 @@ class BillSearchMysqlTest {
         assertThat(detail.getBillNumber()).isEqualTo(1);
         assertThat(detail.getStageDates()).containsExactly(
                 new BillDetailInfo.StageDate("위원회 심사", LocalDate.of(2026, 3, 27)));
+    }
+
+    @Test
+    void assemblyScopeFiltersBeforePagingAndKeepsPublishedArchiveWithoutAiSummary() {
+        jdbc.update("UPDATE Bill SET gpt_summary = 'AI 요약', stage = '위원회 심사' WHERE bill_id = 'exact'");
+        repository.saveAndFlush(Bill.builder().id("discarded").billNumber(21).assemblyNumber(21)
+                .billName("임기만료 법안").summary("제안이유").billResult("임기만료폐기")
+                .stage("위원회 심사").proposeDate(LocalDate.of(2024, 5, 20))
+                .ingestStatus(IngestStatusType.READY).build());
+        repository.saveAndFlush(Bill.builder().id("older-with-ai").billNumber(20).assemblyNumber(20)
+                .billName("제20대 법안").title("제20대 법안").gptSummary("AI 요약")
+                .stage("위원회 심사").proposeDate(LocalDate.of(2019, 5, 20))
+                .ingestStatus(IngestStatusType.READY).build());
+        repository.saveAndFlush(Bill.builder().id("archive-pending").billNumber(22).assemblyNumber(21)
+                .billName("공개 대기 중").proposeDate(LocalDate.of(2024, 5, 22))
+                .ingestStatus(IngestStatusType.PENDING).build());
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var page = PageRequest.of(0, 1);
+            var current = repository.findBillWithDetailAndPage(page, Optional.empty(), null, "22");
+            assertThat(current.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("exact");
+            assertThat(current.getPaginationResponse().isLastPage()).isTrue();
+
+            var archived = repository.findBillWithDetailAndPage(page, Optional.empty(), "위원회 심사", "21");
+            assertThat(archived.getBillList()).singleElement().satisfies(row -> {
+                var info = row.getBillInfoDto();
+                assertThat(info.getAssemblyNumber()).isEqualTo(21);
+                assertThat(info.getBillResult()).isEqualTo("임기만료폐기");
+                assertThat(info.getGptSummary()).isNull();
+                assertThat(info.getSummary()).isEqualTo("제안이유");
+            });
+            var combined = repository.findBillWithDetailAndPage(page, Optional.empty(), null, "all");
+            assertThat(combined.getPaginationResponse().isLastPage()).isFalse();
+            var last = repository.findBillWithDetailAndPage(page.next(), Optional.empty(), null, "all");
+            assertThat(last.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("discarded");
+            assertThat(last.getPaginationResponse().isLastPage()).isTrue();
+
+            var legacy = repository.findBillWithDetailAndPage(PageRequest.of(0, 10), Optional.empty(), null, null);
+            assertThat(legacy.getBillList()).extracting(b -> b.getBillInfoDto().getBillId())
+                    .containsExactly("exact", "older-with-ai");
+        });
     }
 
     @Test

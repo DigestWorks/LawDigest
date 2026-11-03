@@ -56,6 +56,8 @@ export default function Bill({
     view_count,
     bill_like_count,
     bill_stage,
+    bill_result,
+    assembly_number,
     proposer_kind,
     proposers,
     committee,
@@ -70,6 +72,8 @@ export default function Bill({
   headingLevel = 2,
   children,
 }: BillListItem & { detail?: boolean; headingLevel?: 2 | 3; children?: ReactNode }) {
+  const archived = assembly_number === 21;
+  const status = bill_result?.trim() || (archived && bill_stage ? `마지막 단계 ${bill_stage}` : bill_stage);
   const titleHeadingLevel = detail ? 1 : headingLevel;
   const TitleHeading = `h${titleHeadingLevel}` as const;
   const summaryHeadingLevel = (titleHeadingLevel + 1) as 2 | 3 | 4;
@@ -401,17 +405,20 @@ export default function Bill({
           )}
 
           {!detail && (
-            <div className="flex items-center w-full gap-3">
+            <div className="flex flex-wrap items-center w-full gap-2">
               <time className="text-xs text-muted-foreground" dateTime={isoDateOnly(propose_date) ?? undefined}>
                 {proposalDateLabel(propose_date)}
               </time>
-              <Chip
-                className="text-xs bg-transparent text-muted-foreground border-border border-1"
-                size="sm"
-                variant="bordered"
-                radius="sm">
-                {bill_stage}
-              </Chip>
+              {archived && <span className="text-xs text-muted-foreground">제21대</span>}
+              {status && (
+                <Chip
+                  className="text-xs bg-transparent text-muted-foreground border-border border-1"
+                  size="sm"
+                  variant="bordered"
+                  radius="sm">
+                  {status}
+                </Chip>
+              )}
             </div>
           )}
         </CardHeader>

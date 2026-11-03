@@ -47,7 +47,7 @@ public class BillReposiotryTest {
         persistReadyBill("blank-gpt", "짧은 요약", " ");
         entityManager.flush();
 
-        var response = billRepository.findBillWithDetailAndPage(PageRequest.of(0, 10), Optional.empty(), null);
+        var response = billRepository.findBillWithDetailAndPage(PageRequest.of(0, 10), Optional.empty(), null, null);
 
         assertThat(response.getBillList())
                 .extracting(billDto -> billDto.getBillInfoDto().getBillId())

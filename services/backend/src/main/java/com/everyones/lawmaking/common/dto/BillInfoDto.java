@@ -28,6 +28,8 @@ public class BillInfoDto {
     private int viewCount;
     private int billLikeCount;
     private String billStage;
+    private String billResult;
+    private int assemblyNumber;
     private String title;
     private String proposerKind;
     private String proposers;
@@ -45,6 +47,8 @@ public class BillInfoDto {
         this.viewCount = bill.getViewCount();
         this.billLikeCount = bill.getBillLike().size();
         this.billStage = bill.getStage();
+        this.billResult = bill.getBillResult();
+        this.assemblyNumber = bill.getAssemblyNumber();
         this.title = bill.getTitle();
         this.proposerKind = bill.getProposerKind() == null ? null : bill.getProposerKind().name();
         this.proposers = bill.getProposers();
@@ -65,6 +69,8 @@ public class BillInfoDto {
                 .viewCount(bill.getViewCount())
                 .billLikeCount(billLikeCount)
                 .billStage(bill.getStage())
+                .billResult(bill.getBillResult())
+                .assemblyNumber(bill.getAssemblyNumber())
                 .title(bill.getTitle())
                 .proposerKind(bill.getProposerKind() == null ? null : bill.getProposerKind().name())
                 .proposers(bill.getProposers())

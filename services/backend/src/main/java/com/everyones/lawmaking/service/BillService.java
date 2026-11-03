@@ -49,9 +49,9 @@ public class BillService {
         return billRepository.findById(billId)
                 .orElseThrow(() -> new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId)));
     }
-    public BillListResponse getBillList(Pageable pageable, String stage) {
+    public BillListResponse getBillList(Pageable pageable, String stage, String assembly) {
         var userIdOptional = AuthenticationUtil.getUserId();
-        return billRepository.findBillWithDetailAndPage(pageable, userIdOptional, stage);
+        return billRepository.findBillWithDetailAndPage(pageable, userIdOptional, stage, assembly);
     }
 
     public BillListResponse getBillListByCategory(Pageable pageable, String category) {
