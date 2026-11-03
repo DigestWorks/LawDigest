@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { getDateStatus } from '@/utils';
+import { SectionError, SectionLoading } from '@/components/common/SectionState';
 import { Divider, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { IconKebab } from '@/public/svgs';
 import { useSetAtom } from 'jotai';
@@ -27,8 +28,10 @@ import {
 import NotificationItem from './NotificationItem';
 
 export default function NotificationList() {
-  const { data: notificationCount } = useGetNotificationCount();
-  const { data: notifications } = useGetNotification();
+  const countQuery = useGetNotificationCount();
+  const listQuery = useGetNotification();
+  const notificationCount = countQuery.data?.notification_count;
+  const notifications = listQuery.data;
   const setSnackbar = useSetAtom(snackbarState);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const manageButtonRef = useRef<HTMLButtonElement>(null);
@@ -75,16 +78,35 @@ export default function NotificationList() {
     setDeleteAllOpen(open);
   };
 
+  if (notificationCount == null || !notifications) {
+    const failed = (notificationCount == null && countQuery.isError) || (!notifications && listQuery.isError);
+    return (
+      <div className="p-5">
+        {failed ? (
+          <SectionError
+            message="알림을 불러오지 못했습니다."
+            pending={countQuery.isFetching || listQuery.isFetching}
+            onRetry={() => {
+              if (notificationCount == null) void countQuery.refetch();
+              if (!notifications) void listQuery.refetch();
+            }}
+          />
+        ) : (
+          <SectionLoading>알림을 불러오는 중입니다.</SectionLoading>
+        )}
+      </div>
+    );
+  }
+
   return (
     <section className="flex flex-col px-5 mt-6 mb-10">
       <div className="mb-[18px] ml-3">
         <div className="flex justify-between items-center">
-          {notificationCount?.notification_count === 0 ? (
+          {notificationCount === 0 ? (
             <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">알림이 없습니다.</p>
           ) : (
             <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">
-              <span className="text-black dark:text-gray-2">{notificationCount?.notification_count}개</span>의 읽지 않은
-              알림이 있습니다.
+              <span className="text-black dark:text-gray-2">{notificationCount}개</span>의 읽지 않은 알림이 있습니다.
             </p>
           )}
           <Dropdown disableAnimation>
