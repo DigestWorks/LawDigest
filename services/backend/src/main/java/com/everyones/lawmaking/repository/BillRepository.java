@@ -39,7 +39,7 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             "    WHERE bp.congressman.id = :congressmanId" +
             ") " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
-            "ORDER BY b.proposeDate DESC")
+            "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findBillByPublicProposer(String congressmanId, Pageable pageable);
 
     @Query("SELECT b FROM Bill b " +
