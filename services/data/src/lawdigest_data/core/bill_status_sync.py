@@ -78,6 +78,7 @@ class BillStatusSyncService:
             "mode": self.mode,
             "step": "fetch_lifecycle",
             "fetched": len(rows),
+            "receipt_only": sum(row.get("receipt_only") is True for row in rows),
             "artifact_path": artifact_path,
         }
 
@@ -134,17 +135,18 @@ class BillStatusSyncService:
             db.update_bill_result(result_rows)
         updated = self._update_bill_projection(db, updates)
         last_reference_date = max((item.get("source_reference_date") for item in updates if item.get("source_reference_date")), default=None)
-        db.upsert_ingest_checkpoint(
-            source_name="bill_status_lifecycle",
-            assembly_number=self._safe_int(payload.get("age"), default=22),
-            last_reference_date=last_reference_date,
-            metadata={
-                "events": len(events),
-                "updated": updated,
-                "duplicate": len(stage_result.get("duplicate_bill", [])),
-                "not_found": len(stage_result.get("not_found_bill", [])),
-            },
-        )
+        if last_reference_date is not None:
+            db.upsert_ingest_checkpoint(
+                source_name="bill_status_lifecycle",
+                assembly_number=self._safe_int(payload.get("age"), default=22),
+                last_reference_date=last_reference_date,
+                metadata={
+                    "events": len(events),
+                    "updated": updated,
+                    "duplicate": len(stage_result.get("duplicate_bill", [])),
+                    "not_found": len(stage_result.get("not_found_bill", [])),
+                },
+            )
         return {
             "mode": self.mode,
             "step": "upsert_lifecycle",

@@ -63,3 +63,33 @@ def test_lifecycle_discovers_recent_events_on_older_bills_and_reads_detail_by_nu
     client.fetch_bill_lifecycle.return_value = {**detail, "BILL_ID": "other"}
     with pytest.raises(RuntimeError, match="ALLBILL identity mismatch"):
         service.fetch("2026-10-28", "2026-10-28", "22")
+
+
+
+def test_pending_proposal_can_add_receipt_before_detail_is_published():
+    client = Mock()
+    proposal = {
+        "BILL_ID": "new", "BILL_NO": "2222454", "AGE": "22",
+        "BILL_NAME": "신규 법률안", "PROPOSE_DT": "2026-11-03",
+    }
+    lists = {
+        "BILLRCP": [], "nwbqublzajtcqpdae": [proposal],
+        "nzpltgfqabtcpsmai": [], "nwbpacrgavhjryiph": [],
+    }
+    client.fetch_rows.side_effect = lambda endpoint, *args, **kwargs: lists[endpoint]
+    client.fetch_bill_lifecycle.return_value = None
+    fetcher = DataFetcher()
+    fetcher._build_open_assembly_client = Mock(return_value=client)
+    service = LifecycleStatusFetcher(fetcher)
+
+    result = BillLifecycleProjector().project(service.fetch("2026-11-02", "2026-11-04", "22"))
+    assert result["updates"] == []
+    assert len(result["events"]) == 1
+    event = result["events"][0]
+    assert (event["bill_id"], event["stage"], event["status_update_date"], event["timeline_only"]) == (
+        "new", "접수", "2026-11-03", True,
+    )
+
+    proposal["COMMITTEE_DT"] = "2026-11-04"
+    with pytest.raises(RuntimeError, match="ALLBILL identity mismatch"):
+        service.fetch("2026-11-02", "2026-11-04", "22")

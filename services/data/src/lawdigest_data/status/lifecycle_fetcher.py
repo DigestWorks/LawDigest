@@ -81,11 +81,16 @@ class LifecycleStatusFetcher:
         # A current event can belong to a much older proposal. Read every page of
         # each source, including lists whose ordering varies across requests.
         candidates: Dict[str, str] = {}
+        pending = client.fetch_rows("nwbqublzajtcqpdae", {"AGE": age}, page_size=1000, require_complete=True)
+        processed = client.fetch_rows("nzpltgfqabtcpsmai", {"AGE": age}, page_size=1000, require_complete=True)
+        plenary = client.fetch_rows("nwbpacrgavhjryiph", {"AGE": age}, page_size=1000, require_complete=True)
+        pending_by_id = {row.get("BILL_ID"): row for row in pending}
+        later_stage_ids = {row.get("BILL_ID") for rows in (processed, plenary) for row in rows}
         sources = (
             (receipts, ("PPSL_DT",)),
-            (client.fetch_rows("nwbqublzajtcqpdae", {"AGE": age}, page_size=1000, require_complete=True), self.REVIEW_DATE_KEYS),
-            (client.fetch_rows("nzpltgfqabtcpsmai", {"AGE": age}, page_size=1000, require_complete=True), self.REVIEW_DATE_KEYS),
-            (client.fetch_rows("nwbpacrgavhjryiph", {"AGE": age}, page_size=1000, require_complete=True), self.PLENARY_DATE_KEYS),
+            (pending, self.REVIEW_DATE_KEYS),
+            (processed, self.REVIEW_DATE_KEYS),
+            (plenary, self.PLENARY_DATE_KEYS),
         )
         for rows, keys in sources:
             for row in rows:
@@ -108,6 +113,29 @@ class LifecycleStatusFetcher:
         deduped: Dict[str, Dict[str, Any]] = {}
         for bill_id, bill_no in candidates.items():
             row = client.fetch_bill_lifecycle(bill_no)
+            if row is None and bill_id not in later_stage_ids:
+                proposal = pending_by_id.get(bill_id, {})
+                date = self.fetcher._parse_api_date(proposal.get("PROPOSE_DT"))
+                official_receipt = receipts_by_id.get(bill_id)
+                receipt_date = self.fetcher._parse_api_date(official_receipt.get("PPSL_DT")) if official_receipt else date
+                if (
+                    str(proposal.get("AGE")) == age
+                    and str(proposal.get("BILL_NO")) == bill_no
+                    and proposal.get("BILL_NAME")
+                    and date is not None and date == receipt_date and start_bound <= date <= end_bound
+                    and not any(proposal.get(key) for key in self.REVIEW_DATE_KEYS[1:])
+                    and not proposal.get("PROC_RESULT_CD")
+                    and not proposal.get("PROC_RSLT")
+                ):
+                    deduped[bill_id] = {
+                        "BILL_ID": bill_id,
+                        "BILL_NO": bill_no,
+                        "BILL_NAME": proposal["BILL_NAME"],
+                        "AGE": age,
+                        "PPSL_DT": date.isoformat(),
+                        "receipt_only": True,
+                    }
+                    continue
             if (
                 not row or row.get("BILL_ID") != bill_id
                 or str(row.get("BILL_NO")) != bill_no or row.get("ERACO") != assembly
@@ -123,7 +151,7 @@ class LifecycleStatusFetcher:
 
         review_rows: Dict[str, List[Dict[str, Any]]] = {}
         for bill_id, row in deduped.items():
-            if not self._should_backfill_review(row):
+            if row.get("receipt_only") or not self._should_backfill_review(row):
                 continue
             bill_no = str(row.get("BILL_NO") or "").strip()
             if not bill_no:
@@ -132,8 +160,12 @@ class LifecycleStatusFetcher:
                 supplemental = client.fetch_rows("BILLJUDGE", {"BILL_NO": bill_no}, all_pages=False, page_size=20)
             except Exception:
                 supplemental = []
-            if supplemental:
-                review_rows[bill_id] = [dict(item) for item in supplemental]
+            matching = [
+                item for item in supplemental
+                if item.get("BILL_ID") == bill_id and str(item.get("BILL_NO")) == bill_no
+            ]
+            if matching:
+                review_rows[bill_id] = matching
 
         return {
             "start_date": start_date,
