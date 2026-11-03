@@ -21,7 +21,7 @@ class OpenAssemblyBillClient:
             merged.update(params)
         return merged
 
-    def _parse_response(self, endpoint: str, response_text: str) -> tuple[list[dict[str, Any]], int]:
+    def _parse_response(self, endpoint: str, response_text: str, *, require_complete: bool = False) -> tuple[list[dict[str, Any]], int]:
         payload = json.loads(response_text)
         if "RESULT" in payload:
             result = payload["RESULT"] or {}
@@ -32,6 +32,8 @@ class OpenAssemblyBillClient:
 
         root = payload.get(endpoint)
         if not root or len(root) < 2:
+            if require_complete:
+                raise RuntimeError(f"{endpoint} response is missing its result or rows")
             return [], 0
 
         head = root[0].get("head", [])
@@ -46,19 +48,31 @@ class OpenAssemblyBillClient:
         rows = root[1].get("row", []) if len(root) > 1 else []
         return rows, total_count
 
-    def fetch_rows(self, endpoint: str, params: Optional[Dict[str, Any]] = None, *, all_pages: bool = True, page_size: int = 100) -> List[Dict[str, Any]]:
+    def fetch_rows(
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None, *,
+        all_pages: bool = True, page_size: int = 100, require_complete: bool = False,
+    ) -> List[Dict[str, Any]]:
         query = self._build_params(params)
         query.setdefault("pIndex", 1)
         query.setdefault("pSize", page_size)
 
         all_rows: List[Dict[str, Any]] = []
         total_count = 0
+        declared_count = None
 
         while True:
             response = self.session.get(f"{self.BASE_URL}/{endpoint}", params=query, timeout=30)
             response.raise_for_status()
 
-            rows, parsed_total_count = self._parse_response(endpoint, response.text)
+            rows, parsed_total_count = self._parse_response(
+                endpoint, response.text, require_complete=require_complete,
+            )
+            if require_complete:
+                if rows and parsed_total_count < len(rows):
+                    raise RuntimeError(f"{endpoint} invalid declared row count")
+                if declared_count is not None and parsed_total_count != declared_count:
+                    raise RuntimeError(f"{endpoint} row count changed during pagination")
+                declared_count = parsed_total_count
             total_count = parsed_total_count or total_count
             if not rows:
                 break
@@ -71,6 +85,8 @@ class OpenAssemblyBillClient:
 
             query["pIndex"] += 1
 
+        if require_complete and len(all_rows) != declared_count:
+            raise RuntimeError(f"{endpoint} response has incomplete pagination")
         return all_rows
 
     def fetch_bill_receipts(self, age: str) -> List[Dict[str, Any]]:
