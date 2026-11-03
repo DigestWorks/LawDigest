@@ -13,10 +13,18 @@
 | blocker·major 전 항목 운영 통과 | 아래 134건을 개별 확인한다. 검증 통과 기록은 24건이다. |
 | 최신 발의일과 오늘의 차이 2일 이내 | 승인된 백필 이후 운영 DB의 제22대 READY 의안은 20,420건, 최신 발의일은 2026-11-02다. 공개 피드 첫 카드의 발의일은 2026-07-09로 2일 기준을 넘는다. [백필 기록](https://github.com/DigestWorks/LawDigest/pull/157) |
 | 데이터 파이프라인 timer 7일 연속 성공 | 서버의 systemd 시스템 timer 목록과 등록 목록에 해당 작업이 없다. 등록 승인과 이후 7일 실행 기록이 필요하다. |
-| 실제 계정의 로그인과 30분 후 재요청 | 사용자 화면에서 Google redirect_uri_mismatch가 발생했다. 운영 API가 보내는 콜백은 `https://api.lawdigest.kr/v1/login/oauth2/code/google`이다. [#156](https://github.com/DigestWorks/LawDigest/issues/156) |
+| 실제 계정의 로그인과 30분 후 재요청 | Google은 `redirect_uri_mismatch`, 네이버는 계정 입력 전 서비스 오류 `207`이 재현됐다. 카카오는 계정 입력 화면까지 열렸다. 실제 인증과 서비스 복귀, 30분 후 재요청은 대기 중이다. [Google #156](https://github.com/DigestWorks/LawDigest/issues/156) · [네이버 #163](https://github.com/DigestWorks/LawDigest/issues/163) |
 | 스크랩·팔로우·알림·탈퇴 | 실제 계정 검증 대기. 탈퇴 실행 전에 별도 승인을 받는다. |
 | README 세 개와 운영 런북 | 루트·웹·백엔드 README를 11월 3일의 공개 웹·API와 운영 배포 경로에 맞췄다. timer 미등록 상태와 런타임 위치는 [런북 PR](https://github.com/DigestWorks/LawDigest/pull/161)에 기록했다. 배포와 timer 등록 뒤 다시 대조한다. |
 | 잔여 minor 수용과 최종 보고 | 운영 검증 결과가 모이면 사용자에게 남은 항목을 제시한다. |
+
+## 운영 로그인 진입 확인
+
+운영 로그인 페이지에서 세 제공자 버튼을 직접 눌렀다. 인증 시작 API는 각 제공자로 HTTP 302 응답을 보내고 `https://api.lawdigest.kr/v1/login/oauth2/code/` 아래에 제공자 이름을 붙인 콜백을 전달했다.
+
+- Google은 `redirect_uri_mismatch`로 인증을 거절했다. 운영 OAuth 클라이언트의 승인된 콜백과 대조가 필요하다. [Google 오류 안내](https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors)
+- 네이버는 계정 입력 전 모두의입법 서비스 오류를 표시했다. 운영 앱의 서비스 URL·콜백 등록값·상태를 개발자센터에서 확인한다. [네이버 개발 가이드](https://developers.naver.com/docs/login/devguide/devguide.md)
+- 카카오 로그인 폼에서 계정·비밀번호 입력란을 확인했다. 서비스 복귀와 세션 검증은 실제 계정 인증이 필요하다.
 
 ## Blocker 16건
 
