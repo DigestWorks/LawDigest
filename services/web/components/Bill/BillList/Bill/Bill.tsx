@@ -64,6 +64,7 @@ export default function Bill({
   },
   representative_proposer_dto_list,
   is_book_mark,
+  hot_activity,
   public_proposer_dto_list,
   detail,
   viewCount,
@@ -292,6 +293,13 @@ export default function Bill({
 
           {title?.trim() && title.trim() !== bill_name && (
             <h3 className="text-sm text-muted-foreground">{bill_name}</h3>
+          )}
+
+          {hot_activity && (
+            <p className="text-xs text-muted-foreground">
+              최근 7일 조회 {hot_activity.view_count.toLocaleString('ko-KR')}회 · 스크랩{' '}
+              {hot_activity.scrap_count.toLocaleString('ko-KR')}건
+            </p>
           )}
 
           {detail && (Boolean(bill_number) || committee) && (

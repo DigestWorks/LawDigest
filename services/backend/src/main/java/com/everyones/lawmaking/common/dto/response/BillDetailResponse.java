@@ -21,7 +21,7 @@ public class BillDetailResponse extends BillDto {
 
 
     public BillDetailResponse(@NotNull BillInfoDto billInfoDto, @NotNull List<RepresentativeProposerDto> representativeProposerDto, @NotNull List<PublicProposerDto> publicProposerDtoList, @NotNull Boolean isBookMarked) {
-        super(billInfoDto, representativeProposerDto, publicProposerDtoList, isBookMarked);
+        super(billInfoDto, representativeProposerDto, publicProposerDtoList, isBookMarked, null);
     }
 
     public void setSimilarBills(List<SimilarBill> similarBills) {

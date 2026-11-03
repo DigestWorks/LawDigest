@@ -14,7 +14,6 @@ import com.everyones.lawmaking.common.dto.response.SimilarBillListResponse;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.LikeService;
-import com.everyones.lawmaking.service.RedisService;
 import com.everyones.lawmaking.service.VotePartyService;
 import com.everyones.lawmaking.service.VoteRecordService;
 import java.util.List;
@@ -32,7 +31,6 @@ public class BillFacade {
     private final LikeService likeService;
     private final VoteRecordService voteRecordService;
     private final VotePartyService votePartyService;
-    private final RedisService redisService;
 
     public BillDetailResponse getBillByBillId(String billId) {
         var billDto =  billService.getBillWithDetail(billId);
@@ -52,7 +50,6 @@ public class BillFacade {
     }
 
     public BillViewCountResponse updateViewCount(String billId) {
-        redisService.addToViewsQueue(billId);
         return billService.updateViewCount(billId);
     }
 
@@ -92,8 +89,7 @@ public class BillFacade {
     }
 
     public List<BillDto> getPopularBills() {
-        var popularBillIds = redisService.getPopularBills();
-        var billList = billService.getFeedBillListResponse(popularBillIds);
+        var billList = billService.getPopularBills();
         var userIdOptional = AuthenticationUtil.getUserId();
         return userIdOptional.map(userId -> billList.stream()
                 .map(billDto -> {

@@ -2,6 +2,7 @@ package com.everyones.lawmaking.service;
 
 import com.everyones.lawmaking.domain.entity.Bill;
 import com.everyones.lawmaking.repository.BillRepository;
+import com.everyones.lawmaking.repository.BillActivityRepository;
 import com.everyones.lawmaking.repository.StatisticsRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -23,7 +24,7 @@ class BillSearchServiceTest {
         when(repository.findBillInfoByIdList(List.of("older-exact", "newer-body")))
                 .thenReturn(List.of(bill("newer-body", "2026-07-09"), bill("older-exact", "2026-01-01")));
 
-        var response = new BillService(repository, mock(StatisticsRepository.class)).searchBill("의료법", pageable);
+        var response = new BillService(repository, mock(StatisticsRepository.class), mock(BillActivityRepository.class)).searchBill("의료법", pageable);
 
         assertThat(response.getBillList()).extracting(item -> item.getBillInfoDto().getBillId())
                 .containsExactly("older-exact", "newer-body");

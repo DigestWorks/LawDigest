@@ -13,6 +13,7 @@ import com.everyones.lawmaking.global.error.UserException;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.repository.BillRepository;
+import com.everyones.lawmaking.repository.BillActivityRepository;
 import com.everyones.lawmaking.repository.StatisticsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,14 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.Comparator;
 
@@ -33,6 +41,7 @@ import java.util.Comparator;
 public class BillService {
     private final BillRepository billRepository;
     private final StatisticsRepository statisticsRepository;
+    private final BillActivityRepository activityRepository;
 
     private static final String BILL_ID_KEY_STRING = "billId";
 
@@ -98,14 +107,13 @@ public class BillService {
         return getBillListResponse(billSlice);
     }
 
-    // TODO: 조회수 컬럼 접근에 대한 동시성 문제 해결 + 성능 이슈 업데이트 해야함.
     @Transactional
     public BillViewCountResponse updateViewCount(String billId) {
-        var bill = billRepository.findById(billId)
-                .orElseThrow(() -> new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId)));
-        bill.setViewCount(bill.getViewCount()+1);
-        var updatedBill = billRepository.save(bill);
-        return BillViewCountResponse.from(updatedBill);
+        if (!activityRepository.incrementViews(billId)) {
+            throw new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId));
+        }
+        activityRepository.recordView(billId);
+        return new BillViewCountResponse(billId, activityRepository.currentViews(billId));
     }
 
     public BillListResponse getBillInfoFromRepresentativeProposer(String congressmanId, Pageable pageable) {
@@ -184,12 +192,25 @@ public class BillService {
                 .toList();
     }
 
-    public List<BillDto> getFeedBillListResponse(List<String> billIdList) {
-        var billList = billRepository.findFeedBillInfoByIdList(billIdList);
+    public List<BillDto> getPopularBills() {
+        Instant now = Instant.now();
+        Instant cutoff = now.minus(7, ChronoUnit.DAYS);
+        ZoneId auditZone = ZoneId.systemDefault();
+        var scores = activityRepository.findPopular(
+                BillInfoConstant.getCurrentAssemblyNumber(),
+                LocalDateTime.ofInstant(cutoff.truncatedTo(ChronoUnit.SECONDS), ZoneOffset.UTC),
+                LocalDateTime.ofInstant(now, ZoneOffset.UTC),
+                LocalDateTime.ofInstant(cutoff, auditZone), LocalDateTime.ofInstant(now, auditZone));
+        if (scores.isEmpty()) return List.of();
 
-        return billList.stream()
-                .map(this::getBillInfoFrom)
-                .toList();
+        var ids = scores.stream().map(BillActivityRepository.Score::billId).toList();
+        var bills = billRepository.findBillInfoByIdList(ids).stream()
+                .collect(Collectors.toMap(Bill::getId, Function.identity()));
+        return scores.stream().filter(score -> bills.containsKey(score.billId())).map(score -> {
+            var dto = getBillInfoFrom(bills.get(score.billId()));
+            dto.setHotActivity(new BillDto.HotActivity(score.views(), score.scraps()));
+            return dto;
+        }).toList();
     }
 
     // DTO로 이전시켜야함

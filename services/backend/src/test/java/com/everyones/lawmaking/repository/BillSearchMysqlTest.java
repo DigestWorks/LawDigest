@@ -11,6 +11,12 @@ import com.everyones.lawmaking.service.StatisticsService;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.PartyService;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -32,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** 격리된 로컬 MySQL DB에서 운영과 같은 ngram FULLTEXT 쿼리를 실행한다. */
 @DataJpaTest
-@Import(CongressmanRepositoryCustom.class)
+@Import({CongressmanRepositoryCustom.class, BillActivityRepository.class})
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -40,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BillSearchMysqlTest {
     @Autowired private BillRepository repository;
     @Autowired private BillReportRepository reports;
+    @Autowired private BillActivityRepository activity;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PartyRepository parties;
     @Autowired private CongressmanRepository congressmen;
@@ -73,6 +80,7 @@ class BillSearchMysqlTest {
         jdbc.update("DELETE FROM BillSearchDocument");
         timelines.deleteAll();
         jdbc.update("DELETE FROM RepresentativeProposer");
+        jdbc.update("DELETE FROM BillLike");
         repository.deleteAll();
         congressmen.deleteAll();
         parties.deleteAll();
@@ -175,7 +183,7 @@ class BillSearchMysqlTest {
                 .ingestStatus(IngestStatusType.PENDING).build());
 
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
-            var bills = new BillService(repository, statistics);
+            var bills = new BillService(repository, statistics, activity);
             var stats = new StatisticsService(statistics, timelines);
             var page = bills.getBillListByCategory(PageRequest.of(0, 10), "economy");
             assertThat(page.getBillList()).extracting(b -> b.getBillInfoDto().getBillId())
@@ -272,6 +280,48 @@ class BillSearchMysqlTest {
         assertThat(reports.findPublishedByBillId("pending-report")).isEmpty();
         assertThat(reports.findPublishedByBillId("exact")).get()
                 .satisfies(report -> assertThat(report.getMarkdown()).isEqualTo("## 쉬운 요약"));
+    }
+
+    @Test
+    void hotActivityUsesSevenDaysAndKeepsRankAfterHydratingBills() throws Exception {
+        jdbc.execute(Files.readString(Path.of("../../infra/db/migrations/20261103_create_bill_view_activity.sql")));
+        var now = LocalDateTime.now().withNano(0);
+        var utcNow = LocalDateTime.now(java.time.ZoneOffset.UTC).withNano(0);
+        jdbc.update("INSERT INTO User(email,name,image_url,role) VALUES ('hot-fixture@example.test','검증','', 'MEMBER')");
+        long userId = jdbc.queryForObject("SELECT user_id FROM User WHERE email='hot-fixture@example.test'", Long.class);
+        jdbc.update("INSERT INTO BillLike (bill_id,user_id,created_date) VALUES ('exact',?,?),('body',?,?)",
+                userId, now.minusDays(1), userId, now.minusDays(8));
+        jdbc.update("INSERT INTO BillViewActivity (bill_id,viewed_at,view_count) VALUES ('exact',?,5),('body',?,5),('other',?,99)",
+                utcNow.minusDays(7).plusMinutes(1), utcNow.minusDays(1), utcNow.minusDays(7).minusSeconds(1));
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var bills = new BillService(repository, statistics, activity);
+            assertThat(bills.getPopularBills()).extracting(bill -> bill.getBillInfoDto().getBillId())
+                    .containsExactly("exact", "body");
+            assertThat(bills.getPopularBills().get(0).getHotActivity().scrapCount()).isEqualTo(1);
+        });
+        jdbc.update("DELETE FROM BillLike WHERE bill_id='exact' AND user_id=?", userId);
+        assertThat(activity.findPopular(22, utcNow.minusDays(7), utcNow, now.minusDays(7), now))
+                .extracting(BillActivityRepository.Score::billId).containsExactly("body", "exact");
+    }
+
+    @Test
+    void concurrentDetailViewsKeepLifetimeAndRecentCountersInSync() throws Exception {
+        jdbc.execute(Files.readString(Path.of("../../infra/db/migrations/20261103_create_bill_view_activity.sql")));
+        var bills = new BillService(repository, statistics, activity);
+        var pool = Executors.newFixedThreadPool(3);
+        try {
+            var calls = IntStream.range(0, 12).<Callable<Void>>mapToObj(index -> () -> {
+                new TransactionTemplate(transactions).executeWithoutResult(status -> bills.updateViewCount("exact"));
+                return null;
+            }).toList();
+            for (var result : pool.invokeAll(calls)) result.get();
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(activity.currentViews("exact")).isEqualTo(12);
+        assertThat(jdbc.queryForObject("SELECT SUM(view_count) FROM BillViewActivity WHERE bill_id='exact'", Long.class))
+                .isEqualTo(12L);
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {

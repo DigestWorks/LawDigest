@@ -99,7 +99,7 @@ export default function Feed() {
     }
   });
 
-  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '표시할 인기 법안이 없습니다.';
+  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '최근 7일 동안 조회하거나 스크랩한 법안이 없습니다.';
   if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
 
   let results;
@@ -189,6 +189,9 @@ export default function Feed() {
               />
             )}
           </section>
+          {!isLatest && (
+            <p className="mx-5 mt-3 text-sm text-muted-foreground">제22대 · 최근 7일 조회수와 스크랩 수 합계</p>
+          )}
           {results}
         </>
       )}

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 
 export interface BillResponse {
+  hot_activity?: { view_count: number; scrap_count: number };
   bill_info_dto: {
     bill_id: string;
     bill_number?: number;

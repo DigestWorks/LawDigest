@@ -3,6 +3,7 @@ package com.everyones.lawmaking.service;
 import com.everyones.lawmaking.domain.entity.Bill;
 import com.everyones.lawmaking.domain.entity.IngestStatusType;
 import com.everyones.lawmaking.repository.BillRepository;
+import com.everyones.lawmaking.repository.BillActivityRepository;
 import com.everyones.lawmaking.repository.StatisticsRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,7 +27,7 @@ class SimilarBillServiceTest {
         when(repository.findSimilarBills("의료법", "current", PageRequest.of(0, 5)))
                 .thenReturn(new PageImpl<>(items, PageRequest.of(0, 5), 761));
 
-        var detail = new BillService(repository, mock(StatisticsRepository.class)).getBillWithDetail("current");
+        var detail = new BillService(repository, mock(StatisticsRepository.class), mock(BillActivityRepository.class)).getBillWithDetail("current");
 
         assertThat(detail.getSimilarBills()).hasSize(5);
         assertThat(detail.getSimilarBillsCount()).isEqualTo(761);
