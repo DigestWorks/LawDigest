@@ -14,6 +14,13 @@ export default function getMetadata(metadataProps?: getMetadataProps) {
   const TITLE = title ? `${title} | ${siteConfig.title}` : siteConfig.title;
   const DESCRIPTION = description || siteConfig.description;
   const PAGE_URL = asPath || '/';
+  const shareImage = {
+    url: siteConfig.ogImage,
+    alt: `${siteConfig.title} 로고`,
+    type: 'image/png',
+    width: 4800,
+    height: 2520,
+  };
 
   const metadata: Metadata = {
     metadataBase: new URL(siteConfig.url),
@@ -42,24 +49,12 @@ export default function getMetadata(metadataProps?: getMetadataProps) {
       type: siteConfig.type,
       locale: 'ko_KR',
       url: PAGE_URL,
-      images: {
-        url: siteConfig.ogImage,
-        alt: `${siteConfig.title} 로고`,
-        type: 'image/png',
-        width: '1200',
-        height: '630',
-      },
+      images: shareImage,
     },
     twitter: {
       title: TITLE,
       description: DESCRIPTION,
-      images: {
-        url: siteConfig.ogImage,
-        alt: `${siteConfig.title} 로고`,
-        type: 'image/png',
-        width: '1200',
-        height: '630',
-      },
+      images: shareImage,
     },
   };
 

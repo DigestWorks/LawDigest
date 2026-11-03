@@ -159,5 +159,5 @@
 | [JOURNEY-01](2026-11-02-ux-polish-findings.md?plain=1#L2820) 모바일 플로팅 내비(z-70)가 모달, 검색 모달, 스낵바, 맨 위로 버튼 위에 그려진다 | 대기 |  |
 | [JOURNEY-02](2026-11-02-ux-polish-findings.md?plain=1#L2828) 토큰 재발급 API가 실패해도 200 'success'를 돌려줘서 세션 만료를 클라이언트가 알 수 없다 | 대기 |  |
 | [JOURNEY-03](2026-11-02-ux-polish-findings.md?plain=1#L2836) 비로그인·라이트 테마 첫 방문에서도 모든 페이지가 hydration 오류(React #418)를 낸다 | 운영 재현 | 운영 로그인 첫 로드에서 React #418 확인. 후보 빌드에서도 저장된 다크 테마로 로그인 새로고침 시 재현됐다. 공용 로고·아이콘 수정 후 격리 프로덕션 빌드의 피드, 법안 상세, 타임라인, 탐색, 의원, 검색, 로그인에서 라이트·다크 모드 오류가 없었다. 운영 배포 후 재확인한다. |
-| [JOURNEY-04](2026-11-02-ux-polish-findings.md?plain=1#L2844) 카카오톡 링크 스크래퍼에는 og 메타가 </html> 뒤에 붙어 내려간다(Next.js streaming metadata) | 부분 확인 | 정당 표본의 Kakao UA 응답은 og:title이 head 밖, Facebook UA는 head 안. 실제 공유 미리보기 대기 |
+| [JOURNEY-04](2026-11-02-ux-polish-findings.md?plain=1#L2844) 카카오톡 링크 스크래퍼에는 og 메타가 </html> 뒤에 붙어 내려간다(Next.js streaming metadata) | 운영 재현 | 운영 법안·의원·정당의 Kakao 스크래퍼 응답에서 제목·주소·이미지가 head 밖, Facebook 응답에서는 head 안. #160 격리 빌드에서 동일 세 경로와 봇 UA 6종의 head 메타정보, canonical과 실제 PNG 크기를 확인했다. 카카오 URL 메타정보 관리 도구는 로그인 필요. 배포 후 도구에서 실제 공유 미리보기를 확인한다. |
 | [JOURNEY-05](2026-11-02-ux-polish-findings.md?plain=1#L2852) API JSON 응답이 압축되지 않고 피드 카드마다 원문 제안이유와 공동발의자 전체 목록을 보낸다 | 운영 재현 | 11월 3일 공개 API 피드 3건 38,150바이트. gzip 요청에도 Content-Encoding 없음 |
