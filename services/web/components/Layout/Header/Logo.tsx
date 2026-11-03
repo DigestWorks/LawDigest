@@ -17,7 +17,7 @@ export default function Logo({ width, height }: LogoProps) {
       src={theme === 'dark' ? '/images/logoDark.svg' : '/images/logo.svg'}
       width={width}
       height={height}
-      alt="로고이미지"
+      alt="모두의입법"
     />
   );
 }
