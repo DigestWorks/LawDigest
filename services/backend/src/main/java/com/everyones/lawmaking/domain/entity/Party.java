@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.domain.entity;
 
+import java.time.LocalDate;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -84,6 +85,12 @@ public class Party extends BaseEntity{
     @Schema(name = "정책위의장")
     @Column(name = "policy_committee_chairman")
     private String policyCommitteeChairman;
+
+    @Column(name = "leadership_verified_on")
+    private LocalDate leadershipVerifiedOn;
+
+    @Column(name = "leadership_source_url", length = 1024)
+    private String leadershipSourceUrl;
 
     public static Party create(String partyName ){
         return Party.builder()

@@ -40,7 +40,14 @@ public class PartyService {
                 .findFirst()
                 .orElse(new PartySeatCount(partyId, party.getName(), party.getPartyImageUrl(), 0, 0, 0));
         int totalSeats = Math.toIntExact(seatCounts.stream().mapToLong(PartySeatCount::totalCount).sum());
-        return PartyDetailResponse.from(party, seats, totalSeats);
+        Integer rank = null;
+        if (seats.totalCount() > 0 && !"무소속".equals(party.getName())) {
+            rank = 1 + Math.toIntExact(seatCounts.stream()
+                    .filter(count -> count.partyId() != null && !"무소속".equals(count.partyName()))
+                    .filter(count -> count.totalCount() > seats.totalCount())
+                    .count());
+        }
+        return PartyDetailResponse.from(party, seats, totalSeats, rank);
     }
 
     public List<FollowingPartyResponse> getFollowingParty(long userId) {

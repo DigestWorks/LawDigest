@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -26,6 +28,7 @@ public class PartyDetailResponse {
     @NotNull
     private int districtCongressmanCount;
     private int unclassifiedCongressmanCount;
+    private Integer parliamentaryRank;
     @NotNull
     private int totalCongressmanCount;
     @NotNull
@@ -52,7 +55,11 @@ public class PartyDetailResponse {
     private String policyCommitteeChairman;
 
 
-    public static PartyDetailResponse from(Party party, PartySeatCount seats, int totalSeats) {
+    private LocalDate leadershipVerifiedOn;
+    private String leadershipSourceUrl;
+
+    public static PartyDetailResponse from(Party party, PartySeatCount seats, int totalSeats, Integer rank) {
+        var leadership = PartyExecutiveResponse.from(party);
         var partyFollow = party.getPartyFollow();
         return PartyDetailResponse.builder()
                 .partyId(party.getId())
@@ -63,12 +70,15 @@ public class PartyDetailResponse {
                 .districtCongressmanCount(Math.toIntExact(seats.districtCount()))
                 .unclassifiedCongressmanCount(seats.unclassifiedCount())
                 .totalCongressmanCount(totalSeats)
+                .parliamentaryRank(rank)
                 .representativeBillCount(party.getRepresentativeBillCount())
                 .publicBillCount(party.getPublicBillCount())
-                .partyLeader(party.getPartyLeader())
-                .parliamentaryLeader(party.getParliamentaryLeader())
-                .secretaryGeneral(party.getSecretaryGeneral())
-                .policyCommitteeChairman(party.getPolicyCommitteeChairman())
+                .partyLeader(leadership.getPartyLeader())
+                .parliamentaryLeader(leadership.getParliamentaryLeader())
+                .secretaryGeneral(leadership.getSecretaryGeneral())
+                .policyCommitteeChairman(leadership.getPolicyCommitteeChairman())
+                .leadershipVerifiedOn(leadership.getLeadershipVerifiedOn())
+                .leadershipSourceUrl(leadership.getLeadershipSourceUrl())
                 .followCount(partyFollow.size())
                 .isFollowed(false)
                 .build();

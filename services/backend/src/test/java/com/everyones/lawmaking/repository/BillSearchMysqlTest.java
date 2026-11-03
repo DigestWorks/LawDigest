@@ -202,6 +202,12 @@ class BillSearchMysqlTest {
                 .assemblyNumber(22).party(independent).district("서울").build());
         congressmen.saveAndFlush(Congressman.builder().id("unassigned").name("라의원").state(true)
                 .assemblyNumber(22).district("서울").build());
+        var firstParty = parties.saveAndFlush(Party.builder().name("첫 정당").build());
+        var secondParty = parties.saveAndFlush(Party.builder().name("둘째 정당").build());
+        congressmen.saveAndFlush(Congressman.builder().id("party-one").name("마의원").state(true)
+                .assemblyNumber(22).party(firstParty).district("서울").build());
+        congressmen.saveAndFlush(Congressman.builder().id("party-two").name("바의원").state(true)
+                .assemblyNumber(22).party(secondParty).district("서울").build());
         jdbc.update("UPDATE Bill SET assembly_number = 21 WHERE bill_id = 'body'");
         jdbc.update("UPDATE Bill SET ingest_status = 'PENDING' WHERE bill_id = 'other'");
         jdbc.update("""
@@ -213,14 +219,17 @@ class BillSearchMysqlTest {
             var partyService = new PartyService(parties);
             var detail = partyService.getPartyById(independent.getId());
             var memberList = congressmen.findByPartyId(independent.getId()).getContent();
-            assertThat(detail.getTotalCongressmanCount()).isEqualTo(3);
+            assertThat(detail.getTotalCongressmanCount()).isEqualTo(5);
+            assertThat(partyService.getPartyById(firstParty.getId()).getParliamentaryRank()).isEqualTo(1);
+            assertThat(partyService.getPartyById(secondParty.getId()).getParliamentaryRank()).isEqualTo(1);
+            assertThat(detail.getParliamentaryRank()).isNull();
             assertThat(detail.getDistrictCongressmanCount()).isZero();
             assertThat(detail.getProportionalCongressmanCount()).isEqualTo(1);
             assertThat(detail.getUnclassifiedCongressmanCount()).isEqualTo(1);
             assertThat(memberList).hasSize(2);
             assertThat(partyService.getParliamentaryParty()).extracting(r -> r.getCongressmanCount())
-                    .containsExactly(2L, 1L);
-            assertThat(rankings.findCongressmanRanking(null, 0, 10)).satisfiesExactly(
+                    .containsExactly(2L, 1L, 1L, 1L);
+            assertThat(rankings.findCongressmanRanking(independent.getId(), 0, 10)).satisfiesExactly(
                     member -> {
                         assertThat(member.getCongressmanId()).isEqualTo("reelected");
                         assertThat(member.getProposeCount()).isEqualTo(1);
@@ -228,8 +237,10 @@ class BillSearchMysqlTest {
                     member -> {
                         assertThat(member.getCongressmanId()).isEqualTo("zero");
                         assertThat(member.getProposeCount()).isZero();
-                    },
-                    member -> {
+                    });
+            assertThat(rankings.findCongressmanRanking(null, 0, 10))
+                    .hasSize(5)
+                    .anySatisfy(member -> {
                         assertThat(member.getCongressmanId()).isEqualTo("unassigned");
                         assertThat(member.getPartyId()).isZero();
                     });
