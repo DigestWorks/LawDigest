@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import ExploreSidebar from './ExploreSidebar';
 import ExploreSubTabs from './ExploreSubTabs';
 import FieldPanel from './FieldPanel';
@@ -18,11 +19,13 @@ export default function ExploreBoard() {
       <div className="min-w-0 lg:flex-1">
         <ExploreSubTabs active={tab} onChange={setTab} />
 
-        <main className="px-4 pb-28 pt-4 md:px-6 md:pb-16 lg:px-0 lg:pt-0">
+        <section className="px-4 pb-28 pt-4 md:px-6 md:pb-16 lg:px-0 lg:pt-0">
+          <h1 className="sr-only">탐색</h1>
+          <DataFreshnessNote className="mb-4" />
           {tab === 'field' && <FieldPanel />}
           {tab === 'assembly' && <AssemblyPanel />}
           {tab === 'stats' && <StatsPanel />}
-        </main>
+        </section>
       </div>
     </div>
   );

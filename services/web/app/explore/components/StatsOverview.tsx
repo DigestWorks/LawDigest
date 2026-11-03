@@ -1,5 +1,8 @@
 'use client';
 
+import { Layers, CircleCheck, Hourglass, Percent } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useEffect, useRef } from 'react';
 import { animate, motion, useInView, useReducedMotion } from 'framer-motion';
 import { useGetStatisticsOverview } from '../apis';
@@ -68,9 +71,10 @@ function PassRateRing({ rate }: { rate: number }) {
   );
 }
 
-/** KPI 카드 4종 — 총 발의 / 가결 / 계류 중 / 가결률(링 게이지 포함). */
+/** KPI 카드 4종 — 총 발의 / 가결 / 결과 기록 없음 / 가결률(링 게이지 포함). */
 export default function StatsOverview() {
-  const { data, isLoading } = useGetStatisticsOverview();
+  const query = useGetStatisticsOverview();
+  const { data, isLoading } = query;
   const reduceMotion = useReducedMotion();
   const overview = data?.data;
 
@@ -89,13 +93,22 @@ export default function StatsOverview() {
     );
   }
 
-  if (!overview) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="입법 현황을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (!overview) return <SectionEmpty>입법 현황 자료가 없습니다.</SectionEmpty>;
 
   const cards = [
-    { label: '총 발의', value: overview.total_count, unit: '건', icon: 'stacks' },
-    { label: '가결', value: overview.passed_count, unit: '건', icon: 'task_alt' },
-    { label: '계류 중', value: overview.pending_count, unit: '건', icon: 'hourglass_top' },
-    { label: '가결률', value: overview.pass_rate, unit: '%', icon: 'percent', decimals: 1 },
+    { label: '총 발의', value: overview.total_count, unit: '건', Icon: Layers },
+    { label: '가결', value: overview.passed_count, unit: '건', Icon: CircleCheck },
+    { label: '결과 기록 없음', value: overview.pending_count, unit: '건', Icon: Hourglass },
+    { label: '가결률', value: overview.pass_rate, unit: '%', Icon: Percent, decimals: 1 },
   ];
 
   return (
@@ -111,7 +124,7 @@ export default function StatsOverview() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="flex items-center gap-1 text-[12px] text-gray-2">
-                <span className="material-symbols-outlined text-[14px]">{card.icon}</span>
+                <card.Icon aria-hidden="true" className="size-3.5 shrink-0" />
                 {card.label}
               </p>
               <p className="mt-1.5 text-[24px] font-bold leading-none text-primary-3 dark:text-gray-0.5">

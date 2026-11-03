@@ -1,8 +1,8 @@
 package com.everyones.lawmaking.controller;
 
+import com.everyones.lawmaking.common.dto.bill.BillCardDto;
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
 import com.everyones.lawmaking.common.dto.TrendingKeywordDto;
-import com.everyones.lawmaking.common.dto.bill.BillDto;
 import com.everyones.lawmaking.common.dto.response.BillDetailResponse;
 import com.everyones.lawmaking.common.dto.response.BillLikeResponse;
 import com.everyones.lawmaking.common.dto.response.BillListResponse;
@@ -44,6 +44,7 @@ public class BillController {
     @Operation(summary = "메인피드 조회", description = "메인피드에 들어갈 데이터를 가져옵니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 페이지, 크기 또는 단계"),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류 (문제 지속시 BE팀 문의)",
@@ -55,7 +56,7 @@ public class BillController {
             ),
     })
     @GetMapping("/mainfeed")
-    public BaseResponse<BillListResponse> getBillsFromMainFeed(
+    public BaseResponse<?> getBillsFromMainFeed(
             @Parameter(example = "0", description = "스크롤할 때마다 page값을 0에서 1씩 늘려주면 됩니다.")
             @RequestParam(name = "page", defaultValue = "0")
             int page,
@@ -65,14 +66,18 @@ public class BillController {
             @Parameter(example = "공포", description = "법안의 단계 현황을 나타냅니다.")
             @Schema(type = "string", allowableValues = {"접수", "위원회심사",
                     "본회의 심의", "공포"})
-            @RequestParam(name = "stage", required = false) String stage
-            ) {
-        var pageable = PageRequest.of(page, size);
-        if(StringUtils.hasText(stage) && !BillStageType.containsValue(stage)) {
-            throw new IllegalArgumentException(stage);
+            @RequestParam(name = "stage", required = false) String stage,
+            @Parameter(description = "국회 대수 필터", schema = @Schema(allowableValues = {"21", "22", "all"}))
+            @RequestParam(name = "assembly", required = false) String assembly,
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact
+    ) {
+        if (page < 0 || size < 1 || (StringUtils.hasText(stage) && !BillStageType.containsValue(stage))) {
+            throw new RequestParameterException();
         }
-        var result = billFacade.getBillList(pageable, stage);
-        return BaseResponse.ok(limitToRequestedSize(result, size));
+        var pageable = PageRequest.of(page, size);
+        var result = billFacade.getBillList(pageable, stage, assembly);
+        var response = limitToRequestedSize(result, size);
+        return BaseResponse.ok(compact ? BillCardDto.page(response) : response);
     }
 
     /**
@@ -91,7 +96,7 @@ public class BillController {
             @RequestParam(name = "stage") String stage
     ) {
         var pageable = PageRequest.of(page, size);
-        var result = billFacade.getBillList(pageable, stage);
+        var result = billFacade.getBillList(pageable, stage, null);
         return BaseResponse.ok(limitToRequestedSize(result, size));
     }
 
@@ -121,17 +126,19 @@ public class BillController {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
     })
     @GetMapping("/category")
-    public BaseResponse<BillListResponse> getBillsByCategory(
+    public BaseResponse<?> getBillsByCategory(
             @Parameter(example = "0", description = "스크롤할 때마다 page값을 0에서 1씩 늘려주면 됩니다.")
             @RequestParam(name = "page", defaultValue = "0") int page,
             @Parameter(example = "3", description = "한번에 가져올 데이터 크기를 의미합니다.")
             @RequestParam(name = "size", defaultValue = "3") int size,
             @Parameter(example = "economy", description = "분야 코드입니다.")
-            @RequestParam(name = "category") String category
+            @RequestParam(name = "category") String category,
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact
     ) {
         var pageable = PageRequest.of(page, size);
         var result = billFacade.getBillListByCategory(pageable, category);
-        return BaseResponse.ok(limitToRequestedSize(result, size));
+        var response = limitToRequestedSize(result, size);
+        return BaseResponse.ok(compact ? BillCardDto.page(response) : response);
     }
 
     @Operation(summary = "법안 상세 조회", description = "법안 id로 법안 데이터를 가져옵니다.")
@@ -150,8 +157,9 @@ public class BillController {
     @GetMapping("/detail/{bill_id}")
     public BaseResponse<BillDetailResponse> getBillWithDetail(
             @Parameter(example = "PRC_G2O3O1N2O1M1K1L5A0A8Z2Z2Y7W6X3")
-            @PathVariable("bill_id") String billId) {
-        var result = billFacade.getBillByBillId(billId);
+            @PathVariable("bill_id") String billId,
+            @RequestParam(name = "current_assembly", defaultValue = "false") boolean currentOnly) {
+        var result = billFacade.getBillByBillId(billId, currentOnly);
         return BaseResponse.ok(result);
     }
 
@@ -159,11 +167,12 @@ public class BillController {
     public BaseResponse<SimilarBillListResponse> getSimilarBills(
             @PathVariable("bill_id") String billId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(name = "current_assembly", required = false) Boolean current) {
         if (page < 0 || size < 1 || size > 50) {
             throw new RequestParameterException();
         }
-        return BaseResponse.ok(billFacade.getSimilarBills(billId, PageRequest.of(page, size)));
+        return BaseResponse.ok(billFacade.getSimilarBills(billId, current, PageRequest.of(page, size)));
     }
 
     @Operation(summary = "법안 조회수 증가", description = "법안 id로 조회수를 증가시킵니다.")
@@ -228,9 +237,10 @@ public class BillController {
             ),
     })
     @GetMapping("/popular")
-    public BaseResponse<List<BillDto>> getPopularBills() {
+    public BaseResponse<?> getPopularBills(
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact) {
         var result = billFacade.getPopularBills();
-        return BaseResponse.ok(result);
+        return BaseResponse.ok(compact ? BillCardDto.list(result) : result);
     }
 
     private BillListResponse limitToRequestedSize(BillListResponse response, int size) {

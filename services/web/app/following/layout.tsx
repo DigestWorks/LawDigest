@@ -1,10 +1,12 @@
 import { Layout } from '@/components';
-import { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 
-export const metadata: Metadata = {
-  title: '팔로잉 페이지',
-  description: '내가 정보한 정보들을 자세히 확인할 수 있는 페이지',
-};
+export const metadata = getMetadata({
+  title: '팔로잉',
+  description: '팔로우한 의원과 정당의 법안과 활동을 확인합니다.',
+  asPath: '/following',
+  noIndex: true,
+});
 
 export default function FollowingLayout({ children }: { children: React.ReactNode }) {
   return (

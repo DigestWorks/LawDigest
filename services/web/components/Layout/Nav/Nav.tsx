@@ -183,6 +183,7 @@ function Nav() {
         {/* 탭 바 */}
         <nav
           ref={registerNavRef}
+          aria-label="모바일 주 메뉴"
           className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}`}
           onPointerDown={isSearchOpen ? undefined : handlePointerDown}
           onPointerMove={isSearchOpen ? undefined : handlePointerMove}
@@ -212,8 +213,8 @@ function Nav() {
               key={label}
               type="button"
               className="mobile-floating-nav__item"
-              onClick={() => {
-                if (!wasDraggingRef.current) {
+              onClick={(event) => {
+                if (!wasDraggingRef.current || event.detail === 0) {
                   setNavIndex(index);
                   setIsCompact(false);
                   router.push(href);

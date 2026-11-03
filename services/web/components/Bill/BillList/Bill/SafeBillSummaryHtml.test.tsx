@@ -25,6 +25,13 @@ describe('SafeBillSummaryHtml', () => {
     expect(screen.getByText('<script>alert(1)</script>')).toBeInTheDocument();
   });
 
+  it('검색 결과 카드의 요약 제목을 법안 제목보다 한 단계 낮춘다', () => {
+    render(<SafeBillSummaryHtml className="summary" markdown={'## 쉬운 요약\n### 항목'} sectionLevel={4} style={{}} />);
+
+    expect(screen.getByRole('heading', { name: '쉬운 요약', level: 4 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '항목', level: 5 })).toBeInTheDocument();
+  });
+
   it('본문에 버튼 역할을 주지 않고 용어 풀이만 버튼으로 제공한다', () => {
     render(
       <SafeBillSummaryHtml

@@ -1,5 +1,6 @@
 import Bill from '@/components/Bill/BillList/Bill/Bill';
 import { Divider } from '@heroui/react';
+import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import { BillResponse } from '@/types';
 import { getChairmanProposerInfo, isGovernmentBill } from '@/utils';
 import { SectionContainer } from '../SectionContainer';
@@ -8,7 +9,7 @@ import { ProgressStage } from '../ProgressStage';
 import { AnotherBillList } from '../AnotherBill';
 import { ProcessResult } from '../ProcessResult';
 
-export default function BillDetail({ data, viewCount }: { data: BillResponse; viewCount: number }) {
+export default function BillDetail({ data }: { data: BillResponse }) {
   const isGovernmentProposer = isGovernmentBill({
     proposerKind: data.bill_info_dto.proposer_kind,
     billId: data.bill_info_dto.bill_id,
@@ -25,7 +26,7 @@ export default function BillDetail({ data, viewCount }: { data: BillResponse; vi
 
   return (
     <section>
-      <Bill {...data} detail viewCount={viewCount}>
+      <Bill {...data} detail>
         <section className="md:w-[300px] lg:w-[490px] md:float-right flex flex-col gap-[34px] mt-[34px]">
           {!isGovernmentProposer && !isChairmanProposer && (
             <>
@@ -45,7 +46,11 @@ export default function BillDetail({ data, viewCount }: { data: BillResponse; vi
           )}
 
           <SectionContainer title="심사 진행 단계">
-            <ProgressStage billStage={data.bill_info_dto.bill_stage} billResult={data.bill_info_dto.bill_result} />
+            <ProgressStage
+              billStage={data.bill_info_dto.bill_stage}
+              billResult={data.bill_info_dto.bill_result}
+              stageDates={data.bill_info_dto.stage_dates}
+            />
           </SectionContainer>
 
           <Divider className="hidden md:block h-[1px] w-full border-gray-1 dark:border-dark-l" />
@@ -59,6 +64,7 @@ export default function BillDetail({ data, viewCount }: { data: BillResponse; vi
               billStage={data.bill_info_dto.bill_stage}
             />
           </SectionContainer>
+          <DataFreshnessNote />
         </section>
       </Bill>
 

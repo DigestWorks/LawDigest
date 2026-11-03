@@ -1,10 +1,13 @@
 'use client';
 
+import { Donut } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Cell, Label, Pie, PieChart, Sector } from 'recharts';
 import type { PieSectorShapeProps } from 'recharts';
-import { getCategoryMeta } from '@/config/categories';
+import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByCategory } from '../apis';
 import StatsCard from './StatsCard';
@@ -19,14 +22,15 @@ const chartConfig = {
 
 /** 분야별 분포 — 호버/범례 선택 시 조각이 확대되는 인터랙티브 도넛. */
 export default function StatsCategoryDonut() {
-  const { data, isLoading } = useGetStatisticsByCategory();
+  const query = useGetStatisticsByCategory();
+  const { data, isLoading } = query;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const raw = useMemo(() => (data?.data ?? []).filter((c) => c.category && c.category !== 'unknown'), [data]);
+  const raw = useMemo(() => (data?.data ?? []).filter((c) => isCategoryCode(c.category)), [data]);
 
   if (isLoading) {
     return (
-      <StatsCard title="분야별 분포" icon="donut_small" delay={0.15}>
+      <StatsCard title="분야별 분포" icon={Donut} delay={0.15}>
         <div className="flex items-center gap-4">
           <SkeletonBar className="h-[168px] w-[168px] shrink-0 rounded-full" />
           <div className="grid flex-1 grid-cols-1 gap-2">
@@ -52,14 +56,23 @@ export default function StatsCategoryDonut() {
     ...(restCount > 0 ? [{ name: '기타', color: ETC_COLOR, count: restCount }] : []),
   ];
 
-  if (raw.length === 0) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="분야별 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (raw.length === 0) return <SectionEmpty>분야별 통계가 없습니다.</SectionEmpty>;
 
   const active = activeIndex !== null ? segments[activeIndex] : null;
 
   return (
-    <StatsCard title="분야별 분포" icon="donut_small" subtitle={`${raw.length}개 분야`} delay={0.15}>
+    <StatsCard title="분야별 분포" icon={Donut} subtitle={`${raw.length}개 분야`} delay={0.15}>
       <div className="flex items-center gap-4">
-        <ChartContainer config={chartConfig} className="aspect-square h-[168px] shrink-0">
+        <ChartContainer config={chartConfig} className="aspect-square h-[168px] w-[168px] shrink-0">
           <PieChart>
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="name" />} />
             <Pie
@@ -111,7 +124,7 @@ export default function StatsCategoryDonut() {
               onFocus={() => setActiveIndex(i)}
               onBlur={() => setActiveIndex(null)}
               className={clsx(
-                'flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[12px] transition-colors duration-150',
+                'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[12px] transition-colors duration-150',
                 activeIndex === i
                   ? 'bg-gray-0.5 text-primary-3 dark:bg-dark-l dark:text-gray-0.5'
                   : 'text-gray-3 dark:text-gray-1',

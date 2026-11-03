@@ -1,23 +1,15 @@
-'use client';
-
-import Image from 'next/image';
-import { useTheme } from 'next-themes';
-
 interface LogoProps {
   width: number;
   height: number;
 }
 
 export default function Logo({ width, height }: LogoProps) {
-  const { theme } = useTheme();
-
   return (
-    <Image
-      priority
-      src={theme === 'dark' ? '/images/logoDark.svg' : '/images/logo.svg'}
-      width={width}
-      height={height}
-      alt="로고이미지"
+    <span
+      role="img"
+      aria-label="모두의입법"
+      className="block shrink-0 bg-[url('/images/logo.svg')] bg-contain bg-center bg-no-repeat dark:bg-[url('/images/logoDark.svg')]"
+      style={{ width, height }}
     />
   );
 }

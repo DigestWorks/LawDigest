@@ -31,7 +31,7 @@ public enum ErrorCode {
 
     BILL_NOT_FOUND(404, "해당 법안을 찾을 수 없습니다."),
 
-    PARTY_NOT_FOUND(404, "해당 파티를 찾을 수 없습니다."),
+    PARTY_NOT_FOUND(404, "해당 정당을 찾을 수 없습니다."),
 
     NOTIFICATION_NOT_FOUND(404, "해당 알림을 찾을 수 없습니다."),
 

@@ -23,4 +23,11 @@ public interface VotePartyRepository extends JpaRepository<VoteParty,Long> {
             "order by case when p.name = '무소속' then 1 else 0 end, " +
             "vp.voteForCount desc ")
     List<VoteParty> findVotePartyWithPartyByBillId(@Param("billId") String billId);
+
+    @Query("""
+            SELECT vp FROM VoteParty vp JOIN FETCH vp.party p
+            WHERE vp.bill.id IN :billIds
+            ORDER BY CASE WHEN p.name = '무소속' THEN 1 ELSE 0 END, vp.voteForCount DESC
+            """)
+    List<VoteParty> findPartyVotesForBills(@Param("billIds") List<String> billIds);
 }

@@ -2,7 +2,7 @@
 
 - classify_by_committee: Bill.committee → 분야 코드 (정식명/약칭/개칭 + 분할 키워드).
 - classify_by_content: 법안명+요약 키워드 → 분야 코드 (법안명 우선).
-- classify_bill: 위원회 있으면 위원회 매핑, 없거나 미상이면 내용 분류, 그래도 없으면 unknown.
+- classify_bill: 명확한 법률명 예외 → 위원회 매핑 → 내용 분류 → unknown.
 
 설계·검증: output/tab-prototypes/FIELD_TAXONOMY.md (§4 위원회 매핑, §5.3 본회의 내용 분류).
 """
@@ -129,8 +129,14 @@ def classify_bill(
     bill_name: str | None,
     summary: str | None = None,
 ) -> str:
-    """백필 오케스트레이터: 위원회 매핑 → 내용 분류 → unknown."""
-    text = f"{bill_name or ''} {summary or ''}"
+    """백필 오케스트레이터: 법률명 예외 → 위원회 매핑 → 내용 분류 → unknown."""
+    name = (bill_name or "").strip()
+    if name.startswith("국립묘지의 설치 및 운영에 관한 법률"):
+        return "welfare"
+    if name.startswith("중대범죄수사청"):
+        return "justice"
+
+    text = f"{name} {summary or ''}"
     by_committee = classify_by_committee(committee, text)
     if by_committee is not None:
         return by_committee

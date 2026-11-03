@@ -207,6 +207,50 @@ def test_fetch_bills_coactors_retries_empty_bill_response():
     assert "max_retry" not in fetch_data.call_args_list[0].kwargs["params"]
 
 
+def test_assembly_codes_include_coauthors_with_empty_representative_flag():
+    fetcher = DataFetcher()
+    fetcher.df_lawmakers = pd.DataFrame({"HG_NM": ["같은 이름", "같은 이름"], "MONA_CD": ["M1", "M2"]})
+    rows = pd.DataFrame(
+        [
+            {"BILL_ID": "PRC_SAMPLE", "PPSR_ROLE": "발의자", "NASS_CD": "M2", "PPSR_NM": "같은 이름"},
+            {
+                "BILL_ID": "PRC_SAMPLE",
+                "PPSR_ROLE": "발의자",
+                "REP_DIV": "대표발의",
+                "NASS_CD": "M1",
+                "PPSR_NM": "같은 이름",
+            },
+        ]
+    )
+    bills = pd.DataFrame({"bill_id": ["PRC_SAMPLE"], "billNumber": [2214937]})
+    with (
+        patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}),
+        patch.object(fetcher, "fetch_data_generic", return_value=rows),
+        patch("lawdigest_data.bills.DataFetcher.fetch_likms_proposers") as fallback,
+    ):
+        result = fetcher.fetch_bills_coactors(bills, max_retry=0)
+    assert result.iloc[0]["publicProposerIdList"] == ["M1", "M2"]
+    assert result.iloc[0]["representativeProposerIdList"] == ["M1"]
+    fallback.assert_not_called()
+
+
+def test_assembly_codes_without_representative_flag_still_require_confirmation():
+    fetcher = DataFetcher()
+    fetcher.df_lawmakers = pd.DataFrame({"HG_NM": ["홍길동"], "MONA_CD": ["M1"]})
+    rows = pd.DataFrame(
+        [{"BILL_ID": "PRC_SAMPLE", "PPSR_ROLE": "발의자", "NASS_CD": "M1", "PPSR_NM": "홍길동"}]
+    )
+    bills = pd.DataFrame({"bill_id": ["PRC_SAMPLE"], "billNumber": [2214937]})
+    with (
+        patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}),
+        patch.object(fetcher, "fetch_data_generic", return_value=rows),
+        patch("lawdigest_data.bills.DataFetcher.fetch_likms_proposers", return_value=None) as fallback,
+    ):
+        result = fetcher.fetch_bills_coactors(bills, max_retry=0)
+    assert result.empty
+    fallback.assert_called_once()
+
+
 def test_empty_api_uses_complete_official_list_before_repeated_requests():
     fetcher = DataFetcher()
     fetcher.df_lawmakers = pd.DataFrame({"HG_NM": ["홍길동"], "MONA_CD": ["M1"]})

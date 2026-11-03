@@ -12,7 +12,7 @@ public class StatisticsOverviewDto {
 
     private long totalCount; // 총 발의
     private long passedCount; // 가결(원안가결 + 수정가결)
-    private long pendingCount; // 계류(결과 미정)
+    private long pendingCount; // 결과 기록 없음
     private double passRate; // 가결률(%)
 
     public StatisticsOverviewDto(Long totalCount, Long passedCount, Long pendingCount) {

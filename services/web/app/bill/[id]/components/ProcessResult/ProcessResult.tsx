@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardBody } from '@heroui/react';
 import HalfDonutChart from '@/components/common/Chart/HalfDonutChart';
-import { stageStatus } from '@/lib/billStage';
+import { billResultLabel, stageStatus } from '@/lib/billStage';
 import { BillResponse } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import VoteResultBoard from './VoteResultBoard';
@@ -29,7 +29,7 @@ export default function ProcessResult({
   total_vote_count,
   party_vote_list,
 }: Props) {
-  const result = bill_result || stageStatus(billStage).terminal;
+  const result = billResultLabel(bill_result) || stageStatus(billStage).terminal;
   if (!result)
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
@@ -56,7 +56,7 @@ export default function ProcessResult({
   return (
     <Card className="border border-border p-5 shadow-none">
       <CardHeader className="justify-center">
-        <h4 className="text-lg font-semibold">{result}</h4>
+        <p className="text-lg font-semibold">{result}</p>
       </CardHeader>
       <CardBody className="flex flex-col items-center gap-4 p-0 text-center">
         {!voted && (

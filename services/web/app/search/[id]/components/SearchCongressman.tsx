@@ -20,8 +20,11 @@ export default function SearchCongressman({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="font-semibold">{congressman_name}</p>
         <p className="truncate text-sm text-muted-foreground">{party_name}</p>
-        {current_member === false && (
-          <p className="text-xs text-muted-foreground">{assembly_number ? `${assembly_number}대 · ` : ''}전직 의원</p>
+        {typeof current_member === 'boolean' && (
+          <p className="text-xs text-muted-foreground">
+            {assembly_number ? `${assembly_number}대 · ` : ''}
+            {current_member ? '현직 의원' : '전직 의원'}
+          </p>
         )}
       </div>
       <ChevronRight className="size-5 shrink-0" aria-hidden="true" />

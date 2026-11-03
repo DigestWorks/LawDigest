@@ -14,7 +14,7 @@ export default function ExploreSidebar({ active, onChange }: ExploreSidebarProps
       <div className="sticky top-[112px]">
         <p className="mb-2 px-3 text-[12px] font-semibold uppercase tracking-wide text-gray-2">탐색</p>
         <nav className="flex flex-col gap-1" aria-label="탐색 하위 탭">
-          {EXPLORE_TABS.map(({ key, label, icon }) => {
+          {EXPLORE_TABS.map(({ key, label, icon: Icon }) => {
             const isActive = key === active;
             return (
               <button
@@ -28,7 +28,7 @@ export default function ExploreSidebar({ active, onChange }: ExploreSidebarProps
                     ? 'bg-primary-1 text-primary-3 dark:bg-dark-l dark:text-gray-0.5'
                     : 'text-gray-3 hover:bg-gray-0.5 dark:text-gray-1 dark:hover:bg-dark-l',
                 ].join(' ')}>
-                <span className="material-symbols-outlined text-[22px]">{icon}</span>
+                <Icon aria-hidden="true" className="size-[22px] shrink-0" />
                 {label}
               </button>
             );

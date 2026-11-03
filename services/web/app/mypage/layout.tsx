@@ -1,10 +1,12 @@
 import { Layout } from '@/components';
-import { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 
-export const metadata: Metadata = {
-  title: '마이 페이지',
-  description: '내 정보를 자세히 확인할 수 있는 페이지',
-};
+export const metadata = getMetadata({
+  title: '마이페이지',
+  description: '스크랩과 팔로우, 계정 정보를 확인합니다.',
+  asPath: '/mypage',
+  noIndex: true,
+});
 
 export default function MypageLayout({ children }: { children: React.ReactNode }) {
   return (

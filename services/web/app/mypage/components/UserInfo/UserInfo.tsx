@@ -1,12 +1,28 @@
 import { Avatar } from '@heroui/avatar';
-import { QueryClient } from '@tanstack/react-query';
+import { SectionError, SectionLoading } from '@/components/common/SectionState';
 import Image from 'next/image';
 import { useGetUserInfo } from '../../apis';
-import LogoutButton from './LogoutButton';
 
-export default async function UserInfo({ queryClient }: { queryClient: QueryClient }) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: userInfo } = await useGetUserInfo(queryClient);
+export default function UserInfo() {
+  const query = useGetUserInfo();
+  const userInfo = query.data?.data;
+
+  if (!userInfo) {
+    return (
+      <section className="mx-5 w-full lg:mx-0 lg:w-[200px]">
+        {query.isPending ? (
+          <SectionLoading>회원 정보를 불러오는 중입니다.</SectionLoading>
+        ) : (
+          <SectionError
+            message="회원 정보를 불러오지 못했습니다."
+            onRetry={() => void query.refetch()}
+            pending={query.isFetching}
+          />
+        )}
+      </section>
+    );
+  }
+
   const { user_name, user_image_url, user_email } = userInfo;
 
   return (
@@ -22,17 +38,12 @@ export default async function UserInfo({ queryClient }: { queryClient: QueryClie
             unoptimized
             className="absolute z-10"
           />
-          <Avatar src={`${user_image_url}`} className="w-[100px] h-[100px] mr-4 lg:mr-0" />
+          <Avatar src={user_image_url || undefined} className="w-[100px] h-[100px] mr-4 lg:mr-0" />
         </div>
 
         <div className="flex flex-col w-full gap-3 lg:items-center">
-          <div className="flex items-center justify-between">
-            <p className="text-3xl font-semibold">{user_name}</p>
-            <div className="lg:absolute lg:-bottom-[50px]">
-              <LogoutButton />
-            </div>
-          </div>
-          <p className="text-[#999999] text-xs dark:text-gray-2">{user_email}</p>
+          <p className="text-3xl font-semibold">{user_name}</p>
+          <p className="text-muted-foreground text-xs">{user_email}</p>
         </div>
       </div>
     </section>

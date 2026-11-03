@@ -9,14 +9,19 @@ import axios, {
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN, HTTP_METHODS } from '@/constants';
 import { BaseResponse } from '@/types';
+import { BROWSER_API_TIMEOUT_MS, SERVER_API_TIMEOUT_MS } from '@/lib/apiTiming';
 import qs from 'qs';
 import { handleSuccessReissueToken, handleFailReissueToken } from '../auth';
 
-const serverApiOrigin = (process.env.INTERNAL_API_ORIGIN ?? process.env.NEXT_PUBLIC_URL ?? 'https://api.lawdigest.kr/')
-  .replace(/\/+$/, '');
+const serverApiOrigin = (
+  process.env.INTERNAL_API_ORIGIN ??
+  process.env.NEXT_PUBLIC_URL ??
+  'https://api.lawdigest.kr/'
+).replace(/\/+$/, '');
 
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: typeof window === 'undefined' ? `${serverApiOrigin}/v1` : '/v1',
+  timeout: typeof window === 'undefined' ? SERVER_API_TIMEOUT_MS : BROWSER_API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,7 +39,7 @@ axiosInstance.interceptors.request.use(
     if (!accessToken) {
       return config;
     }
-    // eslint-disable-next-line
+
     config.headers.Authorization = `Bearer ${accessToken}`;
     return config;
   },
@@ -63,8 +68,8 @@ axiosInstance.interceptors.response.use(
 
 const createApiMethod =
   (instance: AxiosInstance, method: Method) =>
-    <T>(config: AxiosRequestConfig): Promise<BaseResponse<T>> =>
-      instance({ ...config, method });
+  <T>(config: AxiosRequestConfig): Promise<BaseResponse<T>> =>
+    instance({ ...config, method });
 
 const http = {
   get: createApiMethod(axiosInstance, HTTP_METHODS.get),

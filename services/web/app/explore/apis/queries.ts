@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   getBillsByCategory,
   getCategoryCounts,
@@ -45,7 +45,7 @@ export const useGetCongressmanRanking = (size = 3) =>
   });
 
 export const useGetCongressmanList = (partyId?: number | null) =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/congressman/list', partyId ?? 'all'],
     queryFn: ({ pageParam }: { pageParam: number }) => getCongressmanList(pageParam, partyId),
     initialPageParam: 0,
@@ -68,8 +68,8 @@ export const useGetStatisticsByParty = () =>
 export const useGetStatisticsByCategory = () =>
   useQuery({ queryKey: ['/statistics/by-category'], queryFn: () => getStatisticsByCategory() });
 
-export const useGetStatisticsTrend = (months = 6) =>
-  useQuery({ queryKey: ['/statistics/trend', months], queryFn: () => getStatisticsTrend(months) });
+export const useGetStatisticsTrend = (months = 6, enabled = true) =>
+  useQuery({ queryKey: ['/statistics/trend', months], queryFn: () => getStatisticsTrend(months), enabled });
 
 // 신규 통계 API — 배포 전 백엔드에는 없을 수 있어 재시도 없이 실패시키고, 컴포넌트에서 폴백 처리한다.
 export const useGetStatisticsPartyPerformance = () =>
@@ -108,7 +108,7 @@ export const useGetStatisticsResultBreakdown = () =>
   });
 
 export const useGetBillsByCategory = (category: string) =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/bill/category', category],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillsByCategory(category, pageParam),
     initialPageParam: 0,

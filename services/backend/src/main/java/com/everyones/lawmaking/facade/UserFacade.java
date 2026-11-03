@@ -9,6 +9,7 @@ import com.everyones.lawmaking.global.error.ExternalException;
 import com.everyones.lawmaking.global.error.ErrorCode;
 import com.everyones.lawmaking.global.service.TokenService;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
+import com.everyones.lawmaking.repository.OAuth2ClientTokenRepository;
 import com.everyones.lawmaking.service.AuthService;
 import com.everyones.lawmaking.service.OAuthService;
 import com.everyones.lawmaking.service.UserService;
@@ -37,6 +38,7 @@ public class UserFacade {
     private final LikeService likeService;
     private final NotificationService notificationService;
     private final SearchKeywordService searchKeywordService;
+    private final OAuth2ClientTokenRepository oauthTokens;
     private final TransactionTemplate transactionTemplate;
 
     public UserMyPageInfoResponse getUserMyPageInfo(long userId) {
@@ -50,12 +52,13 @@ public class UserFacade {
         var socialId = authInfo.getSocialId();
         var provider = authInfo.getProvider();
         var oAuthService = oAuthServiceFactory.getOAuthService(provider);
-        return transactionTemplate.execute(status -> {
+        var result = transactionTemplate.execute(status -> {
             try {
-                tokenService.logout(httpRequest, httpResponse);
-                deleteUserAccount(userId, socialId);
+                tokenService.invalidateToken(userId);
+                deleteUserAccount(userId, authInfo.getId());
                 var oAuthResponse = oAuthService.getOAuthTokenResponse(provider, socialId);
                 var accessToken = Objects.requireNonNull(oAuthResponse.getBody()).getAccessToken();
+                oauthTokens.deleteByClientRegistrationIdAndPrincipalName(provider.name(), socialId);
                 oAuthService.unlink(provider, accessToken);
                 return WithdrawResponse.of(authInfo);
             } catch (AuthException | UserException e) {
@@ -63,20 +66,21 @@ public class UserFacade {
                 throw e;
             } catch (HttpClientErrorException | HttpServerErrorException e) {
                 status.setRollbackOnly();
-                String kakaoErrorMessage = e.getResponseBodyAsString();
                 throw new ExternalException.ApiException(
                         ErrorCode.EXTERNAL_API_ERROR,
-                        Map.of("error Message from social service", kakaoErrorMessage)
+                        Map.of("provider", provider.name())
                 );
             } catch (Exception e) {
                 status.setRollbackOnly();
-                log.error("Error during user account deletion or unlink", e);
+                log.warn("Account withdrawal failed for provider {}: {}", provider, e.getClass().getSimpleName());
                 throw new UserException.WithdrawalFailureException(Map.of("userId", String.valueOf(userId)));
             }
         });
+        tokenService.clearSession(httpRequest, httpResponse);
+        return result;
     }
 
-    public void deleteUserAccount(Long userId, String socialId) {
+    private void deleteUserAccount(Long userId, Long authInfoId) {
         try{
             likeService.deleteBillLikeByUserId(userId);
             likeService.deleteCongressmanLikeByUserId(userId);
@@ -87,7 +91,7 @@ public class UserFacade {
             if (isUserDeleted == 0) {
                 throw new UserException.UserNotFoundException(Map.of("userId", String.valueOf(userId)));
             }
-            int isAuthInfoDeleted = authService.deleteAuthInfoBySocialId(socialId);
+            int isAuthInfoDeleted = authService.deleteAuthInfoById(authInfoId);
             if (isAuthInfoDeleted == 0) {
                 throw new AuthException.AuthInfoNotFound(Map.of("userId", String.valueOf(userId)));
             }

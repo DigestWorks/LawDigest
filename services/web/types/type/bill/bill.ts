@@ -1,8 +1,10 @@
 import { ReactNode } from 'react';
 
 export interface BillResponse {
+  hot_activity?: { view_count: number; scrap_count: number };
   bill_info_dto: {
     bill_id: string;
+    bill_number?: number;
     bill_name: string;
     propose_date: string;
     summary: string;
@@ -11,11 +13,13 @@ export interface BillResponse {
     bill_like_count: number;
     bill_stage: string;
     title: string;
-    bill_result: string;
+    bill_result?: string | null;
+    assembly_number?: number;
     proposer_kind?: 'CONGRESSMAN' | 'CHAIRMAN' | 'GOVERNMENT' | string | null;
     proposers?: string | null;
     committee?: string | null;
     category?: string | null;
+    stage_dates?: { stage: string; date: string }[];
   };
   representative_proposer_dto_list: {
     representative_proposer_id: string;
@@ -35,6 +39,7 @@ export interface BillResponse {
   }[];
   is_book_mark: boolean;
   similar_bills_count?: number;
+  previous_similar_bills_count?: number;
   similar_bills?: {
     billTitle: string | null;
     billId: string;
@@ -75,5 +80,11 @@ export interface SimilarBillsResponse {
 export interface BillProps extends BillResponse {
   children?: ReactNode;
   detail?: boolean;
-  viewCount?: number;
 }
+
+export type BillListItem = Omit<BillResponse, 'bill_info_dto' | 'public_proposer_dto_list'> & {
+  bill_info_dto: Omit<BillResponse['bill_info_dto'], 'summary'> & { summary?: string | null };
+  public_proposer_dto_list?: BillResponse['public_proposer_dto_list'];
+  public_proposer_count?: number;
+  has_original_summary?: boolean;
+};

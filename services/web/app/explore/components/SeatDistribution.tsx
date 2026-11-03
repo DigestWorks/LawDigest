@@ -1,5 +1,8 @@
 'use client';
 
+import { X } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -33,7 +36,8 @@ const dotTransition = (index: number) => ({
 export default function SeatDistribution() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { data } = useGetParliamentaryParties();
+  const partiesQuery = useGetParliamentaryParties();
+  const { data } = partiesQuery;
   const { data: billStats } = useGetStatisticsByParty();
 
   const parties = useMemo(
@@ -96,7 +100,23 @@ export default function SeatDistribution() {
     return { positions, r };
   }, [seats, total]);
 
-  if (total === 0) return null;
+  if (partiesQuery.isPending) {
+    return (
+      <p role="status" className="py-4 text-sm text-muted-foreground">
+        의석 분포 불러오는 중…
+      </p>
+    );
+  }
+  if (partiesQuery.isError && !data) {
+    return (
+      <SectionError
+        message="의석 분포를 불러오지 못했습니다."
+        pending={partiesQuery.isFetching}
+        onRetry={() => void partiesQuery.refetch()}
+      />
+    );
+  }
+  if (total === 0) return <SectionEmpty>의석 분포 자료가 없습니다.</SectionEmpty>;
 
   const hemiR = Math.max(1, Math.min(1.9, OUTER_R * rowGap * 0.4));
   const isFocused = focusedId != null;
@@ -119,10 +139,10 @@ export default function SeatDistribution() {
 
   return (
     <section className="rounded-2xl border border-gray-1 bg-white p-4 shadow-sm dark:border-dark-l dark:bg-dark-b">
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2">
         <h2 className="text-[14px] font-bold text-primary-3 dark:text-gray-0.5">제22대 국회 의석 분포</h2>
         <span className="text-[12px] text-gray-2">
-          재적 {total.toLocaleString()}석 · 과반 {majority.toLocaleString()}석
+          수집 명부 {total.toLocaleString()}석 · 과반 {majority.toLocaleString()}석
         </span>
       </div>
 
@@ -192,7 +212,7 @@ export default function SeatDistribution() {
                   onClick={() => setFocusedId(null)}
                   aria-label="정당 포커스 해제"
                   className="absolute right-0 top-0 grid h-7 w-7 place-items-center rounded-full text-gray-2 hover:bg-gray-0.5 dark:hover:bg-dark-l">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+                  <X aria-hidden="true" className="size-[18px]" />
                 </button>
 
                 <div className="flex items-center justify-between gap-2 pr-8">

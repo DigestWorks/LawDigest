@@ -14,7 +14,6 @@ import com.everyones.lawmaking.common.dto.response.SimilarBillListResponse;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.LikeService;
-import com.everyones.lawmaking.service.RedisService;
 import com.everyones.lawmaking.service.VotePartyService;
 import com.everyones.lawmaking.service.VoteRecordService;
 import java.util.List;
@@ -32,10 +31,9 @@ public class BillFacade {
     private final LikeService likeService;
     private final VoteRecordService voteRecordService;
     private final VotePartyService votePartyService;
-    private final RedisService redisService;
 
-    public BillDetailResponse getBillByBillId(String billId) {
-        var billDto =  billService.getBillWithDetail(billId);
+    public BillDetailResponse getBillByBillId(String billId, boolean currentOnly) {
+        var billDto = billService.getBillWithDetail(billId, currentOnly);
         var userId = AuthenticationUtil.getUserId();
         var voteRecord = voteRecordService.getVoteRecordByBillId(billId);
         var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
@@ -52,14 +50,13 @@ public class BillFacade {
     }
 
     public BillViewCountResponse updateViewCount(String billId) {
-        redisService.addToViewsQueue(billId);
         return billService.updateViewCount(billId);
     }
 
     @Transactional(readOnly = true)
     public SimilarBillListResponse getSimilarBills(
-            String billId, Pageable pageable) {
-        return billService.getSimilarBills(billId, pageable);
+            String billId, Boolean current, Pageable pageable) {
+        return billService.getSimilarBills(billId, current, pageable);
     }
 
     public BillListResponse getBillsFromRepresentativeProposer(String congressmanId, Pageable pageable, String stage) {
@@ -92,8 +89,7 @@ public class BillFacade {
     }
 
     public List<BillDto> getPopularBills() {
-        var popularBillIds = redisService.getPopularBills();
-        var billList = billService.getFeedBillListResponse(popularBillIds);
+        var billList = billService.getPopularBills();
         var userIdOptional = AuthenticationUtil.getUserId();
         return userIdOptional.map(userId -> billList.stream()
                 .map(billDto -> {
@@ -129,8 +125,8 @@ public class BillFacade {
         return billService.getBillStateCount();
     }
     @Transactional(readOnly = true)
-    public BillListResponse getBillList(Pageable pageable, String stage) {
-        return billService.getBillList(pageable, stage);
+    public BillListResponse getBillList(Pageable pageable, String stage, String assembly) {
+        return billService.getBillList(pageable, stage, assembly);
     }
     @Transactional(readOnly = true)
     public BillListResponse getBillListByCategory(Pageable pageable, String category) {
