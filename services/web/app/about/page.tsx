@@ -1,13 +1,14 @@
-import type { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 import Link from 'next/link';
 import { Layout } from '@/components';
 import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import { Button } from '@/components/ui/button';
 
-export const metadata: Metadata = {
-  title: '서비스 소개 | 모두의입법',
+export const metadata = getMetadata({
+  title: '서비스 소개',
   description: '모두의입법이 제공하는 입법 정보와 자료의 출처, 수집 범위를 안내합니다.',
-};
+  asPath: '/about',
+});
 
 export default function AboutPage() {
   return (

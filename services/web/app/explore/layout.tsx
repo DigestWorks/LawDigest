@@ -1,10 +1,11 @@
 import { Layout } from '@/components';
-import { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 
-export const metadata: Metadata = {
-  title: '탐색 페이지',
-  description: '생활 분야별로 법안을 탐색합니다.',
-};
+export const metadata = getMetadata({
+  title: '탐색',
+  description: '분야별 법안과 국회 의석, 입법 통계를 확인합니다.',
+  asPath: '/explore',
+});
 
 export default function ExploreLayout({ children }: { children: React.ReactNode }) {
   return (

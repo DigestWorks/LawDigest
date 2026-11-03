@@ -44,7 +44,7 @@ import static org.mockito.Mockito.*;
 
 /** 격리된 로컬 MySQL DB에서 운영과 같은 ngram FULLTEXT 쿼리를 실행한다. */
 @DataJpaTest
-@Import({CongressmanRepositoryCustom.class, BillActivityRepository.class})
+@Import({CongressmanRepositoryCustom.class, BillActivityRepository.class, PublicSitemapRepository.class})
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -52,6 +52,7 @@ import static org.mockito.Mockito.*;
 class BillSearchMysqlTest {
     @Autowired private BillRepository repository;
     @Autowired private BillReportRepository reports;
+    @Autowired private PublicSitemapRepository publicSitemap;
     @Autowired private VoteRecordRepository voteRecords;
     @Autowired private VotePartyRepository voteParties;
     @Autowired private BillActivityRepository activity;
@@ -277,6 +278,12 @@ class BillSearchMysqlTest {
                        ('other', '새 리포트', '## 주요 내용', '2026-11-01 00:00:00'),
                        ('pending-report', '비공개 리포트', '본문', '2026-11-03 00:00:00')
                 """);
+
+        assertThat(publicSitemap.count(PublicSitemapRepository.Kind.reports)).isEqualTo(2);
+        assertThat(publicSitemap.list(PublicSitemapRepository.Kind.reports, 0)).containsExactly("exact", "other");
+        assertThat(publicSitemap.list(PublicSitemapRepository.Kind.bills, 0))
+                .containsExactly("body", "exact", "other");
+        assertThat(publicSitemap.list(PublicSitemapRepository.Kind.bills, 1)).isEmpty();
 
         var first = reports.findPublished(PageRequest.of(0, 1));
         var second = reports.findPublished(PageRequest.of(1, 1));

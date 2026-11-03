@@ -5,22 +5,24 @@ type getMetadataProps = {
   title: string;
   description: string;
   asPath: string;
+  noIndex?: boolean;
 };
 
 export default function getMetadata(metadataProps?: getMetadataProps) {
-  const { title, description, asPath } = metadataProps || {};
+  const { title, description, asPath, noIndex } = metadataProps || {};
 
   const TITLE = title ? `${title} | ${siteConfig.title}` : siteConfig.title;
   const DESCRIPTION = description || siteConfig.description;
-  const PAGE_URL = asPath || '';
+  const PAGE_URL = asPath || '/';
 
   const metadata: Metadata = {
     metadataBase: new URL(siteConfig.url),
     alternates: {
       canonical: PAGE_URL,
     },
-    title: TITLE,
+    title: { absolute: TITLE },
     description: DESCRIPTION,
+    ...(noIndex ? { robots: { index: false, follow: true } } : {}),
     keywords: [...siteConfig.keywords],
     icons: {
       icon: '/images/favicon.ico',

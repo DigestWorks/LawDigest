@@ -9,7 +9,7 @@ import { ProgressStage } from '../ProgressStage';
 import { AnotherBillList } from '../AnotherBill';
 import { ProcessResult } from '../ProcessResult';
 
-export default function BillDetail({ data, viewCount }: { data: BillResponse; viewCount: number }) {
+export default function BillDetail({ data }: { data: BillResponse }) {
   const isGovernmentProposer = isGovernmentBill({
     proposerKind: data.bill_info_dto.proposer_kind,
     billId: data.bill_info_dto.bill_id,
@@ -26,7 +26,7 @@ export default function BillDetail({ data, viewCount }: { data: BillResponse; vi
 
   return (
     <section>
-      <Bill {...data} detail viewCount={viewCount}>
+      <Bill {...data} detail>
         <section className="md:w-[300px] lg:w-[490px] md:float-right flex flex-col gap-[34px] mt-[34px]">
           {!isGovernmentProposer && !isChairmanProposer && (
             <>

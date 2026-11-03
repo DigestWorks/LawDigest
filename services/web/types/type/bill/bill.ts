@@ -78,5 +78,4 @@ export interface SimilarBillsResponse {
 export interface BillProps extends BillResponse {
   children?: ReactNode;
   detail?: boolean;
-  viewCount?: number;
 }

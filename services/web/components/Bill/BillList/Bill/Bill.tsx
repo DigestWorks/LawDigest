@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useState, useCallback, useId } from 'react';
+import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import {
   Card,
@@ -19,7 +19,7 @@ import {
   PopoverContent,
 } from '@heroui/react';
 import Link from 'next/link';
-import { BillProps } from '@/types';
+import type { BaseResponse, BillProps, ViewCountResponse } from '@/types';
 import { IconExport, IconScrabSmall } from '@/public/svgs';
 import { usePatchBookmark } from '@/app/bill/[id]/apis';
 import {
@@ -64,9 +64,32 @@ export default function Bill({
   hot_activity,
   public_proposer_dto_list,
   detail,
-  viewCount,
   children,
 }: BillProps) {
+  const trackedBill = useRef<string | null>(null);
+  const [observedView, setObservedView] = useState<{ id: string; count: number } | null>(null);
+  useEffect(() => {
+    if (!detail) return undefined;
+    const recordVisibleView = () => {
+      if (document.visibilityState !== 'visible' || trackedBill.current === bill_id) return;
+      trackedBill.current = bill_id;
+      const query = new URLSearchParams({ bill_id });
+      void fetch(`/v1/bill/view_count?${query}`, { method: 'PATCH', credentials: 'omit', keepalive: true })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload: BaseResponse<ViewCountResponse> | null) => {
+          const count = payload?.data?.view_count;
+          if (typeof count === 'number' && Number.isSafeInteger(count) && trackedBill.current === bill_id) {
+            setObservedView({ id: bill_id, count });
+          }
+        })
+        .catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', recordVisibleView);
+    recordVisibleView();
+    return () => document.removeEventListener('visibilitychange', recordVisibleView);
+  }, [bill_id, detail]);
+  const detailViewCount = observedView?.id === bill_id ? observedView.count : view_count;
+
   const [isLiked, setIsLiked] = useState(is_book_mark);
   const [likeCount, setLikeCount] = useState(bill_like_count);
   const mutateBookmark = usePatchBookmark(bill_id);
@@ -399,7 +422,7 @@ export default function Bill({
                   </div>
                   <div className="flex items-center text-sm text-gray-2">
                     <h4 className="mr-2">조회수</h4>
-                    <h4>{viewCount}</h4>
+                    <h4>{detailViewCount}</h4>
                   </div>
                 </div>
                 <Tooltip content="링크 복사하기">
