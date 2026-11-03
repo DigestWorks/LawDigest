@@ -89,6 +89,7 @@ if [ -n "$FORCED_NEXT_PUBLIC_DOMAIN" ]; then
 fi
 
 load_env_file "$TARGET_WEB_DIR/.env.preview"
+load_env_file "${WEB_PRIVATE_ENV_FILE:-}"
 
 start_web_process() {
   local release_root="$1"
