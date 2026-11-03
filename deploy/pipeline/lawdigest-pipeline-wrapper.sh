@@ -31,9 +31,13 @@ flock -w 900 9
 approval="${CREDENTIALS_DIRECTORY:-/nonexistent}/approval"
 run_date=$(date +%F)
 revision=$(git rev-parse HEAD)
+# Each credential may authorize a different one-time run on each scheduled date.
 if [[ ! -r "$approval" ]] ||
-   ! read -r approved_job approved_date approval_id approved_revision extra < "$approval" ||
-   [[ "$approved_job" != "$job" || "$approved_date" != "$run_date" || "$approved_revision" != "$revision" || -n "$extra" ]] ||
+   ! approval_id=$(awk -v job="$job" -v day="$run_date" -v revision="$revision" '
+       NF != 4 || $1 != job { invalid = 1; next }
+       $2 == day { count++; if ($4 == revision) id = $3 }
+       END { if (invalid || count != 1 || id == "") exit 1; print id }
+   ' "$approval") ||
    [[ ! "$approval_id" =~ ^[A-Za-z0-9_-]{8,80}$ ]]; then
   printf 'Valid one-time approval required for %s on %s.\n' "$job" "$run_date" >&2
   exit 78
