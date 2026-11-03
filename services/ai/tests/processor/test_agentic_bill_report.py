@@ -2166,7 +2166,8 @@ def test_run_agentic_bill_reports_upserts_partial_batch_successes(tmp_path, monk
     assert mock_update.call_args.kwargs["bill_id"] == "PRC_PARTIAL_1"
 
 
-def test_run_agentic_bill_reports_retries_retryable_batch_failures(tmp_path, monkeypatch):
+@pytest.mark.parametrize("initial_failure", ["empty_output", "invalid_output"])
+def test_run_agentic_bill_reports_retries_retryable_batch_failures(tmp_path, monkeypatch, initial_failure):
     from lawdigest_ai.processor.agentic_bill_report import run_agentic_bill_reports
 
     monkeypatch.delenv("ASSEMBLY_API_KEY", raising=False)
@@ -2214,6 +2215,10 @@ def test_run_agentic_bill_reports_retries_retryable_batch_failures(tmp_path, mon
             output_path.write_text(report_output(1), encoding="utf-8")
             stdout = '{"type":"thread.started","thread_id":"thread-retry"}'
         elif is_resume:
+            if initial_failure == "invalid_output":
+                report = json.loads(report_output(2))
+                report["report_body"] += "\n## 무엇이 달라지나\n반복 내용이에요.\n"
+                output_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
             stdout = '{"type":"turn.completed","usage":{"input_tokens":20}}'
         else:
             output_path.write_text(report_output(2), encoding="utf-8")
@@ -2248,7 +2253,7 @@ def test_run_agentic_bill_reports_retries_retryable_batch_failures(tmp_path, mon
     assert result["stats"]["retry_success_count"] == 1
     assert result["items"][1]["retry"]["attempt_count"] == 1
     assert result["items"][1]["retry"]["history"][0]["attempt"] == 0
-    assert result["items"][1]["retry"]["history"][0]["failure_type"] == "empty_output"
+    assert result["items"][1]["retry"]["history"][0]["failure_type"] == initial_failure
     assert result["stats"]["usage_totals"]["input_tokens"] == 20
     assert upserted_bill_ids == ["PRC_RETRY_1", "PRC_RETRY_2"]
 
@@ -3035,3 +3040,37 @@ def test_fetch_bill_report_targets_can_select_pending_bills():
     executed_query = cur.execute.call_args.args[0]
     assert "NOT (COALESCE(bill_result, '') LIKE" in executed_query
     assert "COALESCE(bill_result, '') NOT LIKE" in executed_query
+
+
+@pytest.mark.parametrize(
+    ("sections", "error"),
+    [
+        ("## 쉬운 요약\n## 주요 내용\n## 무엇이 달라지나\n## 무엇이  달라지나 ##", "중복 섹션"),
+        ("## 주요 내용\n## 쉬운 요약", "섹션 순서"),
+        ("본문에 ## 쉬운 요약을 인용해요.\n## 주요 내용", "필수 섹션"),
+    ],
+)
+def test_report_rejects_invalid_section_structure(sections, error):
+    from lawdigest_ai.processor.agentic_bill_report import _validate_report_body
+
+    with pytest.raises(RuntimeError, match=error):
+        _validate_report_body(sections)
+
+
+def test_report_sections_ignore_fenced_examples():
+    from lawdigest_ai.processor.agentic_bill_report import _validate_report_sections
+
+    report = "## 쉬운 요약\n~~~md\n## 쉬운 요약\n~~~~\n## 주요 내용"
+    assert _validate_report_sections(report) == ["쉬운 요약", "주요 내용"]
+
+
+def test_persistence_rejects_duplicate_sections_in_saved_artifact(tmp_path):
+    from lawdigest_ai.processor.agentic_bill_report import _persist_successful_report_item
+
+    report = tmp_path / "report.md"
+    report.write_text("# 법안\n\n## 쉬운 요약\n\n## 쉬운 요약\n", encoding="utf-8")
+    item = {"bill_id": "PRC_DUPLICATE", "status": "success", "report_path": str(report)}
+    with patch("lawdigest_ai.processor.agentic_bill_report.update_bill_summary") as update:
+        with pytest.raises(RuntimeError, match="중복 섹션"):
+            _persist_successful_report_item(mode="test", bill={"bill_name": "법안"}, item=item)
+    update.assert_not_called()
