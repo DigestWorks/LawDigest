@@ -67,3 +67,12 @@ CSS 뷰포트는 DOM의 innerWidth로 375px와 1440px를 확인했다. 1440px �
 - 원본 결함은 [전체 결함 목록](./2026-11-02-ux-polish-findings.md)의 ID로 추적한다. 원본 파일·라인은 48c52a4 기준이며 현재 구현 파일에서 위치를 다시 확인했다.
 - 절차는 [handoff](./2026-11-02-handoff.md), 범위·구현은 `.intent/intent_ux-polish-round-one.md`, `spec_ux-polish-round-one.md`, `plan_ux-polish-round-one.md`에 기록했다.
 - 운영 배포는 main 기준의 [웹 절차](../../deploy/PROD_WEB_DEPLOY.md)와 [백엔드 절차](../../deploy/PROD_BACKEND_DEPLOY.md)를 따른다. 개정안 API를 포함하므로 두 서비스가 함께 적용되어야 한다. 실패 시 공식 release 경로로 직전 버전들을 복구한다.
+
+## 운영 FULLTEXT 구성에서 정식 법안명 검색
+
+운영의 검색 문서 테이블은 MySQL 기본 FULLTEXT 파서를 사용한다. 기존 1차 후보는 필수 토큰을 모두 만족해야 법안명 일치 순위를 계산했다. 기본 파서에서 짧은 토큰이 섞인 정식 법안명과 검색 문서가 아직 없는 법안이 빠지는 것을 재현했다. [MySQL Boolean FULLTEXT 동작](https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html)
+
+공개 법안의 이름·제목 일치 후보를 원문 FULLTEXT 후보와 합친다. 같은 법안은 한 번 반환하고 정확한 이름·제목, 부분 법안명, 부분 제목, 원문 순서로 정렬한다. 관련도와 발의일·ID는 같은 우선순위 안에서 사용한다.
+
+- 운영과 같은 기본 파서에서 정식 법안명, 검색 문서가 없는 법안, 미공개 제외와 페이지 경계를 검증했다. Java 17 백엔드 57건과 `bootJar`를 통과했다.
+- 격리 API에서 11월 2일 운영 검색 첫 페이지에 빠졌던 표본 세 건을 정식 법안명으로 조회했다. 검색 문서가 없는 상태에서 각각 정확한 의안 ID를 반환했다. 원문 검색의 누락 문서는 [별도 복구 범위](https://github.com/DigestWorks/LawDigest/pull/161)다.
