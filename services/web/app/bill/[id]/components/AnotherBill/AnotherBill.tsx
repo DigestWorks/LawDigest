@@ -1,5 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { billHeadline } from '@/lib/billHeadline';
+import { billResultLabel } from '@/lib/billStage';
 import { SimilarBill } from '@/types';
 import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
 import { getPartyLogoSrc } from '@/utils';
@@ -14,7 +16,9 @@ export default function AnotherBill({
   assemblyNumber,
   proposeDate,
   party,
-}: SimilarBill) {
+  previous,
+}: SimilarBill & { previous?: boolean }) {
+  const status = billResultLabel(billResult) || (previous && billStage ? `마지막 단계 ${billStage}` : billStage);
   const proposers = billProposers
     ?.replace(/([가-힣])의원/g, '$1 의원')
     .replace(/의원\s*등\s*(\d+)\s*인/g, '의원 등 $1인');
@@ -23,11 +27,9 @@ export default function AnotherBill({
       <Link
         href={`/bill/${billId}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <p className="text-sm font-semibold lg:text-base">{billTitle || billName}</p>
+        <p className="text-sm font-semibold lg:text-base">{billHeadline(billName, billTitle)}</p>
         <p className="text-sm text-muted-foreground">
-          {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, billResult || billStage]
-            .filter(Boolean)
-            .join(' · ')}
+          {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, status].filter(Boolean).join(' · ')}
         </p>
         {proposers && <p className="text-xs text-muted-foreground">{proposers}</p>}
       </Link>

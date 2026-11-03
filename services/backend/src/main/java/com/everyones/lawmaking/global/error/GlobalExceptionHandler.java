@@ -25,6 +25,7 @@ public class GlobalExceptionHandler {
     // 404 NotFound 에러
     @ExceptionHandler({PartyException.PartyNotFound.class,
                         BillException.BillNotFound.class,
+                        CongressmanException.CongressmanNotFound.class,
                         VoteRecordException.VoteRecordNotFound.class,
                         UserException.UserNotFoundException.class})
     protected ResponseEntity<ErrorResponse> handleGlobalNotFoundException(final CustomException e) {

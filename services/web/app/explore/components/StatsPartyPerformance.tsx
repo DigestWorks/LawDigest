@@ -1,5 +1,8 @@
 'use client';
 
+import { Flag } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, Cell, XAxis, YAxis } from 'recharts';
 import { getPartyColor } from '@/constants/party';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -43,7 +46,7 @@ export default function StatsPartyPerformance() {
 
   if (rows.length === 0 && (performance.isLoading || fallback.isLoading)) {
     return (
-      <StatsCard title="정당별 발의·가결" icon="flag" delay={0.1}>
+      <StatsCard title="정당별 발의·가결" icon={Flag} delay={0.1}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
             <SkeletonBar key={i} className="h-[18px] w-full" />
@@ -53,12 +56,24 @@ export default function StatsPartyPerformance() {
     );
   }
 
-  if (rows.length === 0) return null;
+  if (!rows.length && (performance.isError || fallback.isError)) {
+    return (
+      <SectionError
+        message="정당별 발의·가결 통계를 불러오지 못했습니다."
+        pending={performance.isFetching || fallback.isFetching}
+        onRetry={() => {
+          if (performance.isError) void performance.refetch();
+          if (fallback.isError) void fallback.refetch();
+        }}
+      />
+    );
+  }
+  if (!rows.length) return <SectionEmpty>정당별 통계가 없습니다.</SectionEmpty>;
 
   return (
     <StatsCard
       title="정당별 발의·가결"
-      icon="flag"
+      icon={Flag}
       subtitle={hasPerformance ? '진한 색 = 가결' : undefined}
       delay={0.1}>
       <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: rows.length * 34 + 8 }}>

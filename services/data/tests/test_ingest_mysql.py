@@ -214,6 +214,7 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
                 "name": "추가",
                 "party_name": "정당",
                 "assembly_number": 22,
+                "elect_sort": "비례대표",
             }
         ]
     )
@@ -229,5 +230,5 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
         full_snapshot=True,
     )
     with manager.connection.cursor() as cursor:
-        cursor.execute("SELECT congressman_id FROM Congressman WHERE state=1")
-        assert cursor.fetchall() == [{"congressman_id": "new"}]
+        cursor.execute("SELECT congressman_id, elect_sort FROM Congressman WHERE state=1")
+        assert cursor.fetchall() == [{"congressman_id": "new", "elect_sort": "비례대표"}]

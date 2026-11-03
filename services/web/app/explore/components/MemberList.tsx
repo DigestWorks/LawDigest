@@ -1,37 +1,40 @@
 'use client';
 
-import { CSSProperties, useEffect, useState } from 'react';
+import { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Avatar } from '@heroui/avatar';
 import { Spinner } from '@heroui/spinner';
 import { getPartyColor } from '@/constants/party';
 import { getImageSrc } from '@/utils';
+import { Button } from '@/components/ui/button';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useIntersect } from '@/hooks';
-import { CongressmanRanking, useGetCongressmanList } from '../apis';
+import { useGetCongressmanList } from '../apis';
 
 /** 의원 전체 리스트 — 대표발의 건수 순, 무한 스크롤. */
 export default function MemberList() {
-  const { data, hasNextPage, isFetching, fetchNextPage } = useGetCongressmanList();
-  const [members, setMembers] = useState<CongressmanRanking[]>(
-    data ? data.pages.flatMap(({ data: { congressman_list } }) => congressman_list) : [],
-  );
-
-  const fetchRef = useIntersect(async (entry: IntersectionObserverEntry, observer: IntersectionObserver) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
-    }
+  const query = useGetCongressmanList();
+  const members = query.data?.pages.flatMap(({ data }) => data.congressman_list) ?? [];
+  const fetchRef = useIntersect(() => {
+    if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  useEffect(() => {
-    if (data) {
-      setMembers([...data.pages.flatMap(({ data: { congressman_list } }) => congressman_list)]);
-    }
-  }, [data]);
-
-  if (members.length === 0 && !isFetching) {
-    return <div className="py-10 text-center text-[14px] text-gray-2">의원 정보가 없습니다.</div>;
+  if (query.isPending)
+    return (
+      <div className="flex justify-center py-8" role="status" aria-label="의원 불러오는 중">
+        <Spinner color="default" />
+      </div>
+    );
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="의원 목록을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
+  if (members.length === 0) return <SectionEmpty>등록된 의원 정보가 없습니다.</SectionEmpty>;
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -56,18 +59,30 @@ export default function MemberList() {
                   style={{ background: getPartyColor(member.party_name) }}>
                   {member.party_name}
                 </span>
-                <span className="text-gray-2">대표발의 {member.propose_count.toLocaleString()}건</span>
+                <span className="text-gray-2">22대 대표발의 {member.propose_count.toLocaleString()}건</span>
               </div>
             </div>
           </Link>
         ))}
       </div>
-      {isFetching && (
+      {query.isFetchingNextPage && (
         <div className="flex justify-center py-4">
           <Spinner color="default" />
         </div>
       )}
-      <div ref={fetchRef} />
+      {query.hasNextPage && !query.isFetchNextPageError && <div ref={fetchRef} aria-hidden="true" />}
+      {query.hasNextPage && (
+        <div className="flex flex-col items-center gap-2 py-4">
+          {query.isFetchNextPageError && (
+            <p role="alert" className="text-sm">
+              다음 의원을 불러오지 못했습니다.
+            </p>
+          )}
+          <Button variant="outline" onClick={() => void query.fetchNextPage()} disabled={query.isFetching}>
+            {query.isFetchNextPageError ? '다시 불러오기' : '의원 더 불러오기'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

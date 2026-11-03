@@ -11,7 +11,7 @@ vi.mock('@/components/Feed/Feed/apis/apis', () => ({ getBillByStage: vi.fn() }))
 
 function response(id: string, page: number, last: boolean): BaseResponse<SearchBillResponse> {
   return {
-    code: '200',
+    code: 200,
     message: '',
     data: {
       pagination_response: { last_page: last, page_number: page },

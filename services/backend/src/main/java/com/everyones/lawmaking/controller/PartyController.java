@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.controller;
 
+import com.everyones.lawmaking.common.dto.bill.BillCardDto;
 import com.everyones.lawmaking.common.dto.response.*;
 import com.everyones.lawmaking.facade.PartyFacade;
 import com.everyones.lawmaking.facade.BillFacade;
@@ -66,7 +67,7 @@ public class PartyController {
             ),
     })
     @GetMapping("/bill")
-    public BaseResponse<BillListResponse> getBillsByParty(@Parameter(example = "1", description = "정당 id")
+    public BaseResponse<?> getBillsByParty(@Parameter(example = "1", description = "정당 id")
                                                           @RequestParam("party_id") long partyId,
                                                           @Parameter(example = "대표", description = "공동대표발의안 또는 대표발의 의안 조회 여부")
                                                           @Schema(type = "String", allowableValues = {"represent_proposer", "public_proposer"})
@@ -76,11 +77,12 @@ public class PartyController {
                                                           @Parameter(example = "0", description = "스크롤할 때마다 page값을 0에서 1씩 늘려주면 됩니다.")
                                                           @RequestParam(name = "page", required = true) int page,
                                                           @Parameter(example = "3", description = "한번에 가져올 데이터 크기를 의미합니다.")
-                                                          @RequestParam(name = "size", required = true) int size) {
+                                                          @RequestParam(name = "size", required = true) int size,
+                                                          @RequestParam(name = "compact", defaultValue = "false") boolean compact) {
         var pageable = PageRequest.of(page, size);
         var response = (type.equals("represent_proposer")) ? billFacade.getRepresentativeBillsByParty(pageable, partyId, stage)
                 : billFacade.getPublicBillsByParty(pageable, partyId, stage);
-        return BaseResponse.ok(response);
+        return BaseResponse.ok(compact ? BillCardDto.page(response) : response);
     }
 
     @Operation(summary = "정당 소속의 의원들 조회", description = "정당 소속 의원들 조회")

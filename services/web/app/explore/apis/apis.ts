@@ -1,5 +1,5 @@
 import http from '@/api';
-import { FeedResponse } from '@/types';
+import { BillListItem, FeedResponse } from '@/types';
 
 export interface CategoryCount {
   category: string;
@@ -133,7 +133,7 @@ export const getStatisticsCategoryParty = () => http.get<CategoryPartyCount[]>({
 export const getStatisticsResultBreakdown = () => http.get<ResultBreakdown[]>({ url: '/statistics/result-breakdown' });
 
 export const getBillsByCategory = (category: string, page: number) =>
-  http.get<FeedResponse>({
+  http.get<FeedResponse<BillListItem>>({
     url: '/bill/category',
-    params: { category, page, size: 5 },
+    params: { category, page, size: 5, compact: true },
   });

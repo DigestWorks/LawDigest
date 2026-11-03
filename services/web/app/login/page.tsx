@@ -14,6 +14,7 @@ const buildOAuthHref = (provider: 'kakao' | 'google' | 'naver', callbackPath: st
 export default function Login() {
   return (
     <section className="w-[90%] mx-auto flex flex-col items-center gap-8 mt-48 sm:w-[430px] ">
+      <h1 className="sr-only">로그인</h1>
       <Logo width={222} height={37} />
 
       <Button

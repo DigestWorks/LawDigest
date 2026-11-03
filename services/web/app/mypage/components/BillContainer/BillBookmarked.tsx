@@ -46,7 +46,7 @@ export default function BillBookmarked({
         </Link>
         <div className="flex flex-wrap items-center w-full gap-2 overflow-visible">
           <Chip
-            className="text-xs bg-transparent md:text-sm text-gray-2 border-gray-1 dark:border-gray-3 dark:text-gray-3 border-1"
+            className="text-xs bg-transparent md:text-sm text-gray-2 border-gray-1 dark:border-gray-3 dark:text-muted-foreground border-1"
             size="sm"
             variant="bordered"
             radius="sm">

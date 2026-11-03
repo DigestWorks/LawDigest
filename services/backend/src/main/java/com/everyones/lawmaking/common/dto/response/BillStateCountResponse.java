@@ -4,8 +4,6 @@ import com.everyones.lawmaking.global.constant.BillInfoConstant;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 
 @Getter
@@ -16,9 +14,9 @@ public class BillStateCountResponse {
     private final Long daysSinceOpening;
     @Schema(name = "접수 법안")
     private final Long receiptCount;
-    @Schema(name = "처리 법안")
+    @Schema(description = "위원회 심사 이상에 도달한 법안")
     private final Long treatmentCount;
-    @Schema(name = "가결 법안")
+    @Schema(description = "원안가결 또는 수정가결이 기록된 법안")
     private final Long passedCount;
 
     public BillStateCountResponse(long receiptCount, long treatmentCount, long passedCount) {

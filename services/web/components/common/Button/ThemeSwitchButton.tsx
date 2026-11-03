@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { IconDarkMode, IconLightMode } from '@/public/svgs';
 
 export default function ThemeSwitchButton() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const onClick = () => {
-    if (theme === 'dark') {
+    if (isDark) {
       setTheme('light');
     } else {
       setTheme('dark');
@@ -27,12 +28,13 @@ export default function ThemeSwitchButton() {
 
   return (
     <Button
-      startContent={theme === 'dark' ? <IconDarkMode /> : <IconLightMode />}
-      color={theme === 'dark' ? 'warning' : 'primary'}
-      variant="light"
-      size="sm"
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="[&_svg]:size-6"
       onClick={onClick}
-      isIconOnly
-    />
+      aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}>
+      {isDark ? <IconDarkMode /> : <IconLightMode />}
+    </Button>
   );
 }

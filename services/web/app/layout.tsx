@@ -2,12 +2,14 @@ import '@/styles/globals.css';
 import '@/styles/mobile-floating-nav.css';
 import { Metadata, Viewport } from 'next';
 import { siteConfig } from '@/config/site';
+import getMetadata from '@/utils/getMetadata';
 import clsx from 'clsx';
 import Script from 'next/script';
 import { QueryClientProvider, HeroUIProvider, NextThemesProvider, StateProvider } from '@/lib/provider';
 import { GoToTopButton, Snackbar } from '@/components';
 import SearchModal from '@/components/common/SearchBar/SearchModal';
 import Nav from '@/components/Layout/Nav/Nav';
+import SiteFooter from '@/components/Layout/SiteFooter';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -16,47 +18,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteConfig.url),
-  title: siteConfig.title,
-  description: siteConfig.description,
-  keywords: [...siteConfig.keywords],
-  icons: {
-    icon: '/images/favicon.ico',
-    shortcut: '/images/favicon-16x16.png',
-    apple: '/images/apple-icon-180x180.png',
-  },
-  verification: {
-    google: siteConfig.verification.google,
-    other: {
-      'naver-site-verification': siteConfig.verification.naver,
-    },
-  },
-  openGraph: {
-    siteName: siteConfig.title,
-    title: siteConfig.title,
-    description: siteConfig.description,
-    type: siteConfig.type,
-    locale: 'ko_KR',
-    url: siteConfig.url,
-    images: {
-      url: siteConfig.ogImage,
-      alt: `${siteConfig.title} 로고`,
-      type: 'image/png',
-      width: '1200',
-      height: '630',
-    },
-  },
-  twitter: {
-    title: siteConfig.title,
-    description: siteConfig.description,
-    images: {
-      url: siteConfig.ogImage,
-      alt: `${siteConfig.title} 로고`,
-      type: 'image/png',
-      width: '1200',
-      height: '630',
-    },
-  },
+  ...getMetadata(),
+  title: { default: siteConfig.title, template: `%s | ${siteConfig.title}` },
 };
 
 function RootLayout({ children }: { children: React.ReactNode }) {
@@ -65,11 +28,6 @@ function RootLayout({ children }: { children: React.ReactNode }) {
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
-        />
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css"
@@ -90,6 +48,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
                     <Snackbar />
                     <GoToTopButton />
                   </main>
+                  <SiteFooter />
                   {/* Nav는 모든 페이지 전환에서 유지되도록 루트 레이아웃에 배치 */}
                   <Nav />
                 </div>

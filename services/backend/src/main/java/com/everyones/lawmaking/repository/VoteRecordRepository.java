@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,4 +15,7 @@ public interface VoteRecordRepository extends JpaRepository<VoteRecord,Long> {
     @Query("select vr from VoteRecord vr " +
             "where vr.bill.id = :billId ")
     Optional<VoteRecord> findVoteRecordByBillId(@Param("billId") String billId);
+
+    @Query("SELECT vr FROM VoteRecord vr WHERE vr.bill.id IN :billIds")
+    List<VoteRecord> findRecordsForBills(@Param("billIds") List<String> billIds);
 }

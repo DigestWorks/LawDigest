@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@heroui/button';
+import { Button } from '@/components/ui/button';
 import { IconArrowLeft } from '@/public/svgs';
 
 export default function GoBackButton() {
@@ -10,10 +10,16 @@ export default function GoBackButton() {
 
   const onClick = useCallback(() => {
     router.back();
-  }, []);
+  }, [router]);
 
   return (
-    <Button isIconOnly onClick={onClick} className="bg-transparent">
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label="뒤로 가기"
+      onClick={onClick}
+      className="[&_svg]:size-6">
       <IconArrowLeft />
     </Button>
   );
