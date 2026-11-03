@@ -8,6 +8,7 @@ import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDate;
 
 @Getter
 @Builder
@@ -22,6 +23,9 @@ public class SimilarBill {
     @NotNull
     private String billProposers;
     private String billStage;
+    private String billResult;
+    private int assemblyNumber;
+    private LocalDate proposeDate;
     @NotNull
     private List<PartyDto> party;
 
@@ -38,6 +42,9 @@ public class SimilarBill {
                 .billName(bill.getBillName())
                 .billProposers(bill.getProposers())
                 .billStage(bill.getStage())
+                .billResult(bill.getBillResult())
+                .assemblyNumber(bill.getAssemblyNumber())
+                .proposeDate(bill.getProposeDate())
                 .party(partyList)
                 .build();
     }

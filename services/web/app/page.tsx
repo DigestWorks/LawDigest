@@ -1,29 +1,28 @@
+import { dehydrate } from '@tanstack/react-query';
+import ListHydrationBoundary from '@/lib/ListHydrationBoundary';
 import getQueryClient from '@/lib/getQueryClient';
 import { Feed, Layout } from '@/components';
-import { getBillByStage } from '@/components/Feed/Feed/apis';
+import { feedQueryOptions } from '@/lib/billQueries';
+import { feedContent, feedStage } from '@/lib/feedState';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+type HomeProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams;
   const queryClient = getQueryClient();
-
-  await queryClient.prefetchInfiniteQuery({
-    queryKey: ['/bill/mainfeed'],
-    queryFn: ({ pageParam }: { pageParam: number }) => getBillByStage(pageParam, ''),
-    initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      return last_page ? undefined : page_number + 1;
-    },
-    pages: 3,
-  });
-
+  if (feedContent(typeof params.tab === 'string' ? params.tab : '') !== 'following' && params.sort !== 'hot') {
+    const stage = feedStage(typeof params.stage === 'string' ? params.stage : '');
+    await queryClient.prefetchInfiniteQuery(feedQueryOptions(stage));
+  }
   return (
     <Layout nav logo notification>
-      <section className="lg:w-[880px] mx-auto ">
-        <Feed />
-      </section>
+      <ListHydrationBoundary state={dehydrate(queryClient)}>
+        <section className="lg:w-[880px] mx-auto">
+          <Feed />
+        </section>
+      </ListHydrationBoundary>
     </Layout>
   );
 }

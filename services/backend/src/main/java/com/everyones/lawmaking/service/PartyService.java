@@ -46,7 +46,8 @@ public class PartyService {
 
     // 검색 파티
     public List<SearchResponse> searchParty(String searchWord) {
-        var searchPartyList= partyRepository.findBySearchWord(searchWord);
+        var searchPartyList= partyRepository.findBySearchWord(
+                com.everyones.lawmaking.global.util.SearchQuery.escapeLike(searchWord));
         return searchPartyList.stream()
                 .map(SearchPartyDto::from)
                 .collect(Collectors.toList());

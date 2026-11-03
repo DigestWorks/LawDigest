@@ -1,46 +1,26 @@
 export const STAGE_TAB = {
   reception: 'reception',
   committeeJudge: 'committeeJudge',
+  districtJudge: 'districtJudge',
   review: 'review',
+  transfer: 'transfer',
   promulgation: 'promulgation',
 } as const;
 
-export const BILL_STAGE = {
-  ...STAGE_TAB,
-  districtJudge: 'districtJudge',
-  transfer: 'transfer',
-} as const;
+export const BILL_STAGE = STAGE_TAB;
 
 export const STAGE_TAB_KO = {
   reception: '접수',
   committeeJudge: '위원회 심사',
+  districtJudge: '체계자구 심사',
   review: '본회의 심의',
+  transfer: '정부이송',
   promulgation: '공포',
 } as const;
 
-export const BILL_STAGE_KO = {
-  ...STAGE_TAB_KO,
-  districtJudge: '체계지구 심사',
-  transfer: '정부 이송',
-} as const;
-
-export const PROGRESS_STAGE = {
-  reception: 'reception',
-  committeeJudge: 'committeeJudge',
-  districtJudge: 'districtJudge',
-  review: 'review',
-  transfer: 'transfer',
-  promulgation: 'promulgation',
-};
-
-export const PROGRESS_STAGE_KO = {
-  reception: '접수',
-  committeeJudge: '위원회 심사',
-  districtJudge: '체계지구 심사',
-  review: '본회의 심의',
-  transfer: '정부 이송',
-  promulgation: '공포',
-};
+export const BILL_STAGE_KO = STAGE_TAB_KO;
+export const PROGRESS_STAGE = STAGE_TAB;
+export const PROGRESS_STAGE_KO = STAGE_TAB_KO;
 
 export const FEED_TAB = {
   sortedByLatest: 'sorted_by_latest',

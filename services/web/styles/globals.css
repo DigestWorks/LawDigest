@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 94%;
+    --border: 0 0% 87%;
+    --input: 0 0% 70%;
+    --ring: 0 0% 30%;
+    --destructive: 0 72% 43%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 240 6% 7%;
+    --foreground: 0 0% 94%;
+    --primary: 0 0% 94%;
+    --primary-foreground: 240 6% 7%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 20%;
+    --border: 0 0% 28%;
+    --input: 0 0% 45%;
+    --ring: 0 0% 80%;
+    --destructive: 0 75% 62%;
+  }
+}
+
 html {
   font-family:
     'Pretendard Variable',
@@ -364,7 +394,7 @@ html {
   border-radius: 999px;
   border: none;
   background: transparent;
-  color: rgba(25, 25, 25, 0.4);
+  color: hsl(var(--muted-foreground));
   font-size: 1rem;
   font-weight: 500;
   font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
@@ -377,9 +407,19 @@ html {
 }
 
 .feed-content-tab.is-active {
-  color: #191919;
+  color: hsl(var(--foreground));
 }
 
 .feed-content-tab:active {
   transform: scale(0.97);
+}
+
+.feed-content-tab:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.lawdigest-summary-collapsed {
+  max-height: 18rem;
+  overflow: hidden;
 }

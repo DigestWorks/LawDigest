@@ -22,7 +22,7 @@ export const useIntersect = (onIntersect: IntersectHandler, options?: Intersecti
       return;
     }
 
-    const observer = new IntersectionObserver(callback, options);
+    const observer = new IntersectionObserver(callback, { rootMargin: '600px 0px', ...options });
     observer.observe(ref.current);
 
     // eslint-disable-next-line

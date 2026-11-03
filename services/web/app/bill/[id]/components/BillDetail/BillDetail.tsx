@@ -1,4 +1,4 @@
-import { Bill } from '@/components';
+import Bill from '@/components/Bill/BillList/Bill/Bill';
 import { Divider } from '@heroui/react';
 import { BillResponse } from '@/types';
 import { getChairmanProposerInfo, isGovernmentBill } from '@/utils';
@@ -45,17 +45,18 @@ export default function BillDetail({ data, viewCount }: { data: BillResponse; vi
           )}
 
           <SectionContainer title="심사 진행 단계">
-            <ProgressStage billStage={data.bill_info_dto.bill_stage} />
+            <ProgressStage billStage={data.bill_info_dto.bill_stage} billResult={data.bill_info_dto.bill_result} />
           </SectionContainer>
 
           <Divider className="hidden md:block h-[1px] w-full border-gray-1 dark:border-dark-l" />
 
           <SectionContainer title="법안 처리 결과">
             <ProcessResult
-              approval_count={data.vote_result_response.approval_count}
-              total_vote_count={data.vote_result_response.total_vote_count}
-              party_vote_list={data.vote_result_response.party_vote_list}
+              approval_count={data.vote_result_response?.approval_count ?? null}
+              total_vote_count={data.vote_result_response?.total_vote_count ?? null}
+              party_vote_list={data.vote_result_response?.party_vote_list ?? []}
               bill_result={data.bill_info_dto.bill_result}
+              billStage={data.bill_info_dto.bill_stage}
             />
           </SectionContainer>
         </section>

@@ -1,7 +1,7 @@
 'use client';
 
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
-import { useState, useCallback } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useState, useCallback, useId } from 'react';
 import { useTheme } from 'next-themes';
 import {
   Card,
@@ -31,12 +31,12 @@ import {
   getChairmanProposerInfo,
 } from '@/utils';
 import Image from 'next/image';
-import { PartyLogoReplacement } from '@/components/common';
+import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
-import { ProposerList } from '@/app/bill/[id]/components';
+import ProposerList from '@/app/bill/[id]/components/ProposerList/ProposerList';
 import GPTSummary from '../../GPTSummary';
 import {
   getFeedSummaryMarkdown,
@@ -44,6 +44,7 @@ import {
   getSummaryVisibilityClassNames,
 } from './renderBillSummaryMarkdown';
 import SafeBillSummaryHtml from './SafeBillSummaryHtml';
+import { Button as ActionButton } from '@/components/ui/button';
 
 export default function Bill({
   bill_info_dto: {
@@ -71,6 +72,7 @@ export default function Bill({
   const [likeCount, setLikeCount] = useState(bill_like_count);
   const mutateBookmark = usePatchBookmark(bill_id);
   const [toggleMore, setToggleMore] = useState(false);
+  const summaryId = useId();
   const isGovernmentProposer = isGovernmentBill({
     proposerKind: proposer_kind,
     billId: bill_id,
@@ -96,7 +98,7 @@ export default function Bill({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const displayedSummary = gpt_summary && !detail ? getFeedSummaryMarkdown(gpt_summary) : gpt_summary || summary;
-  const { moreButtonClassName, summaryClassName } = getSummaryVisibilityClassNames({
+  const { summaryClassName } = getSummaryVisibilityClassNames({
     detail: Boolean(detail),
     expanded: toggleMore,
   });
@@ -114,16 +116,6 @@ export default function Bill({
   const onClickToggleMore = useCallback(() => {
     setToggleMore(!toggleMore);
   }, [toggleMore]);
-
-  const onKeyDownToggleMore = useCallback(
-    (event: KeyboardEvent<HTMLDivElement | HTMLSpanElement>) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        onClickToggleMore();
-      }
-    },
-    [onClickToggleMore],
-  );
 
   const onClickScrab = useCallback(() => {
     const accessToken = getCookie(ACCESS_TOKEN);
@@ -320,19 +312,20 @@ export default function Bill({
               <SafeBillSummaryHtml
                 className={summaryContentClassName}
                 style={summaryAccentStyle}
-                onClick={onClickToggleMore}
-                onKeyDown={onKeyDownToggleMore}
-                ariaLabel={toggleMore ? '법안 요약 접기' : '법안 요약 더 보기'}
+                id={summaryId}
                 markdown={displayedSummary}
               />
-              <span
-                className={moreButtonClassName}
-                onClick={onClickToggleMore}
-                onKeyDown={onKeyDownToggleMore}
-                role="button"
-                tabIndex={0}>
-                더 보기
-              </span>
+              {!detail && (
+                <ActionButton
+                  variant="ghost"
+                  className="self-start"
+                  type="button"
+                  onClick={onClickToggleMore}
+                  aria-expanded={toggleMore}
+                  aria-controls={summaryId}>
+                  {toggleMore ? '요약 접기' : '요약 더 보기'}
+                </ActionButton>
+              )}
             </CardBody>
 
             {!detail && (
@@ -361,14 +354,9 @@ export default function Bill({
                   </Tooltip>
                 </div>
 
-                <Link href={`/bill/${bill_id}`}>
-                  <Button
-                    className="text-sm font-medium bg-gray-1 dark:bg-gray-3 text-gray-3 dark:text-gray-2 w-[88px] h-8"
-                    size="sm"
-                    variant="flat">
-                    자세히 보기
-                  </Button>
-                </Link>
+                <ActionButton asChild variant="secondary" className="min-w-[88px]">
+                  <Link href={`/bill/${bill_id}`}>자세히 보기</Link>
+                </ActionButton>
               </CardFooter>
             )}
 

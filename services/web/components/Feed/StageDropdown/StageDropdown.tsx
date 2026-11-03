@@ -1,39 +1,32 @@
 'use client';
 
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button, Selection } from '@heroui/react';
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button } from '@heroui/react';
 import { IconControl } from '@/public/svgs';
-import { siteConfig } from '@/config/site';
-import { STAGE_TAB, STAGE_TAB_KO } from '@/constants';
-import { ValueOf } from '@/types';
+import { STAGE_TAB_KO } from '@/constants';
 
-export default function StageDropdown({
-  type,
-  clickHandler,
-}: {
-  type: ValueOf<typeof STAGE_TAB_KO>;
-  clickHandler: (keys: Selection) => any;
-}) {
-  const stageArray = [{ label: '전체', value: 'all' }];
-  const categoryValues = siteConfig.stageTabs;
-
+export default function StageDropdown({ type, clickHandler }: { type: string; clickHandler: (value: string) => void }) {
+  const stages = ['전체', ...Object.values(STAGE_TAB_KO)];
   return (
     <Dropdown>
       <DropdownTrigger>
-        <Button endContent={<IconControl />} className="text-sm font-medium bg-transparent ">
+        <Button endContent={<IconControl />} className="text-sm font-medium bg-transparent">
           {type}
         </Button>
       </DropdownTrigger>
       <DropdownMenu
-        aria-label="Static Actions"
+        aria-label="법안 처리 단계"
         variant="flat"
         disallowEmptySelection
         selectionMode="single"
-        selectedKeys={type}
-        onSelectionChange={(e) => clickHandler(e)}>
-        {stageArray.concat(categoryValues).map(({ label, value }) => (
-          <DropdownItem key={label} value={label}>
-            {STAGE_TAB_KO[value as keyof typeof STAGE_TAB] || '전체'}
-          </DropdownItem>
+        selectedKeys={new Set([type])}
+        onSelectionChange={(keys) => {
+          if (keys !== 'all') {
+            const value = Array.from(keys)[0];
+            if (typeof value === 'string') clickHandler(value);
+          }
+        }}>
+        {stages.map((stage) => (
+          <DropdownItem key={stage}>{stage}</DropdownItem>
         ))}
       </DropdownMenu>
     </Dropdown>

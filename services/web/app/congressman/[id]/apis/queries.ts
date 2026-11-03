@@ -1,25 +1,17 @@
 'use client';
 
-import { QueryClient, useMutation, useSuspenseInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { nextBillPage } from '@/lib/billQueries';
 import { BILL_TAB } from '@/constants';
 import { ValueOf } from '@/types';
-import { Dispatch, SetStateAction } from 'react';
 import { getBillByCongressmanId, getCongressmanDetail, patchCongressmanFollow } from './apis';
 
-export const useGetBillByCongressman = (
-  id: string,
-  type: ValueOf<typeof BILL_TAB> | Dispatch<SetStateAction<ValueOf<typeof BILL_TAB>>>,
-) =>
-  useSuspenseInfiniteQuery({
-    queryKey: ['/congressman/bill_info', id],
+export const useGetBillByCongressman = (id: string, type: ValueOf<typeof BILL_TAB>) =>
+  useInfiniteQuery({
+    queryKey: ['/congressman/bill_info', id, type],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillByCongressmanId(pageParam, id, type),
     initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      // eslint-disable-next-line no-nested-ternary
-      return last_page ? (page_number === 0 ? 1 : undefined) : page_number + 1;
-    },
+    getNextPageParam: nextBillPage,
   });
 
 export const useGetCongressmanDetail = ({

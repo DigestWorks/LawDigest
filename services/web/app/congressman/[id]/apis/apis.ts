@@ -10,7 +10,7 @@ export const getBillByCongressmanId = async (
 ) =>
   http.get<FeedResponse>({
     url: `/congressman/bill_info`,
-    params: { congressman_id: congressmanId, type, page, size: 3 },
+    params: { congressman_id: congressmanId, type, page, size: 10 },
   });
 
 export const getCongressmanDetail = (congressmanId: string) =>

@@ -1,63 +1,51 @@
 'use client';
-
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from 'cookies-next';
 import { useIntersect } from '@/hooks';
 import { ACCESS_TOKEN } from '@/constants';
 import { useGetFollowingBill } from '@/app/following/apis';
-import { Bill } from '@/components/Bill';
-import { Spinner } from '@heroui/spinner';
+import { BillList } from '@/components/Bill';
+import { Button } from '@/components/ui/button';
+import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
 
-export default function FollowingFeed() {
+export default function FollowingFeed({ scrollKey }: { scrollKey: string }) {
   const router = useRouter();
   const accessToken = getCookie(ACCESS_TOKEN);
-  const { data, hasNextPage, isFetching, fetchNextPage } = useGetFollowingBill();
-  const [bills, setBills] = useState(data ? data.pages.flatMap(({ data: { bill_list: responses } }) => responses) : []);
-
-  const fetchRef = useIntersect(async (entry: any, observer: any) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
-    }
+  const query = useGetFollowingBill(Boolean(accessToken));
+  const bills = query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [];
+  useListScrollRestoration(scrollKey, Boolean(accessToken) && Boolean(query.data));
+  const fetchRef = useIntersect(() => {
+    if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
-
-  useEffect(() => {
-    if (data) {
-      setBills(() => [...data.pages.flatMap(({ data: { bill_list: responses } }) => responses)]);
-    }
-  }, [data]);
-
-  if (!accessToken) {
+  if (!accessToken)
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-        <p className="text-sm text-gray-500">팔로잉 피드를 보려면 로그인이 필요해요.</p>
-        <button
-          type="button"
-          onClick={() => router.push('/login')}
-          className="px-4 py-2 text-sm font-medium text-white bg-primary-3 rounded-full dark:bg-gray-0.5 dark:text-black">
-          로그인하기
-        </button>
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p>팔로잉 피드를 보려면 로그인이 필요해요.</p>
+        <Button onClick={() => router.push('/login')}>로그인하기</Button>
       </div>
     );
-  }
-
   return (
     <section className="mt-4">
-      <ul className="flex flex-col gap-4">
-        {bills.map((bill) => (
-          <Bill {...bill} key={bill.bill_info_dto.bill_id} />
-        ))}
-        {bills.length === 0 && !isFetching && (
-          <p className="py-12 text-sm text-center text-gray-400">팔로잉한 의원이 없거나 관련 법안이 없어요.</p>
-        )}
-        {isFetching && (
-          <div className="flex justify-center w-full my-4">
-            <Spinner color="default" />
-          </div>
-        )}
-        <div ref={fetchRef} />
-      </ul>
+      {query.isError && !query.data ? (
+        <div className="flex flex-col items-center gap-3 py-8" role="alert">
+          <p>팔로잉 법안을 불러오지 못했습니다.</p>
+          <Button variant="outline" onClick={() => void query.refetch()}>
+            다시 불러오기
+          </Button>
+        </div>
+      ) : (
+        <BillList
+          bills={bills}
+          isFetching={query.isPending || query.isFetchingNextPage}
+          fetchRef={fetchRef}
+          hasNextPage={query.hasNextPage}
+          error={query.isFetchNextPageError}
+          onLoadMore={() => void query.fetchNextPage()}
+        />
+      )}
+      {query.isSuccess && !bills.length && (
+        <p className="py-12 text-center text-muted-foreground">팔로잉한 의원의 법안이 없습니다.</p>
+      )}
     </section>
   );
 }

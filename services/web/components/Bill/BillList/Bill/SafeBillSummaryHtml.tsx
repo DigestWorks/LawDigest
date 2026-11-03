@@ -1,19 +1,10 @@
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  MouseEvent,
-  KeyboardEventHandler,
-  MouseEventHandler,
-  ReactNode,
-} from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { useState } from 'react';
 
 type SafeBillSummaryHtmlProps = {
-  ariaLabel: string;
+  id?: string;
   className: string;
   markdown: string;
-  onClick: MouseEventHandler<HTMLDivElement>;
-  onKeyDown: KeyboardEventHandler<HTMLDivElement>;
   style: CSSProperties;
 };
 
@@ -145,14 +136,7 @@ const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm) => {
   return nodes;
 };
 
-export default function SafeBillSummaryHtml({
-  ariaLabel,
-  className,
-  markdown,
-  onClick,
-  onKeyDown,
-  style,
-}: SafeBillSummaryHtmlProps) {
+export default function SafeBillSummaryHtml({ id, className, markdown, style }: SafeBillSummaryHtmlProps) {
   const [termTooltip, setTermTooltip] = useState<TermTooltipState | null>(null);
 
   const showTermTooltip = (termElement: HTMLElement) => {
@@ -180,14 +164,6 @@ export default function SafeBillSummaryHtml({
     setTermTooltip(null);
   };
 
-  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
-    onClick(event);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    onKeyDown(event);
-  };
-
   const renderedMarkdown = renderSummaryMarkdown(markdown, (term, definition, key) => (
     <button
       aria-label={`${term}: ${definition}`}
@@ -207,14 +183,7 @@ export default function SafeBillSummaryHtml({
 
   return (
     <>
-      <div
-        className={className}
-        style={style}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-label={ariaLabel}>
+      <div className={className} style={style} id={id}>
         {renderedMarkdown}
       </div>
       {termTooltip && (

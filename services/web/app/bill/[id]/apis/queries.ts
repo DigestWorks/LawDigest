@@ -7,6 +7,7 @@ export const useGetBillDetail = (billId: string, queryClient: QueryClient) =>
   queryClient.fetchQuery({
     queryKey: ['/bill/detail', billId],
     queryFn: () => getBillDetail(billId),
+    staleTime: 60_000,
   });
 
 export const usePatchViewCount = async (billId: string) => {

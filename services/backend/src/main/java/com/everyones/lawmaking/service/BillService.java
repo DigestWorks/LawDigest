@@ -11,16 +11,19 @@ import com.everyones.lawmaking.global.constant.BillOrderType;
 import com.everyones.lawmaking.global.error.BillException;
 import com.everyones.lawmaking.global.error.UserException;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
+import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.repository.BillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 
 @RequiredArgsConstructor
 @Service
@@ -65,12 +68,25 @@ public class BillService {
         }
 
         var billDetailResponse = getBillDetailInfoFrom(bill);
-        var similarBills = billRepository.findSimilarBills(bill.getBillName(), bill.getId())
+        var similarPage = billRepository.findSimilarBills(bill.getBillName(), bill.getId(),
+                PageRequest.of(0, 5));
+        var similarBills = similarPage
                 .stream()
                 .map(SimilarBill::from)
                 .toList();
         billDetailResponse.setSimilarBills(similarBills);
+        billDetailResponse.setSimilarBillsCount(similarPage.getTotalElements());
         return billDetailResponse;
+    }
+
+    public SimilarBillListResponse getSimilarBills(
+            String billId, Pageable pageable) {
+        var bill = billRepository.findBillById(billId)
+                .filter(item -> item.getIngestStatus() == IngestStatusType.READY)
+                .orElseThrow(() -> new BillException.BillNotFound(Map.of(BILL_ID_KEY_STRING, billId)));
+        var page = billRepository.findSimilarBills(bill.getBillName(), billId, pageable);
+        return new SimilarBillListResponse(
+                page.map(SimilarBill::from).getContent(), PaginationResponse.from(page), page.getTotalElements());
     }
 
     // 유저가 좋아요한 법안 목록 슬라이스로 가져오기
@@ -226,7 +242,9 @@ public class BillService {
 
     // 법원 검색
     public BillListResponse searchBill(String searchWord,Pageable pageable) {
-        var billSlice = billRepository.findBillByKeyword(pageable,searchWord);
+        var query = SearchQuery.from(searchWord);
+        var billSlice = billRepository.findBillByKeyword(pageable, query.text(),
+                SearchQuery.escapeLike(query.text()), query.expression());
 
         var pagination = PaginationResponse.from(billSlice);
 
@@ -235,6 +253,7 @@ public class BillService {
 
         var billList = billRepository.findBillInfoByIdList(billIdList);
         List<BillDto> billDtoList = billList.stream()
+                .sorted(Comparator.comparingInt(bill -> billIdList.indexOf(bill.getId())))
                 .map(this::getBillInfoFrom)
                 .toList();
 
