@@ -2,7 +2,6 @@ import { Avatar } from '@heroui/avatar';
 import { SectionError, SectionLoading } from '@/components/common/SectionState';
 import Image from 'next/image';
 import { useGetUserInfo } from '../../apis';
-import LogoutButton from './LogoutButton';
 
 export default function UserInfo() {
   const query = useGetUserInfo();
@@ -43,12 +42,7 @@ export default function UserInfo() {
         </div>
 
         <div className="flex flex-col w-full gap-3 lg:items-center">
-          <div className="flex items-center justify-between">
-            <p className="text-3xl font-semibold">{user_name}</p>
-            <div className="lg:absolute lg:-bottom-[50px]">
-              <LogoutButton />
-            </div>
-          </div>
+          <p className="text-3xl font-semibold">{user_name}</p>
           <p className="text-muted-foreground text-xs">{user_email}</p>
         </div>
       </div>

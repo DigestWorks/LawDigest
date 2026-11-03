@@ -8,6 +8,7 @@ import { SectionLoading } from '@/components/common/SectionState';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import { CongressmanList, UserInfo, PartyList, BillContainer } from './components';
+import AccountActions from './components/UserInfo/AccountActions';
 
 export default function MyPage() {
   const router = useRouter();
@@ -42,6 +43,7 @@ export default function MyPage() {
         <CongressmanList />
         <hr className="mx-[30px] border-[#E0E0E0] dark:border-dark-l lg:border-transparent dark:lg:border-transparent" />
         <BillContainer />
+        <AccountActions />
       </div>
     </div>
   );
