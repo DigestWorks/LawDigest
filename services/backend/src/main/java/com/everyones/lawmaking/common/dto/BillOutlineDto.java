@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.util.StringUtils;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
@@ -47,7 +48,8 @@ public class BillOutlineDto {
                 .billStage(bill.getStage())
                 .billResult(result)
                 .billProposers(bill.getProposers())
-                .billTitle(bill.getTitle())
+                .billTitle(StringUtils.hasText(bill.getGptSummary()) && StringUtils.hasText(bill.getTitle())
+                        ? bill.getTitle() : bill.getBillName())
                 .build();
     }
 }

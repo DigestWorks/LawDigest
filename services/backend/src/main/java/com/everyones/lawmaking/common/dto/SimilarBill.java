@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.util.StringUtils;
 
 import java.util.Objects;
 import java.util.List;
@@ -46,7 +47,8 @@ public class SimilarBill {
 
         return SimilarBill.builder()
                 .billId(bill.getId())
-                .billTitle(bill.getTitle())
+                .billTitle(StringUtils.hasText(bill.getGptSummary()) && StringUtils.hasText(bill.getTitle())
+                        ? bill.getTitle() : bill.getBillName())
                 .billName(bill.getBillName())
                 .billProposers(proposers)
                 .billStage(bill.getStage())
