@@ -49,3 +49,5 @@
 - 의원별 기록을 공개한 572건의 정당별 찬성 3,841행을 대조했다. 원자료의 정당 이름 8개는 운영에서 각각 하나의 정당 ID와 일치했다.
 - 의안 2218858은 국회 합계에 총투표 177·찬성 167·반대 5·기권 5가 있었고, 의원별 API 재조회는 빈 응답이었다. 이 의안은 합계만 근거로 쓴다.
 - 서버 `/tmp/lawdigest-w1-timeline-coverage/verified-missing-plenary-votes-v2.jsonl`의 SHA-256은 `54c6384d6f0f47cefccf278939d89132e99ff05cadbbfcae81e04565d4cf45fa`다. 타임라인 이벤트 추가와 표결 데이터 추가는 서로 다른 쓰기 범위다.
+
+본회의 후보 중 운영 법안 결과가 비어 있던 204건을 의안번호로 `ALLBILL` 상세에서 재조회했다. 204건 모두 제22대 의안 ID·번호·의결일과 결과가 본회의 목록과 일치했다. 수정가결 124건, 원안가결 67건, 철회 12건, 부결 1건이다. 서버 `/tmp/lawdigest-w1-timeline-coverage/official-detail-missing-outcomes-204.json`의 SHA-256은 `a60d7cdf9af84b4b4ed8bdf9cf56412a1610f1296613954da0bd81e354669ffb`다.
