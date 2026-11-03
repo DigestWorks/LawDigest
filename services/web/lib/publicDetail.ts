@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { SERVER_API_TIMEOUT_MS } from '@/lib/apiTiming';
 import { notFound } from 'next/navigation';
 import type { BaseResponse, BillResponse, CongressmanDetailResponse, PartyDetailResponse } from '@/types';
 
@@ -15,7 +16,7 @@ export async function fetchPublicDetail<T>(path: string): Promise<BaseResponse<T
   try {
     response = await fetch(`${origin}/v1${path}`, {
       cache: 'no-store',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(SERVER_API_TIMEOUT_MS),
       headers: { Accept: 'application/json' },
     });
   } catch {
