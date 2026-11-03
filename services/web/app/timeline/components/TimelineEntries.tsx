@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { billHeadline } from '@/lib/billHeadline';
 import { Button } from '@/components/ui/button';
 import type { TimelineBill, TimelinePlenary } from '@/types';
@@ -21,6 +21,20 @@ export function TimelineBillList({
   const headingId = useId();
   const listId = useId();
   const [limit, setLimit] = useState(PREVIEW_SIZE);
+  const listRef = useRef<HTMLUListElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const nextFocus = useRef<number | 'more' | null>(null);
+
+  useEffect(() => {
+    const target = nextFocus.current;
+    nextFocus.current = null;
+    if (target === 'more') {
+      moreButtonRef.current?.focus();
+    } else if (target !== null) {
+      listRef.current?.children[target]?.querySelector('a')?.focus();
+    }
+  }, [limit]);
+
   if (!bills.length) return null;
 
   const remaining = bills.length - limit;
@@ -29,7 +43,7 @@ export function TimelineBillList({
       <h3 id={headingId} className="mb-2 font-semibold">
         {title} <span className="text-sm font-medium text-muted-foreground">{bills.length.toLocaleString()}건</span>
       </h3>
-      <ul id={listId} className="divide-y">
+      <ul id={listId} ref={listRef} className="divide-y">
         {bills.slice(0, limit).map((bill) => {
           const vote = votes?.get(bill.bill_id);
           const approval = vote?.approval_vote_count;
@@ -61,16 +75,27 @@ export function TimelineBillList({
         <div className="mt-2 flex flex-wrap gap-2">
           {remaining > 0 && (
             <Button
+              ref={moreButtonRef}
               variant="outline"
               size="sm"
               aria-controls={listId}
               aria-label={`${title} 법안 ${Math.min(remaining, STEP_SIZE)}건 더 보기`}
-              onClick={() => setLimit((current) => current + STEP_SIZE)}>
+              onClick={(event) => {
+                if (event.detail === 0) nextFocus.current = limit;
+                setLimit((current) => current + STEP_SIZE);
+              }}>
               법안 {Math.min(remaining, STEP_SIZE)}건 더 보기
             </Button>
           )}
           {limit > PREVIEW_SIZE && (
-            <Button variant="ghost" size="sm" aria-controls={listId} onClick={() => setLimit(PREVIEW_SIZE)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-controls={listId}
+              onClick={(event) => {
+                if (event.detail === 0) nextFocus.current = 'more';
+                setLimit(PREVIEW_SIZE);
+              }}>
               {title} 접기
             </Button>
           )}
