@@ -68,7 +68,7 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
     private List<BillInfoDto> findPagedBills(Pageable pageable, String stage, String assembly) {
         var hasAiSummary = hasText(bill.title).and(hasText(bill.gptSummary));
         var archived = bill.assemblyNumber.eq(21);
-        var current = bill.assemblyNumber.eq(22).and(hasAiSummary);
+        var current = bill.assemblyNumber.eq(22);
         var scope = switch (assembly == null ? "" : assembly) {
             case "21" -> archived;
             case "22" -> current;

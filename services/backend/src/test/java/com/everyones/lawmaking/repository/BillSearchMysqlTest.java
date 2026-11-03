@@ -189,8 +189,12 @@ class BillSearchMysqlTest {
     }
 
     @Test
-    void assemblyScopeFiltersBeforePagingAndKeepsPublishedArchiveWithoutAiSummary() {
+    void assemblyScopeFiltersBeforePagingAndKeepsReadyBillsWithoutAiSummary() {
         jdbc.update("UPDATE Bill SET gpt_summary = 'AI 요약', stage = '위원회 심사' WHERE bill_id = 'exact'");
+        jdbc.update("UPDATE Bill SET title = NULL, summary = '국회 원문', stage = '접수' WHERE bill_id = 'other'");
+        repository.saveAndFlush(Bill.builder().id("current-pending").billNumber(23).assemblyNumber(22)
+                .billName("미공개 법안").proposeDate(LocalDate.of(2026, 11, 3))
+                .ingestStatus(IngestStatusType.PENDING).build());
         repository.saveAndFlush(Bill.builder().id("discarded").billNumber(21).assemblyNumber(21)
                 .billName("임기만료 법안").summary("제안이유").billResult("임기만료폐기")
                 .stage("위원회 심사").proposeDate(LocalDate.of(2024, 5, 20))
@@ -206,8 +210,17 @@ class BillSearchMysqlTest {
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             var page = PageRequest.of(0, 1);
             var current = repository.findBillWithDetailAndPage(page, Optional.empty(), null, "22");
-            assertThat(current.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("exact");
-            assertThat(current.getPaginationResponse().isLastPage()).isTrue();
+            assertThat(current.getBillList()).singleElement().satisfies(row -> {
+                var info = row.getBillInfoDto();
+                assertThat(info.getBillId()).isEqualTo("other");
+                assertThat(info.getBillName()).isEqualTo("방송법");
+                assertThat(info.getGptSummary()).isNull();
+                assertThat(info.getSummary()).isEqualTo("국회 원문");
+            });
+            assertThat(current.getPaginationResponse().isLastPage()).isFalse();
+            var stage = repository.findBillWithDetailAndPage(page, Optional.empty(), "접수", "22");
+            assertThat(stage.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("other");
+            assertThat(stage.getPaginationResponse().isLastPage()).isTrue();
 
             var archived = repository.findBillWithDetailAndPage(page, Optional.empty(), "위원회 심사", "21");
             assertThat(archived.getBillList()).singleElement().satisfies(row -> {
@@ -218,8 +231,9 @@ class BillSearchMysqlTest {
                 assertThat(info.getSummary()).isEqualTo("제안이유");
             });
             var combined = repository.findBillWithDetailAndPage(page, Optional.empty(), null, "all");
+            assertThat(combined.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("other");
             assertThat(combined.getPaginationResponse().isLastPage()).isFalse();
-            var last = repository.findBillWithDetailAndPage(page.next(), Optional.empty(), null, "all");
+            var last = repository.findBillWithDetailAndPage(PageRequest.of(3, 1), Optional.empty(), null, "all");
             assertThat(last.getBillList()).extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("discarded");
             assertThat(last.getPaginationResponse().isLastPage()).isTrue();
 
