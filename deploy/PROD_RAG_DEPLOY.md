@@ -55,7 +55,7 @@ RAG_PYTHON_BIN=/absolute/python3.12 RAG_ENV_FILE=/absolute/private/rag.env \
 
 스크립트는 release별 소스·venv·resolved 의존성을 보관한다. 루프백에서 인증된 22대 인덱스 상태가 사용 가능한지 확인하고, 실패 시 이전 프로세스 복구를 시도한다. 웹·nginx·DB·인덱스는 변경하지 않는다. API 접근 로그는 끄며 실패 로그에는 예외 종류만 남긴다.
 
-운영 웹 비공개 환경에는 `RAG_ENABLED=true`, `RAG_INTERNAL_URL`, 같은 `RAG_INTERNAL_TOKEN`, `RAG_PUBLIC_ORIGIN=https://lawdigest.kr`를 설정한다. `www` 접속은 정식 도메인으로 리다이렉트되는지 확인한다. nginx가 외부 `X-Real-IP`를 신뢰하지 않고 실제 연결 주소로 덮어쓰는 것을 확인한 뒤 `RAG_TRUST_PROXY_IP=true`를 설정한다. 확인 전에는 익명 요청 전체가 같은 요청 한도를 공유한다. 웹은 [배포 기준](./WEB_DEPLOY_ENVIRONMENTS.md)과 `deploy-prod-web.sh`로 반영한다.
+공유 `services/web/.env`와 별도로 운영 웹 배포 전용 `.runtime/prod-web/service.env`를 실행 사용자 소유, 권한 600으로 만든다. 이 파일에 `RAG_ENABLED=true`, `RAG_INTERNAL_URL`, 같은 `RAG_INTERNAL_TOKEN`, `RAG_PUBLIC_ORIGIN=https://lawdigest.kr`를 설정한다. `www` 접속은 정식 도메인으로 리다이렉트되는지 확인한다. nginx가 외부 `X-Real-IP`를 신뢰하지 않고 실제 연결 주소로 덮어쓰는 것을 확인한 뒤 `RAG_TRUST_PROXY_IP=true`를 설정한다. 확인 전에는 익명 요청 전체가 같은 요청 한도를 공유한다. 웹은 [배포 기준](./WEB_DEPLOY_ENVIRONMENTS.md)과 `deploy-prod-web.sh`로 반영한다.
 
 운영에서 키워드 검색 → 질문 진입 → 실제 답변 → 문단 출처 → 상세 → 뒤로 가기 → 후속 질문을 확인한다. 자료 없음·모델 실패·요청 한도·중지·한글 조합 Enter를 각각 확인하고 375px/데스크톱·라이트/다크에서 재현한다. 과거 대수 폐기 상태와 법안·현행법의 구분을 확인한다. 운영 검증이 끝날 때까지 관련 결함은 미해결로 유지한다.
 
