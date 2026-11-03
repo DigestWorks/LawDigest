@@ -121,7 +121,42 @@ def parse_proposer_page(html, bill_no):
     return ProposerPage(members, total, page, page_count)
 
 
-def resolve_proposers(bill_id, members, representative_profiles, lawmakers):
+def fetch_historical_member_code(session, api_key, name, hanja, term):
+    """Require an unambiguous identity in the bill's assembly term."""
+    name, hanja, term = _compact(name), _hanja(hanja), _compact(term)
+    if not api_key or not name or not hanja or not re.fullmatch(r"[1-9][0-9]?", term):
+        return None
+    response = session.get(
+        "https://open.assembly.go.kr/portal/openapi/ALLNAMEMBER",
+        params={"KEY": api_key, "Type": "json", "pIndex": 1, "pSize": 100, "NAAS_NM": name},
+        timeout=20,
+    )
+    response.raise_for_status()
+    try:
+        head, data = response.json()["ALLNAMEMBER"]
+        count, status = head["head"]
+        rows = data["row"]
+        if status["RESULT"]["CODE"] != "INFO-000" or not 0 < len(rows) == count["list_total_count"] <= 100:
+            return None
+        codes = set()
+        for row in rows:
+            terms = {_compact(part) for part in row["GTELT_ERACO"].split(",")}
+            if (
+                _compact(row["NAAS_NM"]) == name
+                and _hanja(row["NAAS_CH_NM"]) == hanja
+                and f"제{term}대" in terms
+            ):
+                codes.add(_compact(row["NAAS_CD"]))
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return None
+    if len(codes) == 1:
+        code = codes.pop()
+        if re.fullmatch(r"[A-Z0-9]{8}", code):
+            return code
+    return None
+
+
+def resolve_proposers(bill_id, members, representative_profiles, lawmakers, historical_code=None):
     identities = [
         member.profile or (_compact(member.name), _compact(member.hanja))
         for member in members
@@ -155,6 +190,10 @@ def resolve_proposers(bill_id, members, representative_profiles, lawmakers):
 
         candidates = [row for row in candidates if identity_matches(row)]
         codes = {_compact(row.get("MONA_CD")) for row in candidates} - {""}
+        if not codes and historical_code is not None:
+            historical = historical_code(member)
+            if historical:
+                codes.add(historical)
         if len(codes) != 1:
             raise ProposerSourceError(
                 "제안자와 의원 코드를 유일하게 매칭할 수 없습니다."
@@ -175,7 +214,7 @@ def resolve_proposers(bill_id, members, representative_profiles, lawmakers):
     }
 
 
-def fetch_likms_proposers(session, bill_id, bill_no, lawmakers):
+def fetch_likms_proposers(session, bill_id, bill_no, lawmakers, historical_code=None):
     if not re.fullmatch(r"PRC_[A-Za-z0-9_]+", str(bill_id)) or not re.fullmatch(
         r"\d{7}", str(bill_no)
     ):
@@ -220,4 +259,4 @@ def fetch_likms_proposers(session, bill_id, bill_no, lawmakers):
         page_number += 1
     if len(members) != expected:
         raise ProposerSourceError("전체 제안자 명단을 확보하지 못했습니다.")
-    return resolve_proposers(bill_id, members, representatives, lawmakers)
+    return resolve_proposers(bill_id, members, representatives, lawmakers, historical_code)

@@ -12,7 +12,11 @@ from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 from .open_assembly import OpenAssemblyBillClient
-from .likms_proposers import ProposerSourceError, fetch_likms_proposers
+from .likms_proposers import (
+    ProposerSourceError,
+    fetch_historical_member_code,
+    fetch_likms_proposers,
+)
 
 try:
     from tqdm import tqdm
@@ -833,18 +837,35 @@ class DataFetcher:
 
         aggregated = {}
 
-        bill_numbers = {
-            str(row.get('bill_id')): self._stringify_bill_number(row.get('billNumber'))
+        bill_details = {
+            str(row.get('bill_id')): (
+                self._stringify_bill_number(row.get('billNumber')),
+                row.get('assemblyNumber') or age,
+            )
             for row in local_df_bills.to_dict('records')
         }
+        catalog = df_lawmakers.to_dict('records')
+        historical_cache = {}
+        historical_key = os.environ.get("APIKEY_lawmakers") or api_key
 
         def fetch_official_list(bill_id):
-            bill_no = bill_numbers.get(bill_id)
+            bill_no, term = bill_details.get(bill_id, (None, None))
             if not bill_no:
                 return None
+
+            def historical_code(member):
+                cache_key = (member.name, member.hanja, str(term))
+                if cache_key not in historical_cache:
+                    code = fetch_historical_member_code(
+                        self.session, historical_key, member.name, member.hanja, term
+                    )
+                    if code:
+                        historical_cache[cache_key] = code
+                return historical_cache.get(cache_key)
+
             try:
                 return fetch_likms_proposers(
-                    self.session, bill_id, bill_no, df_lawmakers.to_dict('records')
+                    self.session, bill_id, bill_no, catalog, historical_code
                 )
             except (ProposerSourceError, requests.RequestException) as exc:
                 reason = str(exc) if isinstance(exc, ProposerSourceError) else "HTTP 조회 실패"

@@ -5,6 +5,7 @@ import pytest
 
 from lawdigest_data.bills.likms_proposers import (
     ProposerSourceError,
+    fetch_historical_member_code,
     fetch_likms_proposers,
     parse_proposer_page,
     parse_representatives,
@@ -159,3 +160,62 @@ def test_compatibility_hanja_is_compared_by_unicode_identity():
     assert resolve_proposers(BILL_ID, [member], {member.profile}, [row])[
         "representativeProposerIdList"
     ] == ["CODE"]
+
+
+def historical_result(rows, count=None):
+    return {
+        "ALLNAMEMBER": [
+            {
+                "head": [
+                    {"list_total_count": len(rows) if count is None else count},
+                    {"RESULT": {"CODE": "INFO-000"}},
+                ]
+            },
+            {"row": rows},
+        ]
+    }
+
+
+def test_official_list_recovers_missing_representative_from_matching_historical_term():
+    first = parse_proposer_page(POPUP, BILL_NO).members[0]
+    session = Mock()
+    session.get.side_effect = [
+        Mock(text=DETAIL),
+        Mock(text=POPUP),
+        Mock(json=lambda: historical_result([
+            {"NAAS_NM": first.name, "NAAS_CH_NM": first.hanja, "NAAS_CD": "000000AA", "GTELT_ERACO": "제21대"},
+            {"NAAS_NM": first.name, "NAAS_CH_NM": first.hanja, "NAAS_CD": "000000AB", "GTELT_ERACO": "제21대, 제22대"},
+        ])),
+    ]
+
+    def lookup(member):
+        return fetch_historical_member_code(session, "test-key", member.name, member.hanja, "22")
+
+    result = fetch_likms_proposers(session, BILL_ID, BILL_NO, lawmakers()[1:], lookup)
+    assert result["representativeProposerIdList"] == ["000000AB"]
+    assert len(result["publicProposerIdList"]) == 10
+    assert session.get.call_count == 3
+
+
+@pytest.mark.parametrize("scenario", ["ambiguous", "partial", "other_hanja", "invalid_shape"])
+def test_unsafe_historical_response_does_not_produce_a_code(scenario):
+    session = Mock()
+    row = {"NAAS_NM": "이해민", "NAAS_CH_NM": "李海珉", "NAAS_CD": "0698755I", "GTELT_ERACO": "제22대"}
+    response = historical_result([row])
+    if scenario == "ambiguous":
+        response = historical_result([row, {**row, "NAAS_CD": "0000000X"}])
+    elif scenario == "partial":
+        response = historical_result([row], count=2)
+    elif scenario == "other_hanja":
+        response = historical_result([{**row, "NAAS_CH_NM": "李海民"}])
+    else:
+        response = {"RESULT": {"CODE": "INFO-200"}}
+    session.get.return_value.json.return_value = response
+    assert fetch_historical_member_code(session, "test-key", "이해민", "李海珉", "22") is None
+
+
+@pytest.mark.parametrize("hanja,term", [("", "22"), ("李海珉", None), ("李海珉", "unknown")])
+def test_incomplete_historical_identity_does_not_query_source(hanja, term):
+    session = Mock()
+    assert fetch_historical_member_code(session, "test-key", "이해민", hanja, term) is None
+    session.get.assert_not_called()
