@@ -20,7 +20,7 @@ export default function VoteResultBoard({ party_vote_list }: VoteResultBoardProp
 
   return (
     <div className="grid w-full grid-cols-2 gap-y-4 gap-x-4">
-      {party_vote_list
+      {[...party_vote_list]
         .sort((a, b) => b.party_approval_count - a.party_approval_count)
         .map(({ party_info: { party_id, party_name, party_image_url }, party_approval_count }) => (
           <div key={party_id} className="flex items-center justify-between w-[130px]">

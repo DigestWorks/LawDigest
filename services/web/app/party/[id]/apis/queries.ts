@@ -1,29 +1,21 @@
 'use client';
 
-import { useSuspenseInfiniteQuery, QueryClient, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
-import { Dispatch, SetStateAction } from 'react';
+import { useInfiniteQuery, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
+import { nextBillPage } from '@/lib/billQueries';
 import { BILL_TAB } from '@/constants';
-import { ValueOf } from '@/types';
+import type { BaseResponse, PartyDetailResponse, ValueOf } from '@/types';
 import { getBillByParty, getPartyDetail, getPartyCongressman, patchPartyFollow } from './api';
 
-export const useGetBillByParty = (
-  id: number,
-  type: ValueOf<typeof BILL_TAB> | Dispatch<SetStateAction<ValueOf<typeof BILL_TAB>>>,
-) =>
-  useSuspenseInfiniteQuery({
-    queryKey: ['/party/bill', id],
+export const useGetBillByParty = (id: number, type: ValueOf<typeof BILL_TAB>) =>
+  useInfiniteQuery({
+    queryKey: ['/party/bill', id, type],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillByParty(id, type, pageParam),
     initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      // eslint-disable-next-line no-nested-ternary
-      return last_page ? (page_number === 0 ? 1 : undefined) : page_number + 1;
-    },
+    getNextPageParam: nextBillPage,
   });
 
-export const useGetPartyDetail = ({ partyId, queryClient }: { partyId: number; queryClient: QueryClient }) =>
-  queryClient.fetchQuery({
+export const useGetPartyDetail = (partyId: number) =>
+  useQuery({
     queryKey: ['/party/detail', partyId],
     queryFn: () => getPartyDetail(partyId),
   });
@@ -37,10 +29,29 @@ export const useGetPartyCongressman = (partyId: number) =>
 export const usePatchPartyFollow = (partyId: number) => {
   const queryClient = useQueryClient();
 
+  const detailKey = ['/party/detail', partyId];
   return useMutation({
-    mutationFn: (followChecked: boolean) => patchPartyFollow(partyId, followChecked),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/party/detail', partyId] });
+    mutationFn: async (followChecked: boolean) => {
+      const { data } = await patchPartyFollow(partyId, followChecked);
+      if (data?.follow_checked !== followChecked) throw new Error('팔로우 상태를 확인하지 못했습니다.');
+      return followChecked;
+    },
+    onSuccess: async (followed) => {
+      queryClient.setQueryData<BaseResponse<PartyDetailResponse>>(detailKey, (previous) => {
+        if (!previous?.data || previous.data.followed === followed) return previous;
+        return {
+          ...previous,
+          data: {
+            ...previous.data,
+            followed: followed,
+            follow_count: Math.max(0, previous.data.follow_count + (followed ? 1 : -1)),
+          },
+        };
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: detailKey }),
+        queryClient.invalidateQueries({ queryKey: ['/user/following/party'] }),
+      ]);
     },
   });
 };

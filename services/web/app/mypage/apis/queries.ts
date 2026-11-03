@@ -1,6 +1,7 @@
 'use client';
 
-import { QueryClient, useSuspenseInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { nextBillPage } from '@/lib/billQueries';
 import {
   getUserInfo,
   getFollowingParty,
@@ -9,14 +10,14 @@ import {
   getBillBookmarkedCount,
 } from './apis';
 
-export const useGetUserInfo = (queryClient: QueryClient) =>
-  queryClient.fetchQuery({
+export const useGetUserInfo = () =>
+  useQuery({
     queryKey: ['/user/info'],
     queryFn: () => getUserInfo(),
   });
 
-export const useGetFollowingParty = (queryClient: QueryClient) =>
-  queryClient.fetchQuery({
+export const useGetFollowingParty = () =>
+  useQuery({
     queryKey: ['/user/following/party'],
     queryFn: () => getFollowingParty(),
   });
@@ -28,16 +29,11 @@ export const useGetFollowingCongressman = () =>
   });
 
 export const useGetBillBookmarked = () =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/user/bookmarking/bill'],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillBookmarked(pageParam),
     initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      // eslint-disable-next-line no-nested-ternary
-      return last_page ? (page_number === 0 ? 1 : undefined) : page_number + 1;
-    },
+    getNextPageParam: nextBillPage,
   });
 
 export const useGetBillBookmarkedCount = () =>

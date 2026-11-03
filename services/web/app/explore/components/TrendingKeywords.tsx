@@ -1,5 +1,8 @@
 'use client';
 
+import { Flame } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import Link from 'next/link';
 import { useGetTrendingKeywords } from '../apis';
 
@@ -8,15 +11,31 @@ import { useGetTrendingKeywords } from '../apis';
  * 운영 데이터가 아직 없을 수 있으므로, 키워드가 없으면 섹션 전체를 숨긴다.
  */
 export default function TrendingKeywords() {
-  const { data } = useGetTrendingKeywords(12);
+  const query = useGetTrendingKeywords(12);
+  const { data } = query;
   const keywords = data?.data ?? [];
 
-  if (keywords.length === 0) return null;
+  if (query.isPending)
+    return (
+      <p role="status" className="py-4 text-sm text-muted-foreground">
+        인기 키워드 불러오는 중…
+      </p>
+    );
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="인기 키워드를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (keywords.length === 0) return <SectionEmpty>집계된 인기 키워드가 없습니다.</SectionEmpty>;
 
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-1.5">
-        <span className="material-symbols-outlined text-[20px] text-theme-alert">local_fire_department</span>
+        <Flame aria-hidden="true" className="size-5 shrink-0 text-theme-alert" />
         <h2 className="text-[15px] font-bold text-primary-3 dark:text-gray-0.5">지금 뜨는 키워드</h2>
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:flex-wrap md:overflow-visible md:px-0">

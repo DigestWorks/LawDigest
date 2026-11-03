@@ -2,7 +2,7 @@
 
 - classify_by_committee: Bill.committee → 분야 코드 (정식명/약칭/개칭 + 분할 키워드).
 - classify_by_content: 법안명+요약 키워드 → 분야 코드 (법안명 우선).
-- classify_bill: 위원회 있으면 위원회 매핑, 없거나 미상이면 내용 분류, 그래도 없으면 unknown.
+- classify_bill: 명확한 법률명 예외 → 위원회 매핑 → 내용 분류 → unknown.
 
 설계·검증: output/tab-prototypes/FIELD_TAXONOMY.md (§4 위원회 매핑, §5.3 본회의 내용 분류).
 """
@@ -36,7 +36,7 @@ _COMMITTEE_SINGLE: tuple[tuple[tuple[str, ...], str], ...] = (
     (("국방",), "diplomacy"),
     (("성평등가족",), "family"),
     (("여성가족", "여가"), "family"),
-    (("국회운영", "운영"), "politics"),
+    (("국회운영", "운영", "정치개혁특별위원회"), "politics"),
     (("기후위기",), "environment"),
     (("정무",), "economy"),
     (("교육",), "education"),
@@ -89,7 +89,7 @@ _CONTENT_RULES: tuple[tuple[str, str], ...] = (
     ("justice", r"형법|형사|민법|민사|상법|소송|법원|법관|검찰|검사|변호사|범죄|처벌|형의\s*집행|교정|보호관찰|헌법재판|사면|국가배상|공탁|등기|성폭력|성범죄|아동학대범죄|스토킹|가정폭력|소년법|배상명령|법률구조|공증|중재|인신보호"),
     ("tech", r"정보통신|전기통신|방송|전파|인터넷|소프트웨어|인공지능|지능정보|데이터|개인정보|클라우드|과학기술|연구개발|우주|위성|정보보호|디지털|반도체|콘텐츠산업|전자정부|이러닝|망법|사이버"),
     ("education", r"교육|학교|초등|중등|고등학교|대학|학생|교원|교사|입시|학원|유아교육|평생교육|학위|사립학교|장학|학자금|학교폭력|학술|등록금|교육과정|유치원"),
-    ("health", r"의료|병원|의원|건강|보험급여|건강보험|감염병|질병|의약|약사|간호|보건|치료|정신건강|응급|국민건강|의료기기|혈액|장기이식|마약류|식품위생|위생|모자보건|치과|한의|혈액원|장기등|담배|금연|희귀질환|방역|검역"),
+    ("health", r"의료|병원|의원급|건강|보험급여|건강보험|감염병|질병|의약|약사|간호|보건|치료|정신건강|응급|국민건강|의료기기|혈액|장기이식|마약류|식품위생|위생|모자보건|치과|한의|혈액원|장기등|담배|금연|희귀질환|방역|검역"),
     ("family", r"보육|영유아|어린이집|청소년|여성|양성평등|저출산|저출생|한부모|다문화가족|성평등|육아|아이돌봄|건강가정|가족관계|입양|모성|청년기본"),
     ("welfare", r"기초생활|기초연금|국민연금|노인|장애인|아동복지|사회보장|사회복지|복지|기초생활보장|긴급복지|국가유공자|보훈|자립지원|노숙인|장사\s*등|장례|연금|수당|취약계층|고독사|돌봄|보조기기"),
     ("labor", r"노동|근로|노무사|고용|임금|노조|산재|산업안전|안전보건|채용|취업|구직|일자리|퇴직|실업|최저임금|근로감독|모성보호|육아휴직|정리해고|파업|노사|직장|직업안정|직업능력|파견근로|기간제|임금채권"),
@@ -104,7 +104,7 @@ _CONTENT_RULES: tuple[tuple[str, str], ...] = (
     ("safety", r"재난|소방|경찰|치안|화재|재해|위험물|경비업|안전관리|범죄예방|시설안전|식품안전|총포|화약|풍수해|재해대책|국민안전|생활안전|승강기|수난구조|의용소방"),
     ("politics", r"국회|선거|정당|정치자금|지방자치|지방교부세|공무원|정부조직|행정|국정감사|인사청문|주민|지방재정|국적|주민등록|행정기본|청원|공공기관|부패방지|선거관리|국무|감사원|민원|국경일|상훈|지방의회"),
 )
-_CONTENT_COMPILED: tuple[tuple[str, "re.Pattern[str]"], ...] = tuple(
+_CONTENT_COMPILED: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
     (code, re.compile(pattern)) for code, pattern in _CONTENT_RULES
 )
 
@@ -129,8 +129,14 @@ def classify_bill(
     bill_name: str | None,
     summary: str | None = None,
 ) -> str:
-    """백필 오케스트레이터: 위원회 매핑 → 내용 분류 → unknown."""
-    text = f"{bill_name or ''} {summary or ''}"
+    """백필 오케스트레이터: 법률명 예외 → 위원회 매핑 → 내용 분류 → unknown."""
+    name = (bill_name or "").strip()
+    if name.startswith("국립묘지의 설치 및 운영에 관한 법률"):
+        return "welfare"
+    if name.startswith("중대범죄수사청"):
+        return "justice"
+
+    text = f"{name} {summary or ''}"
     by_committee = classify_by_committee(committee, text)
     if by_committee is not None:
         return by_committee

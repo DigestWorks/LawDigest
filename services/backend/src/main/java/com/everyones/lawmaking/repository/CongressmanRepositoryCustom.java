@@ -2,6 +2,10 @@ package com.everyones.lawmaking.repository;
 
 import com.everyones.lawmaking.common.dto.CongressmanRankingDto;
 import com.everyones.lawmaking.common.dto.QCongressmanRankingDto;
+import com.everyones.lawmaking.domain.entity.IngestStatusType;
+import com.everyones.lawmaking.global.constant.BillInfoConstant;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -9,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import static com.everyones.lawmaking.domain.entity.QBill.bill;
 import static com.everyones.lawmaking.domain.entity.QBillProposer.billProposer;
 import static com.everyones.lawmaking.domain.entity.QCongressman.congressman;
 import static com.everyones.lawmaking.domain.entity.QParty.party;
@@ -24,21 +29,26 @@ public class CongressmanRepositoryCustom {
      * partyId가 주어지면 해당 정당 소속으로 한정한다. hasNext 판별을 위해 호출측에서 limit+1을 넘긴다.
      */
     public List<CongressmanRankingDto> findCongressmanRanking(Long partyId, long offset, long limit) {
+        var proposalCount = new CaseBuilder()
+                .when(bill.assemblyNumber.eq(BillInfoConstant.getCurrentAssemblyNumber())
+                        .and(bill.ingestStatus.eq(IngestStatusType.READY)))
+                .then(bill.id)
+                .otherwise(Expressions.nullExpression(String.class))
+                .countDistinct();
         return queryFactory
                 .select(new QCongressmanRankingDto(
                         congressman.id,
                         congressman.name,
                         congressman.congressmanImageUrl,
-                        party.id,
-                        party.name,
+                        party.id.coalesce(0L),
+                        party.name.coalesce("소속 미확인"),
                         party.partyImageUrl,
-                        representativeProposer.count()))
-                .from(representativeProposer)
-                .join(representativeProposer.congressman, congressman)
-                .join(congressman.party, party)
-                .where(
-                        congressman.state.isTrue()
-                                .and(partyId != null ? party.id.eq(partyId) : null))
+                        proposalCount))
+                .from(congressman)
+                .leftJoin(congressman.party, party)
+                .leftJoin(congressman.representativeProposer, representativeProposer)
+                .leftJoin(representativeProposer.bill, bill)
+                .where(congressman.state.isTrue(), partyId != null ? party.id.eq(partyId) : null)
                 .groupBy(
                         congressman.id,
                         congressman.name,
@@ -46,7 +56,7 @@ public class CongressmanRepositoryCustom {
                         party.id,
                         party.name,
                         party.partyImageUrl)
-                .orderBy(representativeProposer.count().desc(), congressman.name.asc())
+                .orderBy(proposalCount.desc(), congressman.name.asc(), congressman.id.asc())
                 .offset(offset)
                 .limit(limit)
                 .fetch();

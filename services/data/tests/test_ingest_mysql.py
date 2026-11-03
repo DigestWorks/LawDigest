@@ -59,6 +59,20 @@ def manager():
                 created_date DATETIME, modified_date DATETIME
             )
         """)
+        cursor.execute("""
+            CREATE TEMPORARY TABLE BillSearchDocument (
+                bill_id VARCHAR(100) PRIMARY KEY, bill_name_text VARCHAR(255) NOT NULL,
+                title_text TEXT NOT NULL, gpt_summary_text TEXT NOT NULL,
+                raw_summary_text MEDIUMTEXT NOT NULL, search_text MEDIUMTEXT NOT NULL,
+                source_modified_date DATETIME(6), rebuilt_date DATETIME(6)
+            ) ENGINE=InnoDB
+        """)
+        cursor.execute("""
+            CREATE TEMPORARY TABLE IngestCheckpoint (
+                source_name VARCHAR(60), assembly_number INT, last_reference_date DATE, metadata_json JSON,
+                created_date DATETIME, modified_date DATETIME, PRIMARY KEY(source_name, assembly_number)
+            ) ENGINE=InnoDB
+        """)
     yield db
     connection.close()
 
@@ -139,6 +153,56 @@ def test_title_only_ai_result_is_preserved_without_an_ai_summary(manager):
     assert read(manager)["title"] == "제목 전용 생성 결과"
 
 
+def test_ingest_refreshes_search_from_saved_fields_and_keeps_it_current_on_retry(manager):
+    checkpoint = {"source_name": "bill_ingest", "assembly_number": 22, "last_reference_date": "2026-11-02"}
+    manager.insert_bill_info(
+        [row(gpt_summary="보존할 AI 요약", title="보존할 제목", summary="첫 원문")],
+        checkpoint=checkpoint,
+        refresh_search=True,
+    )
+    manager.insert_bill_info(
+        [row(summary="재수집한 원문"), row(bill_id="pending", bill_number=2222389, ingest_status="PENDING")],
+        checkpoint=checkpoint,
+        refresh_search=True,
+    )
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT bill_id,title_text,gpt_summary_text,raw_summary_text FROM BillSearchDocument")
+        assert cursor.fetchall() == [{
+            "bill_id": "repeated-bill", "title_text": "보존할 제목",
+            "gpt_summary_text": "보존할 AI 요약", "raw_summary_text": "재수집한 원문",
+        }]
+        cursor.execute("SELECT last_reference_date FROM IngestCheckpoint")
+        assert str(cursor.fetchone()["last_reference_date"]) == "2026-11-02"
+        cursor.execute("UPDATE Bill SET summary='갱신된 원문' WHERE bill_id='repeated-bill'")
+    manager.connection.commit()
+    assert manager.refresh_bill_search_documents(["repeated-bill", "pending"]) == 1
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT raw_summary_text FROM BillSearchDocument")
+        assert cursor.fetchall() == [{"raw_summary_text": "갱신된 원문"}]
+
+
+def test_failed_search_or_checkpoint_rolls_back_the_ingest(manager):
+    checkpoint = {"source_name": "bill_ingest", "assembly_number": 22, "last_reference_date": "2026-11-02"}
+    with manager.connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE BillSearchDocument RENAME COLUMN title_text TO invalid_title")
+    with pytest.raises(pymysql.MySQLError, match="title_text"):
+        manager.insert_bill_info([row()], checkpoint=checkpoint, refresh_search=True)
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) AS count FROM Bill")
+        assert cursor.fetchone()["count"] == 0
+        cursor.execute("SELECT COUNT(*) AS count FROM IngestCheckpoint")
+        assert cursor.fetchone()["count"] == 0
+        cursor.execute("ALTER TABLE BillSearchDocument RENAME COLUMN invalid_title TO title_text")
+        cursor.execute("DROP TEMPORARY TABLE IngestCheckpoint")
+    with pytest.raises(pymysql.MySQLError, match="IngestCheckpoint"):
+        manager.insert_bill_info([row()], checkpoint=checkpoint, refresh_search=True)
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) AS count FROM Bill")
+        assert cursor.fetchone()["count"] == 0
+        cursor.execute("SELECT COUNT(*) AS count FROM BillSearchDocument")
+        assert cursor.fetchone()["count"] == 0
+
+
 def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(manager):
     manager.update_lawmaker_info(
         [{"congressman_id": "old", "name": "기존", "party_name": "정당"}]
@@ -150,6 +214,7 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
                 "name": "추가",
                 "party_name": "정당",
                 "assembly_number": 22,
+                "elect_sort": "비례대표",
             }
         ]
     )
@@ -165,5 +230,5 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
         full_snapshot=True,
     )
     with manager.connection.cursor() as cursor:
-        cursor.execute("SELECT congressman_id FROM Congressman WHERE state=1")
-        assert cursor.fetchall() == [{"congressman_id": "new"}]
+        cursor.execute("SELECT congressman_id, elect_sort FROM Congressman WHERE state=1")
+        assert cursor.fetchall() == [{"congressman_id": "new", "elect_sort": "비례대표"}]

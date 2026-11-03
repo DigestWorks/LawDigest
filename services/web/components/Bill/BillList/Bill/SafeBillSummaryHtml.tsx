@@ -1,20 +1,14 @@
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  MouseEvent,
-  KeyboardEventHandler,
-  MouseEventHandler,
-  ReactNode,
-} from 'react';
+'use client';
+
+import type { CSSProperties, ReactNode } from 'react';
 import { useState } from 'react';
 
 type SafeBillSummaryHtmlProps = {
-  ariaLabel: string;
+  id?: string;
   className: string;
   markdown: string;
-  onClick: MouseEventHandler<HTMLDivElement>;
-  onKeyDown: KeyboardEventHandler<HTMLDivElement>;
   style: CSSProperties;
+  sectionLevel?: 2 | 3 | 4;
 };
 
 type TermTooltipState = {
@@ -72,7 +66,14 @@ const parseInlineMarkdown = (value: string, keyPrefix: string, renderTerm: Rende
   return nodes;
 };
 
-const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm) => {
+const summaryHeadings = {
+  2: { Section: 'h2', Subsection: 'h3' },
+  3: { Section: 'h3', Subsection: 'h4' },
+  4: { Section: 'h4', Subsection: 'h5' },
+} as const;
+
+const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm, sectionLevel: 2 | 3 | 4) => {
+  const { Section, Subsection } = summaryHeadings[sectionLevel];
   const nodes: ReactNode[] = [];
   let listItems: ReactNode[] = [];
   let isSubsectionBody = false;
@@ -111,9 +112,9 @@ const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm) => {
 
     if (line.startsWith('### ')) {
       nodes.push(
-        <h3 className="lawdigest-summary-subheading mt-4 mb-1.5 text-base font-semibold" key={key}>
+        <Subsection className="lawdigest-summary-subheading mt-4 mb-1.5 text-base font-semibold" key={key}>
           {parseInlineMarkdown(line.slice(4), key, renderTerm)}
-        </h3>,
+        </Subsection>,
       );
       isSubsectionBody = true;
       return;
@@ -122,11 +123,11 @@ const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm) => {
     if (line.startsWith('## ')) {
       isSubsectionBody = false;
       nodes.push(
-        <h2
+        <Section
           className="lawdigest-summary-heading lawdigest-summary-section-heading mt-6 mb-3 text-lg font-bold"
           key={key}>
           {parseInlineMarkdown(line.slice(3), key, renderTerm)}
-        </h2>,
+        </Section>,
       );
       return;
     }
@@ -146,12 +147,11 @@ const renderSummaryMarkdown = (markdown: string, renderTerm: RenderTerm) => {
 };
 
 export default function SafeBillSummaryHtml({
-  ariaLabel,
+  id,
   className,
   markdown,
-  onClick,
-  onKeyDown,
   style,
+  sectionLevel = 2,
 }: SafeBillSummaryHtmlProps) {
   const [termTooltip, setTermTooltip] = useState<TermTooltipState | null>(null);
 
@@ -180,41 +180,30 @@ export default function SafeBillSummaryHtml({
     setTermTooltip(null);
   };
 
-  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
-    onClick(event);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    onKeyDown(event);
-  };
-
-  const renderedMarkdown = renderSummaryMarkdown(markdown, (term, definition, key) => (
-    <button
-      aria-label={`${term}: ${definition}`}
-      className="lawdigest-term-tooltip"
-      data-definition={definition}
-      key={key}
-      onBlur={hideTermTooltip}
-      onClick={(event) => event.stopPropagation()}
-      onFocus={(event) => showTermTooltip(event.currentTarget)}
-      onKeyDown={(event) => event.stopPropagation()}
-      onMouseEnter={(event) => showTermTooltip(event.currentTarget)}
-      onMouseLeave={hideTermTooltip}
-      type="button">
-      {term}
-    </button>
-  ));
+  const renderedMarkdown = renderSummaryMarkdown(
+    markdown,
+    (term, definition, key) => (
+      <button
+        aria-label={`${term}: ${definition}`}
+        className="lawdigest-term-tooltip"
+        data-definition={definition}
+        key={key}
+        onBlur={hideTermTooltip}
+        onClick={(event) => event.stopPropagation()}
+        onFocus={(event) => showTermTooltip(event.currentTarget)}
+        onKeyDown={(event) => event.stopPropagation()}
+        onMouseEnter={(event) => showTermTooltip(event.currentTarget)}
+        onMouseLeave={hideTermTooltip}
+        type="button">
+        {term}
+      </button>
+    ),
+    sectionLevel,
+  );
 
   return (
     <>
-      <div
-        className={className}
-        style={style}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-label={ariaLabel}>
+      <div className={className} style={style} id={id}>
         {renderedMarkdown}
       </div>
       {termTooltip && (

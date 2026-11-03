@@ -3,6 +3,7 @@ package com.everyones.lawmaking.controller;
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
 import com.everyones.lawmaking.common.dto.CategoryPartyCountDto;
 import com.everyones.lawmaking.common.dto.CommitteeCountDto;
+import com.everyones.lawmaking.common.dto.DataFreshnessDto;
 import com.everyones.lawmaking.common.dto.MonthlyTrendDetailDto;
 import com.everyones.lawmaking.common.dto.MonthlyTrendDto;
 import com.everyones.lawmaking.common.dto.PartyBillCountDto;
@@ -18,11 +19,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -32,6 +36,14 @@ import java.util.List;
 public class StatisticsController {
 
     private final StatisticsService statisticsService;
+
+    @Operation(summary = "자료 기준 날짜", description = "수집된 법안의 최신 발의일과 타임라인의 최신 처리 기록 날짜를 제공합니다.")
+    @GetMapping("/freshness")
+    public ResponseEntity<BaseResponse<DataFreshnessDto>> getFreshness() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(1)).cachePublic())
+                .body(BaseResponse.ok(statisticsService.getFreshness()));
+    }
 
     @Operation(summary = "통계 개요(KPI)", description = "제22대 총 발의/가결/계류/가결률을 집계합니다.")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "조회 성공"))

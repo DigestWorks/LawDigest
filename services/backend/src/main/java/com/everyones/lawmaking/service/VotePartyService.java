@@ -1,6 +1,5 @@
 package com.everyones.lawmaking.service;
 
-import com.everyones.lawmaking.common.dto.PartyVoteDto;
 import com.everyones.lawmaking.domain.entity.VoteParty;
 import com.everyones.lawmaking.repository.VotePartyRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,5 +14,9 @@ public class VotePartyService {
 
     public List<VoteParty> getVotePartyListWithPartyByBillId(String billId) {
         return votePartyRepository.findVotePartyWithPartyByBillId(billId);
+    }
+
+    public List<VoteParty> getPartyVotesForBills(List<String> billIds) {
+        return billIds.isEmpty() ? List.of() : votePartyRepository.findPartyVotesForBills(billIds);
     }
 }

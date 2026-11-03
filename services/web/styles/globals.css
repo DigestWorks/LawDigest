@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 94%;
+    --border: 0 0% 87%;
+    --input: 0 0% 70%;
+    --ring: 0 0% 30%;
+    --destructive: 0 72% 43%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 240 6% 7%;
+    --foreground: 0 0% 94%;
+    --primary: 0 0% 94%;
+    --primary-foreground: 240 6% 7%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 20%;
+    --border: 0 0% 28%;
+    --input: 0 0% 45%;
+    --ring: 0 0% 80%;
+    --destructive: 0 75% 62%;
+  }
+}
+
 html {
   font-family:
     'Pretendard Variable',
@@ -19,10 +49,6 @@ html {
     'Segoe UI Emoji',
     'Segoe UI Symbol',
     sans-serif;
-}
-
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
 }
 
 .더불어민주당 {
@@ -122,8 +148,8 @@ html {
     102deg,
     transparent 0,
     transparent 0.2em,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 12%, transparent) 0.2em,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 8%, transparent) calc(100% - 0.2em),
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 12%, transparent) 0.2em,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 8%, transparent) calc(100% - 0.2em),
     transparent calc(100% - 0.2em),
     transparent 100%
   );
@@ -137,8 +163,8 @@ html {
     102deg,
     transparent 0,
     transparent 0.2em,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 16%, transparent) 0.2em,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 10%, transparent) calc(100% - 0.2em),
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 16%, transparent) 0.2em,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 10%, transparent) calc(100% - 0.2em),
     transparent calc(100% - 0.2em),
     transparent 100%
   );
@@ -151,8 +177,8 @@ html {
   border-radius: 0.16em;
   background-image: linear-gradient(
     to top,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 26%, transparent) 0,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 26%, transparent) 42%,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 26%, transparent) 0,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 26%, transparent) 42%,
     transparent 42%,
     transparent 100%
   );
@@ -163,8 +189,8 @@ html {
 .dark .lawdigest-summary-heading {
   background-image: linear-gradient(
     to top,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 22%, transparent) 0,
-    color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 22%, transparent) 42%,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 22%, transparent) 0,
+    color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 22%, transparent) 42%,
     transparent 42%,
     transparent 100%
   );
@@ -205,7 +231,7 @@ html {
   width: fit-content;
   align-items: center;
   gap: 0.45em;
-  color: color-mix(in srgb, currentColor 90%, var(--lawdigest-summary-accent, #e63946));
+  color: color-mix(in srgb, currentColor 90%, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))));
   letter-spacing: 0;
 }
 
@@ -214,7 +240,7 @@ html {
   width: 0.18em;
   height: 1.15em;
   border-radius: 999px;
-  background: var(--lawdigest-summary-accent, #e63946);
+  background: var(--lawdigest-summary-accent, hsl(var(--muted-foreground)));
 }
 
 .lawdigest-summary-government-accent .lawdigest-summary-subheading::before,
@@ -243,7 +269,7 @@ html {
   font: inherit;
   text-decoration-line: underline;
   text-decoration-style: dotted;
-  text-decoration-color: color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 74%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 74%, transparent);
   text-decoration-thickness: 0.09em;
   text-underline-offset: 0.22em;
   cursor: help;
@@ -266,7 +292,7 @@ html {
   width: max-content;
   max-width: min(280px, calc(100vw - 32px));
   padding: 0.55rem 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 28%, transparent);
   border-radius: 8px;
   background: rgb(255 255 255 / 96%);
   box-shadow: 0 10px 24px rgb(15 23 42 / 14%);
@@ -280,7 +306,7 @@ html {
 }
 
 .dark .lawdigest-term-tooltip-layer {
-  border-color: color-mix(in srgb, var(--lawdigest-summary-accent, #e63946) 40%, #2b2b2b);
+  border-color: color-mix(in srgb, var(--lawdigest-summary-accent, hsl(var(--muted-foreground))) 40%, #2b2b2b);
   background: rgb(35 35 35 / 96%);
   box-shadow: 0 12px 28px rgb(0 0 0 / 32%);
   color: #f7f7f7;
@@ -307,7 +333,7 @@ html {
   width: 0.3em;
   height: 0.3em;
   border-radius: 999px;
-  background: var(--lawdigest-summary-accent, #e63946);
+  background: var(--lawdigest-summary-accent, hsl(var(--muted-foreground)));
 }
 
 /* ── 피드 콘텐츠 타입 탭 ── */
@@ -364,7 +390,7 @@ html {
   border-radius: 999px;
   border: none;
   background: transparent;
-  color: rgba(25, 25, 25, 0.4);
+  color: hsl(var(--muted-foreground));
   font-size: 1rem;
   font-weight: 500;
   font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
@@ -377,9 +403,19 @@ html {
 }
 
 .feed-content-tab.is-active {
-  color: #191919;
+  color: hsl(var(--foreground));
 }
 
 .feed-content-tab:active {
   transform: scale(0.97);
+}
+
+.feed-content-tab:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.lawdigest-summary-collapsed {
+  max-height: 18rem;
+  overflow: hidden;
 }

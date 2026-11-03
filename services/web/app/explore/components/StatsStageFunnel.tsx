@@ -1,5 +1,8 @@
 'use client';
 
+import { Filter } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { StatisticsStage, useGetStatisticsStage } from '../apis';
@@ -22,12 +25,13 @@ const chartConfig = {
 
 /** 입법 진행 단계 퍼널 — 접수 대비 누적 도달 비율(가로 막대). */
 export default function StatsStageFunnel() {
-  const { data, isLoading } = useGetStatisticsStage();
+  const query = useGetStatisticsStage();
+  const { data, isLoading } = query;
   const stage = data?.data;
 
   if (isLoading) {
     return (
-      <StatsCard title="입법 진행 단계" icon="filter_alt" delay={0.05}>
+      <StatsCard title="입법 진행 단계" icon={Filter} delay={0.05}>
         <div className="flex h-[190px] flex-col justify-between py-1">
           {STAGES.map(({ key }) => (
             <SkeletonBar key={key} className="h-7 w-full" />
@@ -37,7 +41,16 @@ export default function StatsStageFunnel() {
     );
   }
 
-  if (!stage) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="심사 단계 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (!stage) return <SectionEmpty>심사 단계 통계가 없습니다.</SectionEmpty>;
 
   const base = stage.receipt_count || 1;
   const rows = STAGES.map(({ key, label, opacity }) => ({
@@ -48,7 +61,7 @@ export default function StatsStageFunnel() {
   }));
 
   return (
-    <StatsCard title="입법 진행 단계" icon="filter_alt" subtitle="접수 대비 도달률" delay={0.05}>
+    <StatsCard title="입법 진행 단계" icon={Filter} subtitle="접수 대비 도달률" delay={0.05}>
       <ChartContainer config={chartConfig} className="aspect-auto h-[190px] w-full">
         <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 44, top: 0, bottom: 0 }}>
           <XAxis type="number" hide domain={[0, base]} />

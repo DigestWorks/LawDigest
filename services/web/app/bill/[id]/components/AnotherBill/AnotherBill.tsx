@@ -1,93 +1,60 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import { Card, CardFooter, CardBody, Chip, AvatarGroup, Avatar } from '@heroui/react';
 import Link from 'next/link';
-import { PartyLogoReplacement } from '@/components';
+import { billHeadline } from '@/lib/billHeadline';
+import { billResultLabel } from '@/lib/billStage';
+import { SimilarBill } from '@/types';
+import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
 import { getPartyLogoSrc } from '@/utils';
 
-export default function BillBookmarked({
+export default function AnotherBill({
   billTitle,
   billId,
+  billName,
   billProposers,
   billStage,
+  billResult,
+  assemblyNumber,
+  proposeDate,
   party,
-}: {
-  billTitle: string;
-  billId: string;
-  billProposers: string;
-  billStage: string;
-  party: {
-    party_id: number;
-    party_image_url: string;
-    party_name: string;
-  }[];
-}) {
-  const isRepresentativeSolo = party.length === 1;
-  const partyName = isRepresentativeSolo ? party[0].party_name : '다수';
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const router = useRouter();
-
+  previous,
+}: SimilarBill & { previous?: boolean }) {
+  const status = billResultLabel(billResult) || (previous && billStage ? `마지막 단계 ${billStage}` : billStage);
+  const proposers = billProposers
+    ?.replace(/([가-힣])의원/g, '$1 의원')
+    .replace(/의원\s*등\s*(\d+)\s*인/g, '의원 등 $1인');
   return (
-    <Card className={`border-1.5 flex-row md:py-2 ${partyName}`} radius="md">
-      <CardBody className="flex justify-between gap-2 ">
-        <Link href={`/bill/${billId}`}>
-          <p className="text-sm font-bold lg:text-lg">{billTitle}</p>
-        </Link>
-        <div className="flex items-center w-full gap-2 ">
-          <Chip
-            className="text-xs bg-transparent lg:text-sm text-gray-2 border-gray-1 dark:border-gray-3 dark:text-gray-3 border-1"
-            size="sm"
-            variant="bordered"
-            radius="sm">
-            {billStage}
-          </Chip>
-          <h4 className="text-xs font-semibold lg:text-sm text-gray-2 shrink-0">{billProposers}</h4>
-        </div>
-      </CardBody>
-      <CardFooter className="flex justify-center pl-0 overflow-visible basis-1/4 shrink-0">
-        {isRepresentativeSolo ? (
-          <Link
-            href={party[0].party_image_url !== null ? `/party/${party[0].party_id}` : {}}
-            onClick={(e) => {
-              if (party[0].party_image_url === null) e.preventDefault();
-            }}>
-            {party[0].party_image_url !== null ? (
-              <Image
-                src={getPartyLogoSrc(party[0].party_image_url, isDark) as string}
-                width={60}
-                height={30}
-                alt={`${party[0].party_name} 이미지`}
-                className="object-contain w-[60px] h-[30px] lg:w-[120px] lg:h-[30px]"
-              />
-            ) : (
-              <PartyLogoReplacement partyName={party[0].party_name} circle={false} />
-            )}
-          </Link>
-        ) : (
-          <AvatarGroup>
-            {party.map(({ party_image_url, party_id, party_name }) => (
-              <Avatar
-                src={getPartyLogoSrc(party_image_url, isDark) ?? undefined}
-                key={party_id}
-                size="md"
-                classNames={{
-                  base: [`bg-white dark:bg-dark-l p-1 border ${party_name}`],
-                  img: ['object-contain'],
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (party_image_url !== null) router.push(`/party/${party_id}`);
-                }}
-              />
-            ))}
-          </AvatarGroup>
-        )}
-      </CardFooter>
-    </Card>
+    <div className="flex items-center gap-3 rounded-xl border border-border p-3">
+      <Link
+        href={`/bill/${billId}`}
+        className="flex min-w-0 flex-1 flex-col gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <p className="text-sm font-semibold lg:text-base">{billHeadline(billName, billTitle)}</p>
+        <p className="text-sm text-muted-foreground">
+          {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, status].filter(Boolean).join(' · ')}
+        </p>
+        {proposers && <p className="text-xs text-muted-foreground">{proposers}</p>}
+      </Link>
+      <div className="flex shrink-0 flex-col gap-1">
+        {party.map(({ party_id, party_name, party_image_url }) => {
+          const light = getPartyLogoSrc(party_image_url, false);
+          const dark = getPartyLogoSrc(party_image_url, true);
+          return (
+            <Link
+              key={party_id}
+              href={`/party/${party_id}`}
+              aria-label={`${party_name} 프로필`}
+              className="flex size-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2">
+              {light && dark ? (
+                <>
+                  <Image src={light} width={40} height={24} alt="" className="object-contain dark:hidden" />
+                  <Image src={dark} width={40} height={24} alt="" className="hidden object-contain dark:block" />
+                </>
+              ) : (
+                <PartyLogoReplacement partyName={party_name} circle />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }

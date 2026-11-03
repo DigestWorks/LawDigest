@@ -1,10 +1,10 @@
 import { BillResponse } from '@/types';
-import { BillDetail } from '..';
+import { BillDetail } from '../BillDetail';
 
-export default function BillContainer({ data, viewCount }: { data: BillResponse; viewCount: number }) {
+export default function BillContainer({ data }: { data: BillResponse }) {
   return (
     <section className="flex flex-col md:mb-10">
-      <BillDetail data={data} viewCount={viewCount} />
+      <BillDetail data={data} />
     </section>
   );
 }

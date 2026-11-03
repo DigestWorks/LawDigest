@@ -93,8 +93,8 @@ public class AuthService {
                 .orElseThrow(() -> new AuthException.AuthInfoNotFound(Map.of("userId", String.valueOf(userId))));
     }
 
-    public  int deleteAuthInfoBySocialId(String socialId) {
-        return authInfoRepository.deleteBySocialId(socialId);
+    public int deleteAuthInfoById(Long authInfoId) {
+        return authInfoRepository.deleteAuthInfoById(authInfoId);
     }
 
 }

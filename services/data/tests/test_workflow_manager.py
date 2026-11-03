@@ -143,7 +143,12 @@ def test_empty_lawmaker_snapshot_is_not_recorded_as_success():
 
 
 def test_valid_lawmaker_snapshot_explicitly_enables_full_sync_and_keeps_assembly():
-    frame = pd.DataFrame({"MONA_CD": ["M1"], "HG_NM": ["이름"], "POLY_NM": ["정당"], "UNITS": ["제22대"]})
+    frame = pd.DataFrame(
+        {
+            "MONA_CD": ["M1"], "HG_NM": ["이름"], "POLY_NM": ["정당"],
+            "UNITS": ["제21대, 제22대"], "ELECT_GBN_NM": ["비례대표"],
+        }
+    )
     frame.attrs.update(source_total_count=1, source_complete=True, source_all_pages=True)
     with patch.object(DataFetcher, "fetch_lawmakers_data", return_value=frame), patch.object(
         WorkFlowManager, "_build_db_manager"
@@ -152,6 +157,7 @@ def test_valid_lawmaker_snapshot_explicitly_enables_full_sync_and_keeps_assembly
     call = database.return_value.update_lawmaker_info.call_args
     assert call.kwargs == {"full_snapshot": True}
     assert call.args[0][0]["assembly_number"] == 22
+    assert call.args[0][0]["elect_sort"] == "비례대표"
 
 
 def test_fetch_process_upsert_bills_flow_uses_artifacts(tmp_path):
@@ -263,6 +269,7 @@ def test_persist_bill_rows_passes_checkpoint_to_atomic_db_write():
     assert persisted == 1
     db.insert_bill_info.assert_called_once_with(
         rows,
+        refresh_search=True,
         checkpoint={
             "source_name": "bill_ingest",
             "assembly_number": 22,

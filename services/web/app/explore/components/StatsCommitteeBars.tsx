@@ -1,5 +1,8 @@
 'use client';
 
+import { Landmark } from 'lucide-react';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByCommittee } from '../apis';
@@ -14,12 +17,13 @@ const chartConfig = {
 
 /** 소관 위원회별 법안 수 상위 N — 가로 막대. */
 export default function StatsCommitteeBars() {
-  const { data, isError, isLoading } = useGetStatisticsByCommittee();
+  const query = useGetStatisticsByCommittee();
+  const { data, isLoading } = query;
   const committees = data?.data ?? [];
 
   if (isLoading) {
     return (
-      <StatsCard title="위원회별 접수 현황" icon="account_balance" delay={0.15}>
+      <StatsCard title="위원회별 접수 현황" icon={Landmark} delay={0.15}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
             <SkeletonBar key={i} className="h-[18px] w-full" />
@@ -30,7 +34,16 @@ export default function StatsCommitteeBars() {
   }
 
   // 신규 API 미배포 환경에서는 카드 자체를 숨긴다.
-  if (isError || committees.length === 0) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="위원회별 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (committees.length === 0) return <SectionEmpty>위원회별 통계가 없습니다.</SectionEmpty>;
 
   const rows = committees.slice(0, TOP_N).map((c) => ({
     // '위원회' 접미사를 줄여 축 라벨을 짧게 유지한다(툴팁에는 전체 이름 표시).
@@ -41,7 +54,7 @@ export default function StatsCommitteeBars() {
   }));
 
   return (
-    <StatsCard title="위원회별 접수 현황" icon="account_balance" subtitle={`상위 ${rows.length}개`} delay={0.15}>
+    <StatsCard title="위원회별 접수 현황" icon={Landmark} subtitle={`상위 ${rows.length}개`} delay={0.15}>
       <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: rows.length * 30 + 8 }}>
         <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 42, top: 0, bottom: 0 }}>
           <XAxis type="number" hide />

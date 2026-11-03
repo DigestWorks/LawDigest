@@ -2,17 +2,11 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAtomValue } from 'jotai';
+import { useAtom } from 'jotai';
 import { siteConfig } from '@/config/site';
 import { searchModalState } from '@/store';
 
 const SHELL_PADDING_PX = 4;
-
-const SEARCH_SUGGESTIONS = [
-  '최근 통과된 주요 법안은?',
-  '의료법 개정안 진행 상황이 궁금해요',
-  '이번 회기 국회 일정 알려줘',
-];
 
 function Nav() {
   const { navItems } = siteConfig;
@@ -20,12 +14,13 @@ function Nav() {
   const router = useRouter();
   const [isCompact, setIsCompact] = useState(false);
   const [lastScrollTop, setLastScrollTop] = useState(0);
-  const searchModal = useAtomValue(searchModalState);
+  const [searchModal, setSearchModal] = useAtom(searchModalState);
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const isSearchOpenRef = useRef(false);
+  const isSearchOpen = searchModal.show;
+  const isSearchOpenRef = useRef(searchModal.show);
+  useEffect(() => {
+    isSearchOpenRef.current = searchModal.show;
+  }, [searchModal.show]);
 
   const navRef = useRef<HTMLElement | null>(null);
 
@@ -57,36 +52,13 @@ function Nav() {
   const wasDraggingRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // 검색 열기/닫기
-  const openSearch = useCallback(() => {
-    setIsSearchOpen(true);
-    isSearchOpenRef.current = true;
-    setIsCompact(false);
-  }, []);
-
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false);
-    isSearchOpenRef.current = false;
-    setSearchQuery('');
-  }, []);
-
-  const handleSearchSubmit = useCallback(
-    (query: string) => {
-      if (!query.trim()) return;
-      router.push(`/search/${encodeURIComponent(query.trim())}`);
-      closeSearch();
+  const openSearch = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      setSearchModal({ show: true, trigger: event.currentTarget });
+      setIsCompact(false);
     },
-    [router, closeSearch],
+    [setSearchModal],
   );
-
-  // 검색창 열릴 때 input focus
-  useEffect(() => {
-    if (isSearchOpen) {
-      const timer = setTimeout(() => searchInputRef.current?.focus(), 220);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [isSearchOpen]);
 
   // compact 전환 시 is-nav-transitioning 클래스
   const isFirstCompactRender = useRef(true);
@@ -205,16 +177,14 @@ function Nav() {
 
   return (
     <>
-      {/* 검색 열림 시 백드롭 — 탭하면 닫힘 */}
-      {isSearchOpen && <div className="mobile-floating-nav-backdrop" onClick={closeSearch} aria-hidden="true" />}
-
       <div
         className="mobile-floating-nav-wrapper"
         style={{ '--mobile-nav-count': navItems.length } as React.CSSProperties}>
         {/* 탭 바 */}
         <nav
           ref={registerNavRef}
-          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}${isSearchOpen ? ' is-search-open' : ''}`}
+          aria-label="모바일 주 메뉴"
+          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}`}
           onPointerDown={isSearchOpen ? undefined : handlePointerDown}
           onPointerMove={isSearchOpen ? undefined : handlePointerMove}
           onPointerUp={isSearchOpen ? undefined : handlePointerUp}
@@ -243,8 +213,8 @@ function Nav() {
               key={label}
               type="button"
               className="mobile-floating-nav__item"
-              onClick={() => {
-                if (!wasDraggingRef.current) {
+              onClick={(event) => {
+                if (!wasDraggingRef.current || event.detail === 0) {
                   setNavIndex(index);
                   setIsCompact(false);
                   router.push(href);
@@ -256,87 +226,17 @@ function Nav() {
               <span>{label}</span>
             </button>
           ))}
-
-          {/* 검색 열림 시: 현재 활성 탭 아이콘만 단독 표시 (클릭 시 검색 닫힘) */}
-          {navItems.map(({ label, IconComponent }, i) =>
-            i === activeIndex ? (
-              <button
-                key={`solo-${label}`}
-                type="button"
-                className="mobile-floating-nav__solo-icon is-active"
-                onClick={closeSearch}
-                aria-label="검색 닫기">
-                <IconComponent isActive />
-              </button>
-            ) : (
-              <div key={`solo-${label}`} className="mobile-floating-nav__solo-icon" aria-hidden="true">
-                <IconComponent isActive />
-              </div>
-            ),
-          )}
         </nav>
 
-        {/* 검색 그룹: 예시 질문 버블 + 검색 버튼/바 */}
         <div className="mobile-floating-nav-search-group">
-          {/* 예시 질문 버블 */}
-          <div className={`mobile-floating-nav-suggestions${isSearchOpen ? ' is-visible' : ''}`}>
-            {SEARCH_SUGGESTIONS.map((suggestion, i) => (
-              <button
-                key={suggestion}
-                type="button"
-                className="mobile-floating-nav-suggestion"
-                style={{ '--suggestion-delay': `${i * 0.06}s` } as React.CSSProperties}
-                onClick={() => handleSearchSubmit(suggestion)}>
-                {suggestion}
-              </button>
-            ))}
-          </div>
-
-          {/* 검색 버튼 / 확장 검색 바 */}
           <div
-            className={`mobile-floating-nav-search-wrap${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}${isSearchOpen ? ' is-expanded' : ''}`}>
-            {/* 확장 상태: 검색 입력 영역 */}
-            <div className="mobile-floating-nav-search-expanded-inner">
-              <svg
-                className="mobile-floating-nav-search-expanded-icon"
-                width="18"
-                height="18"
-                viewBox="0 0 22 22"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <circle cx="9.5" cy="9.5" r="6" stroke="currentColor" strokeWidth="1.7" />
-                <path d="M14 14L19 19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              </svg>
-              <form
-                className="mobile-floating-nav-search-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSearchSubmit(searchQuery);
-                }}>
-                <input
-                  ref={searchInputRef}
-                  className="mobile-floating-nav-search-input"
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="궁금한 입법 현황을 질문해 보세요"
-                  autoComplete="off"
-                />
-              </form>
-              <button
-                type="button"
-                className="mobile-floating-nav-search-close"
-                onClick={closeSearch}
-                aria-label="검색 닫기">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-
-            {/* 기본 상태: 검색 아이콘 버튼 */}
-            <button type="button" onClick={openSearch} aria-label="검색" className="mobile-floating-nav-search-btn">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            className={`mobile-floating-nav-search-wrap${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}`}>
+            <button
+              type="button"
+              onClick={openSearch}
+              aria-label="검색 열기"
+              className="mobile-floating-nav-search-btn">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="9.5" cy="9.5" r="6" stroke="currentColor" strokeWidth="1.7" />
                 <path d="M14 14L19 19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
               </svg>

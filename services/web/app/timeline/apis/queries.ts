@@ -1,18 +1,16 @@
 'use client';
 
-import { useQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { nextBillPage } from '@/lib/billQueries';
 import { getTimelineFeed, getTimelineBillState } from './apis';
 
 export const useGetTimelineFeed = () =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/time-line/feed/paging'],
     queryFn: ({ pageParam }: { pageParam: number }) => getTimelineFeed(pageParam),
     initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      return last_page ? undefined : page_number + 1;
-    },
+    getNextPageParam: nextBillPage,
+    staleTime: 60_000,
   });
 
 export const useGetTimelineBillState = () =>

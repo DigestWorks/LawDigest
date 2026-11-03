@@ -1,6 +1,6 @@
 package com.everyones.lawmaking.repository;
 
-import com.everyones.lawmaking.common.dto.response.ParliamentaryPartyResponse;
+import com.everyones.lawmaking.common.dto.PartySeatCount;
 import com.everyones.lawmaking.domain.entity.Party;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,7 +24,7 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
     List<Party> findFollowingPartyByUserId(@Param("userId") long userId);
 
     @Query("SELECT p FROM Party p " +
-            "WHERE p.name LIKE %:searchWord% ")
+            "WHERE p.name LIKE %:searchWord% ESCAPE '!' ORDER BY p.name, p.id ")
     List<Party> findBySearchWord(@Param("searchWord") String searchWord);
 
 
@@ -36,11 +36,15 @@ public interface PartyRepository extends JpaRepository<Party, Long> {
     List<Party> findPartyByBillId(@Param("billId") String billId);
 
     Optional<Party> findPartyByName(String partyName);
-    @Query("SELECT new com.everyones.lawmaking.common.dto.response.ParliamentaryPartyResponse(" +
-            "p.id, p.name, p.partyImageUrl, " +
-            "p.districtCongressmanCount, p.proportionalCongressmanCount) " +
-            "FROM Party p " +
-            "WHERE p.isParliamentary = true ")
-    List<ParliamentaryPartyResponse> findByIsParliamentary(boolean isParliamentary);
+    @Query("""
+            SELECT new com.everyones.lawmaking.common.dto.PartySeatCount(
+                p.id, p.name, p.partyImageUrl, COUNT(c),
+                SUM(CASE WHEN c.district IS NOT NULL AND TRIM(c.district) NOT IN ('', '비례대표') THEN 1 ELSE 0 END),
+                SUM(CASE WHEN TRIM(c.district) = '비례대표' THEN 1 ELSE 0 END))
+            FROM Congressman c LEFT JOIN c.party p
+            WHERE c.state = true
+            GROUP BY p.id, p.name, p.partyImageUrl
+            """)
+    List<PartySeatCount> findActiveSeatCounts();
 
 }

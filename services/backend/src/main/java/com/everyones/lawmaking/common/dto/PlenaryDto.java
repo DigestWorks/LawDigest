@@ -24,9 +24,9 @@ public class PlenaryDto {
 
     private List<PartyVoteDto> partyVoteList;
 
-    public static PlenaryDto of(Bill bill, VoteRecord voteRecord, List<PartyVoteDto> partyVoteList) {
-        var plenaryBuilder =  PlenaryDto.builder()
-                .billInfo(BillOutlineDto.from(bill))
+    public static PlenaryDto of(Bill bill, String result, VoteRecord voteRecord, List<PartyVoteDto> partyVoteList) {
+        var plenaryBuilder = PlenaryDto.builder()
+                .billInfo(BillOutlineDto.from(bill, result))
                 .partyVoteList(partyVoteList);
         if (voteRecord == null) {
             return plenaryBuilder.build();

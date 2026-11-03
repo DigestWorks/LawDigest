@@ -1,61 +1,52 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { getCategoryMeta } from '@/config/categories';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
+import Link from 'next/link';
+import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { useGetCategoryCounts } from '../apis';
+import { useExploreRetryFocus } from './useExploreRetryFocus';
 
-interface CategoryGridProps {
-  selected: string | null;
-  onSelect: (code: string) => void;
-}
-
-export default function CategoryGrid({ selected, onSelect }: CategoryGridProps) {
-  const { data, isLoading } = useGetCategoryCounts();
-  const counts = (data?.data ?? []).filter((c) => c.category && c.category !== 'unknown');
+export default function CategoryGrid() {
+  const query = useGetCategoryCounts();
+  const { data, isLoading } = query;
+  const { resultRef, retry } = useExploreRetryFocus(Boolean(data), query.refetch);
+  const counts = (data?.data ?? []).filter((c) => isCategoryCode(c.category));
 
   if (isLoading) {
     return <div className="py-10 text-center text-[14px] text-gray-2">분야를 불러오는 중…</div>;
   }
 
+  if (query.isError && !query.data) {
+    return <SectionError message="분야 목록을 불러오지 못했습니다." pending={query.isFetching} onRetry={retry} />;
+  }
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {counts.map(({ category, count }) => {
-        const meta = getCategoryMeta(category);
-        const active = selected === category;
-
-        return (
-          <button
-            type="button"
-            key={category}
-            onClick={() => onSelect(category)}
-            aria-pressed={active}
-            // 활성 카드를 위로 올려 이동 중인 인디케이터가 이웃 카드에 가려지지 않게 한다.
-            className={`relative flex flex-col items-start gap-2 rounded-2xl border border-gray-1 bg-white p-4 text-left shadow-sm transition-colors hover:bg-primary-1 dark:border-dark-l dark:bg-dark-b dark:hover:bg-dark-l ${
-              active ? 'z-10' : ''
-            }`}>
-            {active && (
-              // 선택 인디케이터: 분야 고유 색의 얇은 테두리 + 옅은 tint. layoutId로 카드 간 이동 애니메이션.
-              <motion.span
-                layoutId="explore-category-indicator"
-                className="pointer-events-none absolute -inset-px z-0 rounded-2xl"
-                style={{ border: `1.5px solid ${meta.color}`, backgroundColor: `${meta.color}14` }}
-                // 첫 진입(이전 선택 없음): 살짝 확대·페이드로 등장. 카드 간 이동: layout 트윈.
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  layout: { type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.45 },
-                  default: { duration: 0.28, ease: 'easeOut' },
-                }}
-              />
-            )}
-            <span className="material-symbols-outlined relative z-10 text-[26px]" style={{ color: meta.color }}>
-              {meta.icon}
-            </span>
-            <span className="relative z-10 text-[15px] font-bold text-primary-3 dark:text-gray-0.5">{meta.label}</span>
-            <span className="relative z-10 text-[13px] text-gray-2">관련 법안 {count.toLocaleString()}건</span>
-          </button>
-        );
-      })}
+    <div
+      ref={resultRef}
+      role="region"
+      aria-label="분야 목록"
+      tabIndex={-1}
+      className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+      {counts.length === 0 ? (
+        <SectionEmpty>등록된 분야가 없습니다.</SectionEmpty>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {counts.map(({ category, count }) => {
+            const { icon: Icon, label, color } = getCategoryMeta(category);
+            return (
+              <Link
+                key={category}
+                href={`/explore/category/${category}`}
+                prefetch={false}
+                className="flex min-w-0 flex-col items-start gap-2 rounded-2xl border bg-background p-4 text-left shadow-sm transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                <Icon aria-hidden="true" className="size-[26px]" style={{ color }} />
+                <span className="break-words text-[15px] font-bold">{label}</span>
+                <span className="text-[13px] text-muted-foreground">관련 법안 {count.toLocaleString()}건</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

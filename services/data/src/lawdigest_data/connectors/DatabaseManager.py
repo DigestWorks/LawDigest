@@ -6,6 +6,8 @@ import contextlib
 import re
 from typing import List, Tuple, Dict, Any, Optional, Generator, Set
 
+from ..bills.search_document import build_bill_search_documents
+
 class DatabaseManager:
     """MySQL RDS 연결 및 데이터베이스 관련 기능을 제공하는 클래스"""
 
@@ -262,6 +264,7 @@ class DatabaseManager:
         bills_data: List[Dict],
         *,
         checkpoint: Optional[Dict[str, Any]] = None,
+        refresh_search: bool = False,
     ) -> None:
         """
         법안 정보를 DB에 적재합니다. (기존 insertBillInfoDf 대체)
@@ -276,6 +279,7 @@ class DatabaseManager:
                 - public_proposer_ids (List[str]): 공동발의자 의원 ID 목록
                 - rst_proposer_ids (List[str]): 대표발의자 의원 ID 목록
             checkpoint (Dict, optional): 법안과 같은 트랜잭션으로 반영할 checkpoint 정보.
+            refresh_search: 공개 법안 검색 문서를 같은 트랜잭션에서 갱신할지 여부.
         """
         missing_summary_ids = [
             str(bill.get("bill_id") or "<unknown>")
@@ -423,6 +427,9 @@ class DatabaseManager:
                             f"representative={written_representative}/{expected_representative}"
                         )
 
+            if refresh_search:
+                self._refresh_bill_search_documents_cursor(cursor, [bill["bill_id"] for bill in normalized_bills])
+
             if checkpoint:
                 self._upsert_ingest_checkpoint_cursor(
                     cursor,
@@ -551,10 +558,38 @@ class DatabaseManager:
             cursor.execute(query, (limit,))
             return cursor.fetchall()
 
+    def refresh_bill_search_documents(self, bill_ids: List[str]) -> int:
+        if not bill_ids:
+            return 0
+        with self.transaction() as cursor:
+            return self._refresh_bill_search_documents_cursor(cursor, bill_ids)
+
+    def _refresh_bill_search_documents_cursor(self, cursor, bill_ids: List[str]) -> int:
+        unique_ids = sorted(set(bill_ids))
+        rebuilt = 0
+        for offset in range(0, len(unique_ids), 200):
+            batch = unique_ids[offset:offset + 200]
+            placeholders = ",".join(["%s"] * len(batch))
+            cursor.execute(
+                "SELECT bill_id, bill_name, title, gpt_summary, summary, "
+                "COALESCE(modified_date, created_date) AS source_modified_date "
+                f"FROM Bill WHERE bill_id IN ({placeholders}) AND ingest_status = 'READY' "
+                "AND summary IS NOT NULL AND TRIM(summary) <> '' ORDER BY bill_id FOR UPDATE",
+                batch,
+            )
+            documents = build_bill_search_documents(cursor.fetchall())
+            rebuilt += self._upsert_bill_search_documents_cursor(cursor, documents)
+        return rebuilt
+
     def upsert_bill_search_documents(self, documents: List[Dict[str, Any]]) -> int:
         if not documents:
             return 0
+        with self.transaction() as cursor:
+            return self._upsert_bill_search_documents_cursor(cursor, documents)
 
+    def _upsert_bill_search_documents_cursor(self, cursor, documents: List[Dict[str, Any]]) -> int:
+        if not documents:
+            return 0
         query = """
             INSERT INTO BillSearchDocument (
                 bill_id,
@@ -584,8 +619,7 @@ class DatabaseManager:
                 source_modified_date = new.source_modified_date,
                 rebuilt_date = NOW(6)
         """
-        with self.transaction() as cursor:
-            cursor.executemany(query, documents)
+        cursor.executemany(query, documents)
         return len(documents)
 
     def _link_proposers(self, cursor: pymysql.cursors.Cursor, bill_id: str, proposer_ids: List[str], is_representative: bool = False) -> int:
@@ -865,7 +899,7 @@ class DatabaseManager:
                     assembly_number = new.assembly_number,
                     party_id = new.party_id,
                     district = new.district,
-                    elect_sort = new.elect_sort,
+                    elect_sort = COALESCE(new.elect_sort, Congressman.elect_sort),
                     commits = new.commits,
                     elected = new.elected,
                     homepage = new.homepage,

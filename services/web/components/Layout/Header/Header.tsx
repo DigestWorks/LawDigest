@@ -3,17 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Navbar, NavbarContent, NavbarItem, NavbarBrand } from '@heroui/navbar';
-import { useCallback, useState } from 'react';
 import { siteConfig } from '@/config/site';
 import { IconNavBorder } from '@/public/svgs';
-import {
-  SearchBarButton,
-  GoBackButton,
-  SettingButton,
-  SearchButton,
-  NotificationButton,
-  ThemeSwitchButton,
-} from '@/components/common';
+import GoBackButton from '@/components/common/Button/GoBackButton';
+import SettingButton from '@/components/common/Button/SettingButton';
+import SearchButton from '@/components/common/Button/SearchButton';
+import NotificationButton from '@/components/common/Button/NotifcationButton';
+import ThemeSwitchButton from '@/components/common/Button/ThemeSwitchButton';
 import Logo from './Logo';
 
 export default function Header({
@@ -35,12 +31,7 @@ export default function Header({
 }) {
   const pathname = usePathname();
   const { navItems } = siteConfig;
-  const [toggleSearch, setToggleSearch] = useState(false);
   const isTimelineOrFollowing = pathname.startsWith('/timeline') || pathname.startsWith('/following');
-
-  const onClickSearch = useCallback(() => {
-    setToggleSearch(!toggleSearch);
-  }, [toggleSearch]);
 
   return (
     <section className="w-full">
@@ -96,49 +87,27 @@ export default function Header({
           </NavbarContent>
         )}
 
-        {setting && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+        <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+          <NavbarItem>
+            <SearchButton />
+          </NavbarItem>
+          {(setting || search || notification || theme) && (
             <NavbarItem>
               <ThemeSwitchButton />
             </NavbarItem>
+          )}
+          {setting && (
             <NavbarItem>
               <SettingButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {search && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-            <NavbarItem>
-              <SearchButton onClick={onClickSearch} />
-            </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {notification && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
+          )}
+          {notification && (
             <NavbarItem>
               <NotificationButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {theme && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-          </NavbarContent>
-        )}
+          )}
+        </NavbarContent>
       </Navbar>
-
-      <div>{toggleSearch && <SearchBarButton />}</div>
     </section>
   );
 }

@@ -1,29 +1,43 @@
+import { dehydrate } from '@tanstack/react-query';
+import { Suspense } from 'react';
+import ContentSkeleton from '@/components/common/ContentSkeleton';
+import ListHydrationBoundary from '@/lib/ListHydrationBoundary';
 import getQueryClient from '@/lib/getQueryClient';
 import { Feed, Layout } from '@/components';
-import { getBillByStage } from '@/components/Feed/Feed/apis';
+import { feedQueryOptions } from '@/lib/billQueries';
+import { reportQueryOptions } from '@/lib/reportQueries';
+import { feedAssembly, feedContent, feedStage } from '@/lib/feedState';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+type HomeProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+async function HomeFeed({ params }: { params: Awaited<HomeProps['searchParams']> }) {
   const queryClient = getQueryClient();
-
-  await queryClient.prefetchInfiniteQuery({
-    queryKey: ['/bill/mainfeed'],
-    queryFn: ({ pageParam }: { pageParam: number }) => getBillByStage(pageParam, ''),
-    initialPageParam: 0,
-    getNextPageParam: ({ data }) => {
-      const { pagination_response } = data || {};
-      const { last_page, page_number } = pagination_response || {};
-      return last_page ? undefined : page_number + 1;
-    },
-    pages: 3,
-  });
-
+  const tab = feedContent(typeof params.tab === 'string' ? params.tab : '');
+  const assembly = feedAssembly(typeof params.assembly === 'string' ? params.assembly : '');
+  if (tab === 'report') {
+    await queryClient.prefetchInfiniteQuery(reportQueryOptions());
+  } else if (tab === 'bill' && (assembly !== '22' || params.sort !== 'hot')) {
+    const stage = feedStage(typeof params.stage === 'string' ? params.stage : '');
+    await queryClient.prefetchInfiniteQuery(feedQueryOptions(stage, assembly));
+  }
   return (
-    <Layout nav logo notification>
-      <section className="lg:w-[880px] mx-auto ">
+    <ListHydrationBoundary state={dehydrate(queryClient)}>
+      <section className="lg:w-[880px] mx-auto">
         <Feed />
       </section>
+    </ListHydrationBoundary>
+  );
+}
+
+export default async function Home({ searchParams }: HomeProps) {
+  const params = await searchParams;
+  return (
+    <Layout nav logo notification>
+      <Suspense fallback={<ContentSkeleton />}>
+        <HomeFeed params={params} />
+      </Suspense>
     </Layout>
   );
 }

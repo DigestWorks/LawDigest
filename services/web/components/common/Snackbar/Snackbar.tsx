@@ -5,7 +5,7 @@ import { Fragment, useEffect } from 'react';
 import { useAtomValue } from 'jotai';
 import { useResetAtom } from 'jotai/utils';
 import { Transition } from '@headlessui/react';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { snackbarState } from '@/store';
 import { IconCancel } from '@/public/svgs';
 
@@ -32,7 +32,7 @@ export default function Snackbar() {
   return (
     <section
       aria-live="assertive"
-      className="fixed inset-0 flex items-end justify-center w-full px-4 py-20 pointer-events-none">
+      className="floating-snackbar fixed inset-0 z-[45] flex items-end justify-center w-full px-4 py-20 pointer-events-none">
       <Transition
         show={snackbar.show}
         as={Fragment}
@@ -54,9 +54,11 @@ export default function Snackbar() {
               </Link>
             )}
             <Button
-              isIconOnly
-              size="sm"
-              className="flex flex-shrink-0 bg-transparent focus:outline-none"
+              type="button"
+              variant="ghost"
+              aria-label="알림 닫기"
+              size="icon"
+              className="size-8 flex-shrink-0 text-white hover:bg-white/15 hover:text-white focus-visible:ring-white"
               onClick={resetSnackbar}>
               <IconCancel />
             </Button>

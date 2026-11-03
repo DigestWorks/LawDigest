@@ -22,8 +22,6 @@ public class PartyFacade {
 
     public PartyDetailResponse getPartyById(long partyId) {
         var partyDetailResponse =  partyService.getPartyById(partyId);
-        var totalCongressmanCount = congressmanService.getTotalCongressmanState(true);
-        partyDetailResponse.setTotalCongressmanCount(totalCongressmanCount);
         var userId = AuthenticationUtil.getUserId();
         if (userId.isEmpty()) {
             return partyDetailResponse;

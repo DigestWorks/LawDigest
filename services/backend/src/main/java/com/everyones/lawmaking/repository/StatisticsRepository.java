@@ -1,6 +1,7 @@
 package com.everyones.lawmaking.repository;
 
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
+import com.everyones.lawmaking.common.dto.BillFreshnessStatsDto;
 import com.everyones.lawmaking.common.dto.CategoryPartyCountDto;
 import com.everyones.lawmaking.common.dto.CommitteeCountDto;
 import com.everyones.lawmaking.common.dto.PartyBillCountDto;
@@ -19,10 +20,22 @@ import java.util.List;
 @Repository
 public interface StatisticsRepository extends JpaRepository<Bill, String> {
 
+    String PASSED_RESULTS = "('원안가결', '수정가결')";
+
+    @Query("""
+            SELECT new com.everyones.lawmaking.common.dto.BillFreshnessStatsDto(
+                MAX(b.proposeDate), COUNT(b),
+                SUM(CASE WHEN b.gptSummary IS NULL OR TRIM(b.gptSummary) = '' THEN 1 ELSE 0 END))
+            FROM Bill b
+            WHERE b.assemblyNumber = :assembly
+              AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY
+            """)
+    BillFreshnessStatsDto findBillFreshness(@Param("assembly") int assembly);
+
     @Query("SELECT new com.everyones.lawmaking.common.dto.StatisticsOverviewDto(" +
             "COUNT(b), " +
-            "SUM(CASE WHEN b.billResult IN ('원안가결', '수정가결') THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN b.billResult IS NULL THEN 1 ELSE 0 END)) " +
+            "SUM(CASE WHEN b.billResult IN " + PASSED_RESULTS + " THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN b.billResult IS NULL OR TRIM(b.billResult) = '' THEN 1 ELSE 0 END)) " +
             "FROM Bill b " +
             "WHERE b.assemblyNumber = :assembly " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY")
@@ -46,13 +59,16 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
             "ORDER BY COUNT(b) DESC")
     List<PartyBillCountDto> findBillCountByParty(@Param("assembly") int assembly);
 
-    @Query("SELECT new com.everyones.lawmaking.common.dto.CategoryCountDto(b.category, COUNT(b)) " +
-            "FROM Bill b " +
-            "WHERE b.assemblyNumber = :assembly " +
-            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
-            "AND b.category IS NOT NULL " +
-            "GROUP BY b.category " +
-            "ORDER BY COUNT(b) DESC")
+    @Query("""
+            SELECT new com.everyones.lawmaking.common.dto.CategoryCountDto(
+                CASE WHEN b.category IS NULL OR TRIM(b.category) = '' THEN 'unknown' ELSE b.category END,
+                COUNT(b))
+            FROM Bill b
+            WHERE b.assemblyNumber = :assembly
+              AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY
+            GROUP BY CASE WHEN b.category IS NULL OR TRIM(b.category) = '' THEN 'unknown' ELSE b.category END
+            ORDER BY COUNT(b) DESC
+            """)
     List<CategoryCountDto> findBillCountByCategory(@Param("assembly") int assembly);
 
     @Query(value = "SELECT DATE_FORMAT(b.propose_date, '%Y-%m') AS ym, COUNT(*) AS cnt " +
@@ -67,7 +83,7 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
 
     @Query("SELECT new com.everyones.lawmaking.common.dto.PartyPerformanceDto(" +
             "rp.party.id, rp.party.name, COUNT(b), " +
-            "SUM(CASE WHEN b.billResult IN ('원안가결', '수정가결') THEN 1 ELSE 0 END)) " +
+            "SUM(CASE WHEN b.billResult IN " + PASSED_RESULTS + " THEN 1 ELSE 0 END)) " +
             "FROM Bill b JOIN b.representativeProposer rp " +
             "WHERE b.assemblyNumber = :assembly " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
@@ -76,7 +92,7 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
     List<PartyPerformanceDto> findPartyPerformance(@Param("assembly") int assembly);
 
     @Query(value = "SELECT DATE_FORMAT(b.propose_date, '%Y-%m') AS ym, COUNT(*) AS cnt, " +
-            "SUM(CASE WHEN b.bill_result IN ('원안가결', '수정가결') THEN 1 ELSE 0 END) AS passed " +
+            "SUM(CASE WHEN b.bill_result IN " + PASSED_RESULTS + " THEN 1 ELSE 0 END) AS passed " +
             "FROM Bill b " +
             "WHERE b.assembly_number = :assembly " +
             "AND b.ingest_status = 'READY' " +
@@ -88,7 +104,7 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
 
     @Query("SELECT new com.everyones.lawmaking.common.dto.CommitteeCountDto(" +
             "b.committee, COUNT(b), " +
-            "SUM(CASE WHEN b.billResult IN ('원안가결', '수정가결') THEN 1 ELSE 0 END)) " +
+            "SUM(CASE WHEN b.billResult IN " + PASSED_RESULTS + " THEN 1 ELSE 0 END)) " +
             "FROM Bill b " +
             "WHERE b.assemblyNumber = :assembly " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
