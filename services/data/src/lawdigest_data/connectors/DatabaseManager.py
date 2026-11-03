@@ -293,13 +293,16 @@ class DatabaseManager:
         normalized_bills = []
         for bill in bills_data:
             row = dict(bill)
+            for field in ("gpt_summary", "title"):
+                if isinstance(row.get(field), str) and not row[field].strip():
+                    row[field] = None
             tags = row.get("summary_tags")
             if isinstance(tags, (list, tuple)):
                 row["summary_tags"] = json.dumps(list(tags), ensure_ascii=False)
             elif tags is None:
                 row["summary_tags"] = None
             elif isinstance(tags, str):
-                row["summary_tags"] = tags
+                row["summary_tags"] = tags if tags.strip() else None
             else:
                 row["summary_tags"] = json.dumps(tags, ensure_ascii=False)
             normalized_bills.append(row)
@@ -356,9 +359,11 @@ class DatabaseManager:
                 "propose_date = new.propose_date",
                 "summary = new.summary",
                 "stage = new.stage",
-                "gpt_summary = new.gpt_summary",
+                "gpt_summary = COALESCE(NULLIF(TRIM(new.gpt_summary), ''), Bill.gpt_summary)",
                 "bill_pdf_url = new.bill_pdf_url",
-                "title = new.title",
+                "title = CASE WHEN NULLIF(TRIM(new.gpt_summary), '') IS NULL "
+                "THEN COALESCE(NULLIF(TRIM(Bill.title), ''), new.title) "
+                "ELSE COALESCE(NULLIF(TRIM(new.title), ''), Bill.title) END",
                 "bill_link = new.bill_link",
                 "bill_result = new.bill_result",
                 "proposer_kind = new.proposer_kind",
@@ -371,7 +376,7 @@ class DatabaseManager:
                 insert_columns.insert(insert_index, "summary_tags")
                 value_columns.insert(insert_index, "%(summary_tags)s")
                 update_index = update_columns.index("bill_link = new.bill_link")
-                update_columns.insert(update_index, "summary_tags = new.summary_tags")
+                update_columns.insert(update_index, "summary_tags = COALESCE(NULLIF(TRIM(new.summary_tags), ''), Bill.summary_tags)")
 
             # 1. Bill 테이블 Upsert
             bill_query = f"""
@@ -800,16 +805,26 @@ class DatabaseManager:
 
             return existing_ids
 
-    def update_lawmaker_info(self, lawmaker_data: List[Dict]) -> None:
+    def update_lawmaker_info(self, lawmaker_data: List[Dict], *, full_snapshot: bool = False) -> None:
         """
         의원 정보를 DB에 동기화합니다. (기존 updateLawmakerDf 대체)
 
         Args:
             lawmaker_data (List[Dict]): 업데이트할 의원 정보 리스트.
                 - congressman_id, name, party_name, district, elect_sort, ...
+            full_snapshot: 검증된 전체 명부일 때만 누락된 현직 의원을 비활성화한다.
+                기본값 False는 전달된 의원만 추가·갱신한다.
         """
+        if not lawmaker_data and full_snapshot:
+            raise ValueError("전체 동기화에 빈 의원 명부를 사용할 수 없습니다.")
         if not lawmaker_data:
             return
+
+        input_ids = [str(item.get('congressman_id') or '').strip() for item in lawmaker_data]
+        if not all(input_ids) or len(set(input_ids)) != len(input_ids):
+            raise ValueError("의원 명부의 코드가 비었거나 중복되었습니다.")
+        if any(not str(item.get('party_name') or '').strip() for item in lawmaker_data):
+            raise ValueError("의원 명부의 정당을 확인하지 못했습니다.")
 
         with self.transaction() as cursor:
             # 1. 정당 ID 확보 (없으면 생성)
@@ -817,15 +832,16 @@ class DatabaseManager:
             party_map = self._ensure_parties(cursor, party_names)
 
             # 2. 존재하는 의원 ID 조회
-            cursor.execute("SELECT congressman_id FROM Congressman")
-            existing_rows = cursor.fetchall()
-            existing_ids = {row['congressman_id'] for row in existing_rows}
+            existing_ids = set()
+            if full_snapshot:
+                cursor.execute("SELECT congressman_id FROM Congressman WHERE state = 1")
+                existing_ids = {row['congressman_id'] for row in cursor.fetchall()}
             
-            input_ids = {item['congressman_id'] for item in lawmaker_data}
+            input_ids = set(input_ids)
 
             # 3. 비활성 처리 (Disable)
             # DB에는 있는데 입력 데이터에 없는 의원은 state=False 처리
-            disable_ids = list(existing_ids - input_ids)
+            disable_ids = list(existing_ids - input_ids) if full_snapshot else []
             if disable_ids:
                 format_strings = ','.join(['%s'] * len(disable_ids))
                 disable_query = f"UPDATE Congressman SET state = 0, modified_date = NOW() WHERE congressman_id IN ({format_strings})"
@@ -834,17 +850,19 @@ class DatabaseManager:
             # 4. Upsert (Insert or Update)
             upsert_query = """
                 INSERT INTO Congressman (
-                    congressman_id, name, party_id, district, elect_sort, 
+                    congressman_id, assembly_number, name, party_id, district, elect_sort,
                     commits, elected, homepage, congressman_image_url, 
                     email, sex, congressman_age, congressman_office, congressman_telephone,
                     brief_history, state, created_date, modified_date
                 ) VALUES (
-                    %(congressman_id)s, %(name)s, %(party_id)s, %(district)s, %(elect_sort)s,
+                    %(congressman_id)s, %(assembly_number)s, %(name)s, %(party_id)s, %(district)s, %(elect_sort)s,
                     %(commits)s, %(elected)s, %(homepage)s, %(congressman_image_url)s,
                     %(email)s, %(sex)s, %(congressman_age)s, %(congressman_office)s, %(congressman_telephone)s,
                     %(brief_history)s, 1, NOW(), NOW()
                 ) AS new
                 ON DUPLICATE KEY UPDATE
+                    name = new.name,
+                    assembly_number = new.assembly_number,
                     party_id = new.party_id,
                     district = new.district,
                     elect_sort = new.elect_sort,
@@ -855,6 +873,8 @@ class DatabaseManager:
                     email = new.email,
                     sex = new.sex,
                     congressman_age = new.congressman_age,
+                    congressman_office = new.congressman_office,
+                    congressman_telephone = new.congressman_telephone,
                     brief_history = new.brief_history,
                     state = 1,
                     modified_date = NOW()
@@ -870,7 +890,9 @@ class DatabaseManager:
                 
                 # Prepare params dict including party_id
                 params = item.copy()
+                params['congressman_id'] = str(params['congressman_id']).strip()
                 params['party_id'] = item_party_id
+                params['assembly_number'] = int(item.get('assembly_number', 22))
                 
                 # Fill optional fields with defaults if missing
                 # (executemany expects same keys, but DictCursor params matching uses keys)
