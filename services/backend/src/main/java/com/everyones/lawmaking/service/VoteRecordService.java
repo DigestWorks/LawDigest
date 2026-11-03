@@ -1,9 +1,10 @@
 package com.everyones.lawmaking.service;
 
 import com.everyones.lawmaking.domain.entity.VoteRecord;
-import com.everyones.lawmaking.global.error.VoteRecordException;
 import com.everyones.lawmaking.repository.VoteRecordRepository;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,5 +16,9 @@ public class VoteRecordService {
     public VoteRecord getVoteRecordByBillId(String billId) {
         return voteRecordRepository.findVoteRecordByBillId(billId)
                 .orElse(null);
+    }
+
+    public List<VoteRecord> getRecordsForBills(List<String> billIds) {
+        return billIds.isEmpty() ? List.of() : voteRecordRepository.findRecordsForBills(billIds);
     }
 }

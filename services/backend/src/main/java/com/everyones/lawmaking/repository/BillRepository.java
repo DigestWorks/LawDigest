@@ -149,9 +149,9 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     Slice<Bill> findByUserAndCongressmanLike(Pageable pageable, long userId);
 
     @Query("SELECT DISTINCT b FROM Bill b " +
-            "JOIN FETCH b.representativeProposer rp " +
-            "JOIN FETCH rp.congressman c " +
-            "JOIN FETCH c.party " +
+            "LEFT JOIN FETCH b.representativeProposer rp " +
+            "LEFT JOIN FETCH rp.congressman c " +
+            "LEFT JOIN FETCH c.party " +
             "WHERE b.id IN :billIds " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY")
     List<Bill> findBillsWithPartiesByIds(@Param("billIds") List<String> billIds);

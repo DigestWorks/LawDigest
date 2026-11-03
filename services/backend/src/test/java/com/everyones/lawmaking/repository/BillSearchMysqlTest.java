@@ -10,6 +10,11 @@ import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.service.StatisticsService;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.PartyService;
+import com.everyones.lawmaking.service.BillTimelineService;
+import com.everyones.lawmaking.service.VotePartyService;
+import com.everyones.lawmaking.service.VoteRecordService;
+import com.everyones.lawmaking.facade.TimelineFacade;
+import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.Callable;
@@ -35,6 +40,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
 
 /** 격리된 로컬 MySQL DB에서 운영과 같은 ngram FULLTEXT 쿼리를 실행한다. */
 @DataJpaTest
@@ -46,6 +52,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BillSearchMysqlTest {
     @Autowired private BillRepository repository;
     @Autowired private BillReportRepository reports;
+    @Autowired private VoteRecordRepository voteRecords;
+    @Autowired private VotePartyRepository voteParties;
     @Autowired private BillActivityRepository activity;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PartyRepository parties;
@@ -81,6 +89,8 @@ class BillSearchMysqlTest {
         timelines.deleteAll();
         jdbc.update("DELETE FROM RepresentativeProposer");
         jdbc.update("DELETE FROM BillLike");
+        jdbc.update("DELETE FROM VoteParty");
+        jdbc.update("DELETE FROM VoteRecord");
         repository.deleteAll();
         congressmen.deleteAll();
         parties.deleteAll();
@@ -322,6 +332,37 @@ class BillSearchMysqlTest {
         assertThat(activity.currentViews("exact")).isEqualTo(12);
         assertThat(jdbc.queryForObject("SELECT SUM(view_count) FROM BillViewActivity WHERE bill_id='exact'", Long.class))
                 .isEqualTo(12L);
+    }
+
+    @Test
+    void plenaryIncludesBillsWithoutRepresentativesAndUsesBulkVoteLookups() {
+        var party = parties.saveAndFlush(Party.builder().name("표결 정당").build());
+        jdbc.update("""
+                INSERT INTO VoteRecord (bill_id,total_vote_count,votes_for_count,votes_againt_count,abstention_count)
+                VALUES ('exact',100,80,15,5)
+                """);
+        jdbc.update("INSERT INTO VoteParty (bill_id,party_id,votes_for_count) VALUES ('exact',?,55)", party.getId());
+        var date = LocalDate.of(2026, 1, 29);
+        var dates = mock(BillTimelineService.class);
+        when(dates.findPlenaryBillIds(date)).thenReturn(List.of("exact", "other"));
+        var recordService = spy(new VoteRecordService(voteRecords));
+        var partyService = spy(new VotePartyService(voteParties));
+        var facade = new TimelineFacade(dates, new BillService(repository, statistics, activity),
+                partyService, recordService);
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var plenary = facade.getPlenaryBills(date);
+            assertThat(plenary).hasSize(2).anySatisfy(item -> {
+                assertThat(item.getBillInfo().getBillId()).isEqualTo("exact");
+                assertThat(item.getApprovalVoteCount()).isEqualTo(80);
+                assertThat(item.getPartyVoteList()).singleElement().satisfies(vote ->
+                        assertThat(vote.getPartyApprovalCount()).isEqualTo(55));
+            });
+        });
+        verify(recordService).getRecordsForBills(anyList());
+        verify(partyService).getPartyVotesForBills(anyList());
+        verify(recordService, never()).getVoteRecordByBillId(anyString());
+        verify(partyService, never()).getVotePartyListWithPartyByBillId(anyString());
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {
