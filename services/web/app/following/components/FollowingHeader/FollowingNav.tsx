@@ -1,13 +1,26 @@
 import { Card, CardHeader, CardBody } from '@heroui/react';
-import { useQueryClient } from '@tanstack/react-query';
+import { SectionEmpty, SectionError, SectionLoading } from '@/components/common/SectionState';
 import CongressmanList from './CongressmanList';
 import { useGetFollowingCongressman } from '../../apis';
 
-export default async function FollowingNav() {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const queryClient = useQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: congressmanList } = await useGetFollowingCongressman(queryClient);
+export default function FollowingNav() {
+  const query = useGetFollowingCongressman();
+  const congressmanList = query.data?.data;
+  let content = <SectionEmpty>팔로우한 의원이 없습니다.</SectionEmpty>;
+
+  if (query.isPending) {
+    content = <SectionLoading>팔로우한 의원을 불러오는 중입니다.</SectionLoading>;
+  } else if (!congressmanList) {
+    content = (
+      <SectionError
+        message="팔로우한 의원을 불러오지 못했습니다."
+        onRetry={() => void query.refetch()}
+        pending={query.isFetching}
+      />
+    );
+  } else if (congressmanList.length) {
+    content = <CongressmanList congressmanList={congressmanList} />;
+  }
 
   return (
     <Card
@@ -25,11 +38,11 @@ export default async function FollowingNav() {
           </p>
           <p className="hidden xl:block text-[26px] font-semibold lg:dark:text-gray-2"> · </p>
           <p className="text-2xl font-semibold xl:text-[26px] xl:text-gray-2 xl:dark:text-muted-foreground">
-            {congressmanList.length}
+            {congressmanList?.length ?? '—'}
           </p>
         </div>
 
-        <CongressmanList congressmanList={congressmanList} />
+        {content}
       </CardBody>
     </Card>
   );

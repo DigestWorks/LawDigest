@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { SectionEmpty, SectionError, SectionLoading } from '@/components/common/SectionState';
 import Image from 'next/image';
 import { useIntersect } from '@/hooks';
 import { Card } from '@heroui/card';
@@ -9,21 +9,26 @@ import BillBookmarkedCount from './BillBookmarkedCount';
 import BillBookmarkedList from './BillBookmaredList';
 
 export default function BillContainer() {
-  const { data, hasNextPage, isFetching, fetchNextPage } = useGetBillBookmarked();
-  const [bills, setBills] = useState(data ? data.pages.flatMap(({ data: { bill_list: responses } }) => responses) : []);
-
-  const fetchRef = useIntersect(async (entry: any, observer: any) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
-    }
+  const query = useGetBillBookmarked();
+  const bills = query.data?.pages.flatMap((page) => page.data.bill_list) ?? [];
+  const fetchRef = useIntersect(() => {
+    if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  useEffect(() => {
-    if (data) {
-      setBills(() => [...data.pages.flatMap(({ data: { bill_list: responses } }) => responses)]);
-    }
-  }, [data]);
+  let content = <SectionEmpty>스크랩한 법안이 없습니다.</SectionEmpty>;
+  if (query.isPending) {
+    content = <SectionLoading>스크랩한 법안을 불러오는 중입니다.</SectionLoading>;
+  } else if (!query.data) {
+    content = (
+      <SectionError
+        message="스크랩한 법안을 불러오지 못했습니다."
+        onRetry={() => void query.refetch()}
+        pending={query.isFetching}
+      />
+    );
+  } else if (bills.length) {
+    content = <BillBookmarkedList bills={bills} isFetching={query.isFetchingNextPage} fetchRef={fetchRef} />;
+  }
 
   return (
     <section className="lg:px-[30px] flex flex-col gap-6">
@@ -42,7 +47,14 @@ export default function BillContainer() {
         />
         <p className="text-base font-semibold text-white lg:text-lg">이곳에서 스크랩한 법안들을 모아서 확인하세요!</p>
       </Card>
-      <BillBookmarkedList bills={bills} isFetching={isFetching} fetchRef={fetchRef} />
+      {content}
+      {query.isFetchNextPageError && (
+        <SectionError
+          message="다음 법안을 불러오지 못했습니다."
+          onRetry={() => void query.fetchNextPage()}
+          pending={query.isFetching}
+        />
+      )}
     </section>
   );
 }

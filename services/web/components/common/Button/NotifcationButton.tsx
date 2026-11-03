@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconNotification } from '@/public/svgs';
 import { Badge } from '@heroui/badge';
@@ -11,7 +12,9 @@ import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 
 export default function NotificationButton() {
-  const accessToken = getCookie(ACCESS_TOKEN);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const accessToken = mounted ? getCookie(ACCESS_TOKEN) : undefined;
   const setSnackbar = useSetAtom(snackbarState);
 
   const { data: notificationCount } = useGetNotificationCount({ enabled: Boolean(accessToken) });
@@ -25,6 +28,7 @@ export default function NotificationButton() {
         size="icon"
         className="[&_svg]:size-6"
         aria-label="알림"
+        disabled={!mounted}
         onClick={() =>
           setSnackbar({ show: true, type: 'ERROR', message: '로그인이 필요한 서비스입니다.', duration: 3000 })
         }>
