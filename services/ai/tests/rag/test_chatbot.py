@@ -6,12 +6,13 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from qdrant_client import QdrantClient
+
 from lawdigest_ai.rag.chatbot import InvalidGrounding, LawdigestionChatbot
 from lawdigest_ai.rag.indexing import build_index, prepare_chunks
 from lawdigest_ai.rag.schemas import GeneratedAnswer, QuestionRequest
 from lawdigest_ai.rag.settings import RagSettings
 from lawdigest_ai.rag.vector_store import VectorStore
-from qdrant_client import QdrantClient
 
 
 def bill(bill_id="B001", assembly=22):
@@ -93,56 +94,7 @@ def test_real_local_query_returns_current_evidence_and_structured_answer(qa):
     kwargs = qa.llm.responses.parse.call_args.kwargs
     assert kwargs["store"] is False
     assert kwargs["text_format"] is GeneratedAnswer
-    assert kwargs["model"] == "gpt-4o-mini"
-
-
-def test_gemini_answer_uses_current_sources_and_rejects_incomplete_result(
-    qa, monkeypatch
-):
-    qa.settings = replace(
-        qa.settings,
-        generation_provider="gemini",
-        model="gemini-3-flash-preview",
-        gemini_key="test-key",
-    )
-    candidate = {
-        "finishReason": "STOP",
-        "content": {
-            "parts": [
-                {"thought": True, "text": "private reasoning"},
-                {
-                    "text": GeneratedAnswer(
-                        answerable=True,
-                        paragraphs=[
-                            {
-                                "text": "임차료 지원 대상 확대입니다.",
-                                "source_keys": ["S1"],
-                            }
-                        ],
-                        limitations=[],
-                    ).model_dump_json(),
-                },
-            ],
-        },
-    }
-    post = MagicMock(
-        return_value=SimpleNamespace(
-            status_code=200, json=lambda: {"candidates": [candidate]}
-        )
-    )
-    monkeypatch.setattr("lawdigest_ai.rag.chatbot.requests.post", post)
-    answer = qa.answer("청년 주거 지원은 무엇인가요?")
-    assert answer.status == "answered"
-    assert [source.bill_id for source in answer.sources] == ["B001"]
-    assert post.call_args.kwargs["json"]["generationConfig"]["responseJsonSchema"] == (
-        GeneratedAnswer.model_json_schema()
-    )
-    assert post.call_args.kwargs["allow_redirects"] is False
-    qa.llm.responses.parse.assert_not_called()
-
-    candidate["finishReason"] = "MAX_TOKENS"
-    with pytest.raises(InvalidGrounding):
-        qa.answer("청년 주거 지원은 무엇인가요?")
+    assert kwargs["model"] == "gpt-5.4-mini"
 
 
 def test_assembly_filter_includes_disposed_previous_assembly_only_when_selected(qa):

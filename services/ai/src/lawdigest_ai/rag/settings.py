@@ -1,8 +1,7 @@
-import os
 from dataclasses import dataclass, field
+import os
 
 from dotenv import load_dotenv
-
 from lawdigest_ai.rag.local_embedding import E5_DIMENSIONS, E5_MODEL_ID
 
 
@@ -14,9 +13,7 @@ class RagSettings:
     embedding_dir: str | None = None
     embedding_threads: int = 2
     dimensions: int = 1536
-    generation_provider: str = "openai"
-    gemini_key: str = field(default="", repr=False)
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-5.4-mini"
     top_k: int = 5
     min_score: float = 0.35
     qdrant_url: str | None = None
@@ -38,7 +35,6 @@ class RagSettings:
 
         backend = os.getenv("RAG_EMBEDDING_BACKEND", "e5")
         local = backend == "e5"
-        generation_provider = os.getenv("RAG_GENERATION_PROVIDER", "openai")
 
         settings = cls(
             collection=os.getenv("RAG_COLLECTION", "lawdigest_rag_active"),
@@ -51,14 +47,7 @@ class RagSettings:
             dimensions=int(
                 os.getenv("RAG_VECTOR_SIZE", str(E5_DIMENSIONS) if local else "1536")
             ),
-            generation_provider=generation_provider,
-            gemini_key=os.getenv("RAG_GEMINI_API_KEY", ""),
-            model=os.getenv(
-                "RAG_MODEL",
-                config.GEMINI_MODEL
-                if generation_provider == "gemini"
-                else "gpt-4o-mini",
-            ),
+            model=os.getenv("RAG_MODEL", "gpt-5.4-mini"),
             top_k=int(os.getenv("RAG_TOP_K", "5")),
             min_score=float(os.getenv("RAG_MIN_SCORE", "0.84" if local else "0.35")),
             qdrant_url=os.getenv("RAG_QDRANT_URL") or os.getenv("QDRANT_URL"),
@@ -75,8 +64,6 @@ class RagSettings:
             window_seconds=int(os.getenv("RAG_WINDOW_SECONDS", "300")),
             daily_requests=int(os.getenv("RAG_DAILY_REQUESTS", "500")),
         )
-        if generation_provider not in {"openai", "gemini"}:
-            raise ValueError("지원하지 않는 답변 생성 제공자입니다.")
         if backend not in {"e5", "openai"} or not 1 <= settings.embedding_threads <= 4:
             raise ValueError("임베딩 실행 방식 또는 CPU 스레드 수가 올바르지 않습니다.")
         if local and (

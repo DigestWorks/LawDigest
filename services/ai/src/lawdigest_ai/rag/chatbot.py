@@ -7,7 +7,6 @@ from collections import OrderedDict
 from datetime import date, datetime
 from urllib.parse import quote
 
-import requests
 from openai import OpenAI
 
 from lawdigest_ai.rag.embedding import build_embedding_generator
@@ -84,14 +83,12 @@ class LawdigestionChatbot:
         self.vector_store = vector_store or VectorStore(
             url=self.settings.qdrant_url, api_key=self.settings.qdrant_key
         )
-        self.llm = llm
-        if self.llm is None and self.settings.generation_provider == "openai":
-            self.llm = OpenAI(
-                api_key=self.settings.openai_key,
-                base_url=self.settings.openai_base_url,
-                timeout=25,
-                max_retries=0,
-            )
+        self.llm = llm or OpenAI(
+            api_key=self.settings.openai_key,
+            base_url=self.settings.openai_base_url,
+            timeout=25,
+            max_retries=0,
+        )
         self.embedder = embedder or build_embedding_generator(self.settings, self.llm)
         self._cached_manifest = None
         self._manifest_expires = 0.0
@@ -235,8 +232,6 @@ class LawdigestionChatbot:
             "previous_questions": [turn.question for turn in request.history[-3:]],
             "evidence": [source.model_dump(mode="json") for source in sources],
         }
-        if self.settings.generation_provider == "gemini":
-            return self._call_gemini(context)
         response = self.llm.responses.parse(
             model=self.settings.model,
             input=[
@@ -245,45 +240,11 @@ class LawdigestionChatbot:
             ],
             text_format=GeneratedAnswer,
             store=False,
-            temperature=0.2,
             max_output_tokens=1400,
         )
         if response.status != "completed" or response.output_parsed is None:
             raise InvalidGrounding("완성된 구조화 답변을 확인할 수 없습니다.")
         return GeneratedAnswer.model_validate(response.output_parsed)
-
-    def _call_gemini(self, context):
-        if not self.settings.gemini_key:
-            raise RagUnavailable("답변 생성 서비스 설정을 확인할 수 없습니다.")
-        model = quote(self.settings.model, safe="")
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            headers={"x-goog-api-key": self.settings.gemini_key},
-            json={
-                "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                "contents": [
-                    {"parts": [{"text": json.dumps(context, ensure_ascii=False)}]}
-                ],
-                "generationConfig": {
-                    "temperature": 0.2,
-                    "maxOutputTokens": 2048,
-                    "responseMimeType": "application/json",
-                    "responseJsonSchema": GeneratedAnswer.model_json_schema(),
-                },
-            },
-            timeout=25,
-            allow_redirects=False,
-        )
-        if response.status_code != 200:
-            raise RagUnavailable("답변 생성 서비스가 응답하지 않았습니다.")
-        candidates = response.json().get("candidates", [])
-        if len(candidates) != 1 or candidates[0].get("finishReason") != "STOP":
-            raise InvalidGrounding("완성된 구조화 답변을 확인할 수 없습니다.")
-        parts = candidates[0].get("content", {}).get("parts", [])
-        text = "".join(
-            part.get("text", "") for part in parts if not part.get("thought")
-        )
-        return GeneratedAnswer.model_validate_json(text)
 
     def answer(self, request):
         if isinstance(request, str):
