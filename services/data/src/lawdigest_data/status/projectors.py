@@ -9,7 +9,7 @@ class BillLifecycleProjector:
         ("접수", ("PPSL_DT",)),
         ("위원회 심사", ("JRCMIT_CMMT_DT", "JRCMIT_PRSNT_DT", "JRCMIT_PROC_DT")),
         ("체계자구 심사", ("LAW_CMMT_DT", "LAW_PRSNT_DT", "LAW_PROC_DT")),
-        ("본회의 심의", ("RGS_PRSNT_DT", "RGS_RSLN_DT")),
+        ("본회의 심의", ("RGS_RSLN_DT", "RGS_PRSNT_DT")),
         ("정부이송", ("GVRN_TRSF_DT",)),
         ("공포", ("PROM_DT",)),
     )
@@ -135,7 +135,8 @@ class BillLifecycleProjector:
                     }
                 )
 
-        events.sort(key=lambda item: (item["status_update_date"], item["stage"]))
+        # A stable date sort preserves the legislative stage order on ties.
+        events.sort(key=lambda item: item["status_update_date"])
         return events
 
     def project(self, payload: Dict[str, Any]) -> Dict[str, Any]:

@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule LawDigest bill-category-backfill
+
+[Timer]
+OnCalendar=*-*-* 08:30:00 Asia/Seoul
+Unit=lawdigest-pipeline@bill-category-backfill.service
+
+[Install]
+WantedBy=timers.target
