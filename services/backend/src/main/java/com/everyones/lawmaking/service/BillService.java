@@ -274,7 +274,7 @@ public class BillService {
     public BillListResponse searchBill(String searchWord,Pageable pageable) {
         var query = SearchQuery.from(searchWord);
         var billSlice = billRepository.findBillByKeyword(pageable, query.text(),
-                SearchQuery.escapeLike(query.text()), query.expression());
+                SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
 
         var pagination = PaginationResponse.from(billSlice);
 

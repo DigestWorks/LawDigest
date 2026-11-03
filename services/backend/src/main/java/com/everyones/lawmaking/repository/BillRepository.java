@@ -134,6 +134,7 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             FROM (
               SELECT b.bill_id, b.propose_date,
                 CASE
+                  WHEN b.bill_number = :billNumber THEN -1
                   WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
                   WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
                   ELSE 2
@@ -141,7 +142,7 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
                 0 AS relevance
               FROM Bill b
               WHERE b.ingest_status = 'READY'
-                AND (b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
+                AND (b.bill_number = :billNumber OR b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
                   OR b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!')
               UNION ALL
               SELECT b.bill_id, b.propose_date, 3 AS match_rank,
@@ -156,7 +157,8 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
               candidate.propose_date DESC, candidate.bill_id DESC
             """, nativeQuery = true)
     Slice<String> findBillByKeyword(Pageable pageable, @Param("keyword") String keyword,
-            @Param("namePattern") String namePattern, @Param("expression") String expression);
+            @Param("namePattern") String namePattern, @Param("expression") String expression,
+            @Param("billNumber") Integer billNumber);
 
 
 

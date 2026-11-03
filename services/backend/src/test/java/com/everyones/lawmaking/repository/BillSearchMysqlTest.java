@@ -105,9 +105,9 @@ class BillSearchMysqlTest {
     void exactNameOutranksNewerBodyMatchAndPaginationEnds() {
         var query = SearchQuery.from("의료법");
         var first = repository.findBillByKeyword(PageRequest.of(0, 1), query.text(),
-                SearchQuery.escapeLike(query.text()), query.expression());
+                SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
         var second = repository.findBillByKeyword(PageRequest.of(1, 1), query.text(),
-                SearchQuery.escapeLike(query.text()), query.expression());
+                SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
         assertThat(first.getContent()).containsExactly("exact");
         assertThat(first.hasNext()).isTrue();
         assertThat(second.getContent()).containsExactly("body");
@@ -125,9 +125,9 @@ class BillSearchMysqlTest {
 
         var query = SearchQuery.from(name);
         var first = repository.findBillByKeyword(PageRequest.of(0, 1), query.text(),
-                SearchQuery.escapeLike(query.text()), query.expression());
+                SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
         var second = repository.findBillByKeyword(PageRequest.of(1, 1), query.text(),
-                SearchQuery.escapeLike(query.text()), query.expression());
+                SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
         assertThat(first.getContent()).containsExactly("raw-official");
         assertThat(first.hasNext()).isTrue();
         assertThat(second.getContent()).containsExactly("indexed-official");
@@ -135,11 +135,39 @@ class BillSearchMysqlTest {
     }
 
     @Test
+    void exactBillNumberOutranksBodyMatchAndIncludesUnindexedReadyBill() {
+        insert("number-exact", 2219875, "형사소송법 일부개정법률안", "2026-07-09", "공식 원문");
+        insert("number-mention", 2219876, "동명 법안", "2026-07-10", "2219875 참조");
+        insert("number-pending", 2219877, "검증 대기", "2026-07-11", "미공개 원문");
+        jdbc.update("DELETE FROM BillSearchDocument WHERE bill_id = 'number-exact'");
+        jdbc.update("UPDATE Bill SET ingest_status = 'PENDING' WHERE bill_id = 'number-pending'");
+
+        var number = SearchQuery.from("2219875");
+        var first = repository.findBillByKeyword(PageRequest.of(0, 1), number.text(),
+                SearchQuery.escapeLike(number.text()), number.expression(), number.billNumber());
+        var second = repository.findBillByKeyword(PageRequest.of(1, 1), number.text(),
+                SearchQuery.escapeLike(number.text()), number.expression(), number.billNumber());
+        assertThat(first.getContent()).containsExactly("number-exact");
+        assertThat(first.hasNext()).isTrue();
+        assertThat(second.getContent()).containsExactly("number-mention");
+        assertThat(second.hasNext()).isFalse();
+
+        var decorated = SearchQuery.from("제 2219875 호");
+        var decoratedResult = repository.findBillByKeyword(PageRequest.of(0, 1), decorated.text(),
+                SearchQuery.escapeLike(decorated.text()), decorated.expression(), decorated.billNumber());
+        assertThat(decoratedResult.getContent()).containsExactly("number-exact");
+
+        var hidden = SearchQuery.from("2219877");
+        assertThat(repository.findBillByKeyword(PageRequest.of(0, 1), hidden.text(),
+                SearchQuery.escapeLike(hidden.text()), hidden.expression(), hidden.billNumber()).getContent()).isEmpty();
+    }
+
+    @Test
     void ordinaryPunctuationDoesNotBecomeBooleanOperators() {
         for (String input : new String[]{"의료법 일부개정법률안(대안)", "소방+", "5·18", "R&D", "소방~", "소방(주)"}) {
             var query = SearchQuery.from(input);
             var result = repository.findBillByKeyword(PageRequest.of(0, 10), query.text(),
-                    SearchQuery.escapeLike(query.text()), query.expression());
+                    SearchQuery.escapeLike(query.text()), query.expression(), query.billNumber());
             if (input.contains("대안")) {
                 assertThat(result.getContent()).containsExactly("exact");
             }

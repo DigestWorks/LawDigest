@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 /** 사용자 입력을 MySQL boolean 검색 연산자와 분리한다. */
 public record SearchQuery(String text, String expression) {
     private static final Pattern WORD = Pattern.compile("[\\p{L}\\p{N}]+");
+    private static final Pattern BILL_NUMBER = Pattern.compile("(?:제\\s*)?([0-9]{7})(?:\\s*호)?");
     public static final int MAX_LENGTH = 200;
 
     public static SearchQuery from(String input) {
@@ -25,6 +26,11 @@ public record SearchQuery(String text, String expression) {
         String expression = words.stream().map(word -> "+" + word + "*")
                 .collect(java.util.stream.Collectors.joining(" "));
         return new SearchQuery(text, expression);
+    }
+
+    public Integer billNumber() {
+        var matcher = BILL_NUMBER.matcher(text);
+        return matcher.matches() ? Integer.valueOf(matcher.group(1)) : null;
     }
 
     public static String escapeLike(String text) {
