@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 import os
 from pathlib import Path
 from typing import Any, Dict
@@ -94,8 +95,12 @@ def update_bill_summary(
     summary_tags: str | None,
     mode: str = "test",
     category: str | None = None,
+    *,
+    report_published_at: datetime | None = None,
 ) -> None:
-    """Bill 테이블의 AI 요약 컬럼을 업데이트합니다."""
+    """Update the bill summary and optionally publish the validated deep report atomically."""
+    if report_published_at is not None and (not title or not gpt_summary):
+        raise ValueError("리포트 제목과 본문이 필요합니다.")
     bill_columns = get_bill_table_columns(mode=mode)
     conn = get_db_connection(mode=mode)
     try:
@@ -110,10 +115,30 @@ def update_bill_summary(
             params.append(category)
         params.append(bill_id)
         with conn.cursor() as cur:
+            if report_published_at is not None:
+                cur.execute("SELECT bill_id FROM Bill WHERE bill_id=%s FOR UPDATE", (bill_id,))
+                if cur.fetchone() is None:
+                    raise ValueError("리포트를 연결할 법안이 없습니다.")
+                cur.execute("SELECT published_at FROM BillReport WHERE bill_id=%s", (bill_id,))
+                previous = cur.fetchone()
+                if previous and previous["published_at"] > report_published_at:
+                    raise ValueError("이미 더 최근에 생성된 리포트가 있습니다.")
+                cur.execute(
+                    """
+                    INSERT INTO BillReport (bill_id, title, markdown, published_at)
+                    VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        title=VALUES(title), markdown=VALUES(markdown), published_at=VALUES(published_at)
+                    """,
+                    (bill_id, title, gpt_summary, report_published_at),
+                )
             cur.execute(
                 f"UPDATE Bill SET {', '.join(set_clauses)} WHERE bill_id=%s",
                 tuple(params),
             )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()

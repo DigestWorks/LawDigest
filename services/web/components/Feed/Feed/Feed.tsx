@@ -16,6 +16,7 @@ import { useGetBillByStage, useGetBillPopular } from './apis';
 import StageDropdown from '../StageDropdown';
 import FeedTab from '../FeedTab';
 import FollowingFeed from './FollowingFeed';
+import ReportFeed from './ReportFeed';
 import FollowingCongressmanStrip from './FollowingCongressmanStrip';
 
 type ContentType = 'report' | 'bill' | 'following';
@@ -80,11 +81,11 @@ export default function Feed() {
   const feedType = params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
   const stage = feedStage(params.get('stage'));
   const isLatest = feedType === FEED_TAB.sortedByLatest;
-  const query = useGetBillByStage(stage, contentType !== 'following' && isLatest);
-  const popular = useGetBillPopular(contentType !== 'following' && !isLatest);
+  const query = useGetBillByStage(stage, contentType === 'bill' && isLatest);
+  const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
   const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
   const activeQuery = isLatest ? query : popular;
-  useListScrollRestoration(params.toString(), contentType !== 'following' && Boolean(activeQuery.data));
+  useListScrollRestoration(params.toString(), contentType === 'bill' && Boolean(activeQuery.data));
 
   const update = (name: string, value: string) => {
     const next = new URLSearchParams(params.toString());
@@ -98,7 +99,7 @@ export default function Feed() {
     }
   });
 
-  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '표시할 인기 법안이 없습니다.';
+  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '최근 7일 동안 조회하거나 스크랩한 법안이 없습니다.';
   if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
 
   let results;
@@ -166,12 +167,14 @@ export default function Feed() {
           </button>
         ))}
       </div>
-      {contentType === 'following' ? (
+      {contentType === 'report' && <ReportFeed scrollKey={params.toString()} />}
+      {contentType === 'following' && (
         <>
           <FollowingCongressmanStrip />
           <FollowingFeed scrollKey={params.toString()} />
         </>
-      ) : (
+      )}
+      {contentType === 'bill' && (
         <>
           <NotificationTopThree />
           <section className="flex items-center justify-between mx-5 mt-2">
@@ -186,6 +189,9 @@ export default function Feed() {
               />
             )}
           </section>
+          {!isLatest && (
+            <p className="mx-5 mt-3 text-sm text-muted-foreground">제22대 · 최근 7일 조회수와 스크랩 수 합계</p>
+          )}
           {results}
         </>
       )}

@@ -5,6 +5,7 @@ import ListHydrationBoundary from '@/lib/ListHydrationBoundary';
 import getQueryClient from '@/lib/getQueryClient';
 import { Feed, Layout } from '@/components';
 import { feedQueryOptions } from '@/lib/billQueries';
+import { reportQueryOptions } from '@/lib/reportQueries';
 import { feedContent, feedStage } from '@/lib/feedState';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,10 @@ type HomeProps = { searchParams: Promise<Record<string, string | string[] | unde
 
 async function HomeFeed({ params }: { params: Awaited<HomeProps['searchParams']> }) {
   const queryClient = getQueryClient();
-  if (feedContent(typeof params.tab === 'string' ? params.tab : '') !== 'following' && params.sort !== 'hot') {
+  const tab = feedContent(typeof params.tab === 'string' ? params.tab : '');
+  if (tab === 'report') {
+    await queryClient.prefetchInfiniteQuery(reportQueryOptions());
+  } else if (tab === 'bill' && params.sort !== 'hot') {
     const stage = feedStage(typeof params.stage === 'string' ? params.stage : '');
     await queryClient.prefetchInfiniteQuery(feedQueryOptions(stage));
   }

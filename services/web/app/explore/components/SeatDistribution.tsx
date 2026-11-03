@@ -138,10 +138,10 @@ export default function SeatDistribution() {
 
   return (
     <section className="rounded-2xl border border-gray-1 bg-white p-4 shadow-sm dark:border-dark-l dark:bg-dark-b">
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2">
         <h2 className="text-[14px] font-bold text-primary-3 dark:text-gray-0.5">제22대 국회 의석 분포</h2>
         <span className="text-[12px] text-gray-2">
-          재적 {total.toLocaleString()}석 · 과반 {majority.toLocaleString()}석
+          수집 명부 {total.toLocaleString()}석 · 과반 {majority.toLocaleString()}석
         </span>
       </div>
 

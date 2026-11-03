@@ -8,10 +8,8 @@ import static com.everyones.lawmaking.domain.entity.QParty.party;
 import static com.everyones.lawmaking.domain.entity.QRepresentativeProposer.representativeProposer;
 
 import com.everyones.lawmaking.common.dto.BillInfoDto;
-import com.everyones.lawmaking.common.dto.CategoryCountDto;
 import com.everyones.lawmaking.common.dto.PublicProposerDto;
 import com.everyones.lawmaking.common.dto.QBillInfoDto;
-import com.everyones.lawmaking.common.dto.QCategoryCountDto;
 import com.everyones.lawmaking.common.dto.QPublicProposerDto;
 import com.everyones.lawmaking.common.dto.bill.BillDto;
 import com.everyones.lawmaking.common.dto.proposer.QRepresentativeProposerDto;
@@ -50,20 +48,9 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
     }
 
     @Override
-    public BillListResponse findBillByCategoryAndPage(Pageable pageable, Optional<Long> userIdOptional, String category) {
-        var pagedBill = findPagedBillsByCategory(pageable, category);
+    public BillListResponse findBillByCategoryAndPage(Pageable pageable, Optional<Long> userIdOptional, String category, int assembly) {
+        var pagedBill = findPagedBillsByCategory(pageable, category, assembly);
         return buildBillListResponse(pagedBill, pageable, userIdOptional);
-    }
-
-    @Override
-    public List<CategoryCountDto> countByCategory() {
-        return queryFactory
-                .select(new QCategoryCountDto(bill.category, bill.count()))
-                .from(bill)
-                .where(eqReady(), bill.category.isNotNull())
-                .groupBy(bill.category)
-                .orderBy(bill.count().desc())
-                .fetch();
     }
 
     private BillListResponse buildBillListResponse(List<BillInfoDto> pagedBill, Pageable pageable, Optional<Long> userIdOptional) {
@@ -87,10 +74,10 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
                 .fetch();
     }
 
-    private List<BillInfoDto> findPagedBillsByCategory(Pageable pageable, String category) {
+    private List<BillInfoDto> findPagedBillsByCategory(Pageable pageable, String category, int assembly) {
         return queryFactory.select(new QBillInfoDto(bill))
                 .from(bill)
-                .where(eqReady(), hasText(bill.title), hasText(bill.gptSummary), bill.category.eq(category))
+                .where(eqReady(), bill.assemblyNumber.eq(assembly), bill.category.eq(category))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .orderBy(bill.proposeDate.desc(), bill.id.desc())

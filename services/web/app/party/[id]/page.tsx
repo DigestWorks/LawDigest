@@ -5,7 +5,6 @@ import getQueryClient from '@/lib/getQueryClient';
 import { getPublicParty } from '@/lib/publicDetail';
 import { getMetadata } from '@/utils';
 import { Metadata } from 'next';
-import { PARTY_POSITION, PARTY_NAME_KO } from '@/constants/party';
 import PartyContainer from './components';
 
 type PartyPageProps = {
@@ -18,7 +17,13 @@ export const generateMetadata = async ({ params }: PartyPageProps): Promise<Meta
 
   return getMetadata({
     title: `${data.party_name}`,
-    description: `${data.party_name} 상세 페이지, ${PARTY_POSITION[data.party_name as keyof typeof PARTY_NAME_KO]}, 지역구 ${data.district_congressman_count} 석, 비례대표 ${data.proportional_congressman_count} 석`,
+    description: [
+      `${data.party_name} 프로필`,
+      data.parliamentary_rank ? `의석 기준 원내 ${data.parliamentary_rank}위` : null,
+      `지역구 ${data.district_congressman_count}석, 비례대표 ${data.proportional_congressman_count}석`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
     asPath: `/party/${id}`,
   });
 };

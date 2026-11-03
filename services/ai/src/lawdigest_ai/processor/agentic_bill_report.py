@@ -1723,13 +1723,17 @@ def _persist_successful_report_item(*, mode: str, bill: dict[str, Any], item: di
         report_body=Path(str(report_path)).read_text(encoding="utf-8"),
         generated_title=item.get("title"),
     )
+    completed_at = datetime.fromisoformat(str(item["finished_at"]))
+    if completed_at.tzinfo is None:
+        raise ValueError("리포트 생성 완료 시각에 시간대가 없습니다.")
     update_bill_summary(
         bill_id=str(item["bill_id"]),
-        title=payload.get("title"),
+        title=payload.get("title") or str(bill.get("bill_name") or "").strip(),
         gpt_summary=payload.get("gpt_summary"),
         summary_tags=payload.get("summary_tags"),
         mode=_db_mode_for_execution(mode),
         category=payload.get("category"),
+        report_published_at=completed_at.astimezone(timezone.utc).replace(tzinfo=None),
     )
     return True
 

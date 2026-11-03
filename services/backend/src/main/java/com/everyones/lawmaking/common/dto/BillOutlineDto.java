@@ -31,8 +31,10 @@ public class BillOutlineDto {
         var representProposers = bill.getRepresentativeProposer();
         List<PartyDto> partyList = new ArrayList<>();
         for (RepresentativeProposer representativeProposer : representProposers) {
-            var party = representativeProposer.getCongressman().getParty();
-            partyList.add(PartyDto.from(party));
+            var congressman = representativeProposer.getCongressman();
+            if (congressman != null && congressman.getParty() != null) {
+                partyList.add(PartyDto.from(congressman.getParty()));
+            }
         }
         return BillOutlineDto.builder()
                 .partyInfo(partyList)

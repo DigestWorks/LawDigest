@@ -3,11 +3,15 @@ package com.everyones.lawmaking.controller;
 import static com.everyones.lawmaking.global.SwaggerConstants.EXAMPLE_ERROR_500_CONTENT;
 
 import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
-import com.everyones.lawmaking.common.dto.response.BillTimelinePaginationResponse;
 import com.everyones.lawmaking.common.dto.response.BillTimelineResponse;
 import com.everyones.lawmaking.facade.BillFacade;
 import com.everyones.lawmaking.facade.TimelineFacade;
 import com.everyones.lawmaking.global.BaseResponse;
+import com.everyones.lawmaking.service.RedisService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class BillTimelineController {
     private final TimelineFacade timelineFacade;
     private final BillFacade billFacade;
+    private final RedisService redisService;
+    private final ObjectMapper mapper;
 
     @Operation(summary = "타임라인 피드 조회", description = "타임라인에 들어갈 데이터를 가져옵니다.")
     @ApiResponses(value = {
@@ -59,16 +65,21 @@ public class BillTimelineController {
         var result = timelineFacade.getTimeline(billProposeDate);
         return BaseResponse.ok(result);
     }
-    @GetMapping("/feed/paging")
-    public BaseResponse<BillTimelinePaginationResponse> getTimelinePaging(
+    @GetMapping(value = "/feed/paging", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getTimelinePaging(
             @Parameter(example = "0", description = "페이지 넘버")
             @RequestParam(value = "page") int page,
             @Parameter(example = "2", description = "불러올 날짜 개수")
             @RequestParam(value = "size") int size
-    ) {
-        var pageable = PageRequest.of(page, size);
-        var result = timelineFacade.getTimeline(pageable);
-        return BaseResponse.ok(result);
+    ) throws JsonProcessingException {
+        if (page < 0 || size < 1 || size > 10) return ResponseEntity.badRequest().build();
+        var cached = redisService.readTimelinePage(page, size);
+        if (cached != null) return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(cached);
+
+        var result = timelineFacade.getTimeline(PageRequest.of(page, size));
+        var json = mapper.writeValueAsString(BaseResponse.ok(result));
+        if (!result.getTimelineResponseList().isEmpty()) redisService.cacheTimelinePage(page, size, json);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
     }
 
     @Operation(summary = "타임라인 법안 단계별 카운트 조회", description = "타임라인 법안 단계별 카운트 조회 API입니다.")

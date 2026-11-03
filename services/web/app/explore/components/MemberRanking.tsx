@@ -64,7 +64,7 @@ export default function MemberRanking() {
               {member.party_name}
             </p>
             <p className="mt-1 text-[12px] text-gray-3 dark:text-gray-1">
-              대표발의 <b className="text-primary-3 dark:text-gray-0.5">{member.propose_count}</b>건
+              22대 대표발의 <b className="text-primary-3 dark:text-gray-0.5">{member.propose_count}</b>건
             </p>
           </Link>
         ))}
