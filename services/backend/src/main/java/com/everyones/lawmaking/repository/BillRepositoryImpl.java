@@ -75,9 +75,13 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
     }
 
     private List<BillInfoDto> findPagedBillsByCategory(Pageable pageable, String category, int assembly) {
+        var categoryMatch = bill.category.eq(category);
+        if ("unknown".equals(category)) {
+            categoryMatch = categoryMatch.or(bill.category.isNull()).or(bill.category.trim().isEmpty());
+        }
         return queryFactory.select(new QBillInfoDto(bill))
                 .from(bill)
-                .where(eqReady(), bill.assemblyNumber.eq(assembly), bill.category.eq(category))
+                .where(eqReady(), bill.assemblyNumber.eq(assembly), categoryMatch)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .orderBy(bill.proposeDate.desc(), bill.id.desc())

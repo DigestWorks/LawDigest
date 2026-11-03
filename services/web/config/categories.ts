@@ -40,7 +40,10 @@ const CATEGORY_MAP: Record<string, CategoryMeta> = Object.fromEntries(
   [...CATEGORIES, UNKNOWN_CATEGORY].map((c) => [c.code, c]),
 );
 
+export const isCategoryCode = (code: string | null | undefined): code is string =>
+  Boolean(code && Object.prototype.hasOwnProperty.call(CATEGORY_MAP, code));
+
 export const getCategoryMeta = (code?: string | null): CategoryMeta => {
   if (!code) return UNKNOWN_CATEGORY;
-  return CATEGORY_MAP[code] ?? { code, label: code, icon: 'category', color: '#0088FF' };
+  return isCategoryCode(code) ? CATEGORY_MAP[code] : { code, label: code, icon: 'category', color: '#0088FF' };
 };

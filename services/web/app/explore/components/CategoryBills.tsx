@@ -4,10 +4,12 @@ import BillList from '@/components/Bill/BillList/BillList';
 import ContentSkeleton from '@/components/common/ContentSkeleton';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useIntersect } from '@/hooks';
+import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
 import { useGetBillsByCategory } from '../apis';
 
 export default function CategoryBills({ category }: { category: string }) {
   const query = useGetBillsByCategory(category);
+  useListScrollRestoration(`explore-category:${category}`, Boolean(query.data));
   const bills = query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [];
   const fetchRef = useIntersect(() => {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { Cell, Label, Pie, PieChart, Sector } from 'recharts';
 import type { PieSectorShapeProps } from 'recharts';
-import { getCategoryMeta } from '@/config/categories';
+import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByCategory } from '../apis';
 import StatsCard from './StatsCard';
@@ -25,7 +25,7 @@ export default function StatsCategoryDonut() {
   const { data, isLoading } = query;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const raw = useMemo(() => (data?.data ?? []).filter((c) => c.category && c.category !== 'unknown'), [data]);
+  const raw = useMemo(() => (data?.data ?? []).filter((c) => isCategoryCode(c.category)), [data]);
 
   if (isLoading) {
     return (

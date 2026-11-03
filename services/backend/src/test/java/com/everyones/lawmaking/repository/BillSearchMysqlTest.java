@@ -199,10 +199,14 @@ class BillSearchMysqlTest {
             var page = bills.getBillListByCategory(PageRequest.of(0, 10), "economy");
             assertThat(page.getBillList()).extracting(b -> b.getBillInfoDto().getBillId())
                     .containsExactly("body", "exact");
-            assertThat(bills.getCategoryCounts()).singleElement().satisfies(category ->
+            assertThat(bills.getCategoryCounts()).filteredOn(category -> category.getCategory().equals("economy")).singleElement().satisfies(category ->
                     assertThat(category.getCount()).isEqualTo(2));
-            assertThat(stats.getBillCountByCategory()).singleElement().satisfies(category ->
+            assertThat(stats.getBillCountByCategory()).filteredOn(category -> category.getCategory().equals("economy")).singleElement().satisfies(category ->
                     assertThat(category.getCount()).isEqualTo(2));
+            assertThat(bills.getCategoryCounts()).filteredOn(category -> category.getCategory().equals("unknown"))
+                    .singleElement().satisfies(category -> assertThat(category.getCount()).isEqualTo(1));
+            assertThat(bills.getBillListByCategory(PageRequest.of(0, 10), "unknown").getBillList())
+                    .extracting(b -> b.getBillInfoDto().getBillId()).containsExactly("other");
             var timeline = bills.getBillStateCount();
             assertThat(timeline.getPassedCount()).isEqualTo(1).isEqualTo(stats.getOverview().getPassedCount());
             assertThat(timeline.getTreatmentCount()).isEqualTo(2);

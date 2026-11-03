@@ -1,3 +1,4 @@
+import { CATEGORIES, UNKNOWN_CATEGORY } from '@/config/categories';
 import { siteConfig } from '@/config/site';
 
 const ORIGIN = (process.env.INTERNAL_API_ORIGIN ?? 'https://api.lawdigest.kr').replace(/\/+$/, '');
@@ -15,7 +16,13 @@ export function isSitemapKind(kind: string): kind is SitemapKind {
   return Object.hasOwn(sitemapKinds, kind);
 }
 
-export const sitemapPaths = ['/', '/explore', '/timeline', '/about'];
+export const sitemapPaths = [
+  '/',
+  '/explore',
+  '/timeline',
+  '/about',
+  ...[...CATEGORIES, UNKNOWN_CATEGORY].map(({ code }) => `/explore/category/${code}`),
+];
 
 function location(path: string) {
   return new URL(path, siteConfig.url).href.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
