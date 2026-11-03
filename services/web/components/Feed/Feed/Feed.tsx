@@ -16,6 +16,7 @@ import { useGetBillByStage, useGetBillPopular } from './apis';
 import StageDropdown from '../StageDropdown';
 import FeedTab from '../FeedTab';
 import FollowingFeed from './FollowingFeed';
+import ReportFeed from './ReportFeed';
 import FollowingCongressmanStrip from './FollowingCongressmanStrip';
 
 type ContentType = 'report' | 'bill' | 'following';
@@ -80,11 +81,11 @@ export default function Feed() {
   const feedType = params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
   const stage = feedStage(params.get('stage'));
   const isLatest = feedType === FEED_TAB.sortedByLatest;
-  const query = useGetBillByStage(stage, contentType !== 'following' && isLatest);
-  const popular = useGetBillPopular(contentType !== 'following' && !isLatest);
+  const query = useGetBillByStage(stage, contentType === 'bill' && isLatest);
+  const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
   const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
   const activeQuery = isLatest ? query : popular;
-  useListScrollRestoration(params.toString(), contentType !== 'following' && Boolean(activeQuery.data));
+  useListScrollRestoration(params.toString(), contentType === 'bill' && Boolean(activeQuery.data));
 
   const update = (name: string, value: string) => {
     const next = new URLSearchParams(params.toString());
@@ -166,12 +167,14 @@ export default function Feed() {
           </button>
         ))}
       </div>
-      {contentType === 'following' ? (
+      {contentType === 'report' && <ReportFeed scrollKey={params.toString()} />}
+      {contentType === 'following' && (
         <>
           <FollowingCongressmanStrip />
           <FollowingFeed scrollKey={params.toString()} />
         </>
-      ) : (
+      )}
+      {contentType === 'bill' && (
         <>
           <NotificationTopThree />
           <section className="flex items-center justify-between mx-5 mt-2">

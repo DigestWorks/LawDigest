@@ -39,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIfEnvironmentVariable(named = "LAWDIGEST_MYSQL_TEST_URL", matches = ".+")
 class BillSearchMysqlTest {
     @Autowired private BillRepository repository;
+    @Autowired private BillReportRepository reports;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PartyRepository parties;
     @Autowired private CongressmanRepository congressmen;
@@ -245,6 +246,32 @@ class BillSearchMysqlTest {
                         assertThat(member.getPartyId()).isZero();
                     });
         });
+    }
+
+    @Test
+    void reportFeedShowsPublishedReportsOnlyAndPaginatesByPublication() {
+        jdbc.update("UPDATE Bill SET gpt_summary = ? WHERE bill_id = ?", "기존 AI 요약", "body");
+        repository.saveAndFlush(Bill.builder().id("pending-report").billNumber(22).assemblyNumber(22)
+                .billName("검증 대기").ingestStatus(IngestStatusType.PENDING).build());
+        jdbc.update("""
+                INSERT INTO BillReport (bill_id, title, markdown, published_at)
+                VALUES ('exact', '첫 리포트', '## 쉬운 요약', '2026-10-31 00:00:00'),
+                       ('other', '새 리포트', '## 주요 내용', '2026-11-01 00:00:00'),
+                       ('pending-report', '비공개 리포트', '본문', '2026-11-03 00:00:00')
+                """);
+
+        var first = reports.findPublished(PageRequest.of(0, 1));
+        var second = reports.findPublished(PageRequest.of(1, 1));
+        assertThat(first.getContent()).singleElement().satisfies(report ->
+                assertThat(report.billId()).isEqualTo("other"));
+        assertThat(first.hasNext()).isTrue();
+        assertThat(second.getContent()).singleElement().satisfies(report ->
+                assertThat(report.billId()).isEqualTo("exact"));
+        assertThat(second.hasNext()).isFalse();
+        assertThat(reports.findPublishedByBillId("body")).isEmpty();
+        assertThat(reports.findPublishedByBillId("pending-report")).isEmpty();
+        assertThat(reports.findPublishedByBillId("exact")).get()
+                .satisfies(report -> assertThat(report.getMarkdown()).isEqualTo("## 쉬운 요약"));
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {

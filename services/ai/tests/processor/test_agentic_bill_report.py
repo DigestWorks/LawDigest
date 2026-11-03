@@ -2969,6 +2969,7 @@ def test_run_agentic_bill_reports_upserts_successful_items(tmp_path, monkeypatch
             "bill_name": bill["bill_name"],
             "title": "지원 근거 명확화를 위한 업서트 테스트법 일부개정법률안",
             "report_path": str(report_path),
+            "finished_at": "2026-11-03T10:00:00+09:00",
             "status": "success",
         }
 
@@ -2991,6 +2992,7 @@ def test_run_agentic_bill_reports_upserts_successful_items(tmp_path, monkeypatch
         "지원 근거 명확화를 위한 업서트 테스트법 일부개정법률안"
     )
     assert "쉬운 요약" in mock_update.call_args.kwargs["gpt_summary"]
+    assert mock_update.call_args.kwargs["report_published_at"].isoformat() == "2026-11-03T01:00:00"
 
 
 def test_fetch_bill_report_targets_uses_null_summary_tags_when_column_absent():
