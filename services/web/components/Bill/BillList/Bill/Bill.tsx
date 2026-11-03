@@ -19,7 +19,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from '@heroui/react';
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import type { BaseResponse, BillListItem, ViewCountResponse } from '@/types';
 import { IconExport, IconScrabSmall } from '@/public/svgs';
 import { billDetailQueryOptions, usePatchBookmark } from '@/app/bill/[id]/apis';
@@ -45,6 +45,18 @@ import { getPartyColor } from '@/constants/party';
 import { getFeedSummaryMarkdown, getSummaryVisibilityClassNames } from './renderBillSummaryMarkdown';
 import SafeBillSummaryHtml from './SafeBillSummaryHtml';
 import { Button as ActionButton } from '@/components/ui/button';
+
+function BillDetailLinkLabel() {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      <span aria-hidden="true">{pending ? '불러오는 중…' : '자세히 보기'}</span>
+      <span role="status" className="sr-only">
+        {pending ? '법안 상세를 불러오는 중입니다.' : ''}
+      </span>
+    </>
+  );
+}
 
 export default function Bill({
   bill_info_dto: {
@@ -489,7 +501,9 @@ export default function Bill({
                 </div>
 
                 <ActionButton asChild variant="secondary" className="min-w-[88px]">
-                  <Link href={`/bill/${bill_id}`}>자세히 보기</Link>
+                  <Link href={`/bill/${bill_id}`} aria-label="자세히 보기">
+                    <BillDetailLinkLabel />
+                  </Link>
                 </ActionButton>
               </CardFooter>
             )}
