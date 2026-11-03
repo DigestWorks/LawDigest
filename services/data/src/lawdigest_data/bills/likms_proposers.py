@@ -44,6 +44,15 @@ class Member:
 
 
 @dataclass(frozen=True)
+class UnlinkedRepresentative:
+    name: str
+
+
+def _member_identity(member):
+    return member.profile or (_compact(member.name), _hanja(member.hanja))
+
+
+@dataclass(frozen=True)
 class ProposerPage:
     members: list[Member]
     count: int
@@ -62,8 +71,19 @@ def parse_representatives(html, bill_id, bill_no):
         label = section.select_one(".law_meta_name strong")
         if not label or _compact(label.get_text()) != "대표발의의원":
             continue
-        for link in section.select('a[href*="/members/"]'):
-            profiles.add(_profile_url(link.get("href")))
+        linked = section.select('a[href*="/members/"]')
+        if linked:
+            profiles.update(_profile_url(link.get("href")) for link in linked)
+            continue
+
+        # 국회 화면은 대표 역할과 이름을 표시해도 프로필을 연결하지 않을 수 있다.
+        anchor = section.select("a.meta_man[aria-label]")
+        name_label = section.select_one("#proposerName")
+        if len(anchor) == 1 and name_label and anchor[0].get("href") in {"javascript:", "javascript:;"}:
+            name = _compact(name_label.get_text()).removesuffix("의원")
+            photo_label = _compact(anchor[0]["aria-label"]).removesuffix("의원")
+            if name and name == photo_label:
+                profiles.add(UnlinkedRepresentative(name))
     if not profiles:
         raise ProposerSourceError("명시된 대표발의자를 확인할 수 없습니다.")
     return profiles
@@ -157,14 +177,17 @@ def fetch_historical_member_code(session, api_key, name, hanja, term):
 
 
 def resolve_proposers(bill_id, members, representative_profiles, lawmakers, historical_code=None):
-    identities = [
-        member.profile or (_compact(member.name), _compact(member.hanja))
-        for member in members
-    ]
-    profiles = {member.profile for member in members if member.profile}
-    if len(set(identities)) != len(identities) or not representative_profiles.issubset(
-        profiles
-    ):
+    identities = [_member_identity(member) for member in members]
+    representatives_in_roster = set()
+    for representative in representative_profiles:
+        if isinstance(representative, UnlinkedRepresentative):
+            matches = [member for member in members if _compact(member.name) == representative.name]
+            if len(matches) != 1 or matches[0].profile or not _hanja(matches[0].hanja):
+                raise ProposerSourceError("프로필이 없는 대표발의자를 명단에서 유일하게 확인할 수 없습니다.")
+            representatives_in_roster.add(_member_identity(matches[0]))
+        else:
+            representatives_in_roster.add(representative)
+    if len(set(identities)) != len(identities) or not representatives_in_roster.issubset(identities):
         raise ProposerSourceError(
             "명단이 중복되거나 대표발의자가 전체 명단에 없습니다."
         )
@@ -202,7 +225,7 @@ def resolve_proposers(bill_id, members, representative_profiles, lawmakers, hist
         if code in resolved:
             raise ProposerSourceError("서로 다른 의원이 같은 코드로 매칭됐습니다.")
         resolved.append(code)
-        if member.profile in representative_profiles:
+        if _member_identity(member) in representatives_in_roster:
             representatives.append(code)
     if not representatives:
         raise ProposerSourceError("대표발의자의 의원 코드를 확인하지 못했습니다.")

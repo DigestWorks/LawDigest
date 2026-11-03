@@ -219,3 +219,27 @@ def test_incomplete_historical_identity_does_not_query_source(hanja, term):
     session = Mock()
     assert fetch_historical_member_code(session, "test-key", "이해민", hanja, term) is None
     session.get.assert_not_called()
+
+
+def test_representative_without_profile_requires_matching_role_name_and_unique_unlinked_member():
+    from dataclasses import replace
+
+    detail = DETAIL.replace(
+        'href="https://www.assembly.go.kr/members/22nd/HUHYOUNG"',
+        'href="javascript:" aria-label="허영 의원"',
+    )
+    popup = POPUP.replace(
+        'href="https://www.assembly.go.kr/members/22nd/HUHYOUNG"', 'href="javascript:;"'
+    )
+    members = parse_proposer_page(popup, BILL_NO).members
+    representatives = parse_representatives(detail, BILL_ID, BILL_NO)
+    result = resolve_proposers(BILL_ID, members, representatives, lawmakers())
+    assert result["representativeProposerIdList"] == ["M0"]
+
+    with pytest.raises(ProposerSourceError):
+        parse_representatives(detail.replace("허영 의원", "다른 의원"), BILL_ID, BILL_NO)
+    with pytest.raises(ProposerSourceError):
+        resolve_proposers(
+            BILL_ID, members + [replace(members[0], profile="/members/22nd/OTHER")],
+            representatives, lawmakers()
+        )
