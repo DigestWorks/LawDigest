@@ -51,7 +51,7 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 | `ASSEMBLY_API_KEY` | 열린국회정보 계열 MCP 서버용 API 키 |
 | `LAW_OC` | 법제처/국가법령정보센터 Open API 키 |
 | `KOSIS_API_KEY` | KOSIS 통계 API 키 |
-| `BILL_AGENT_CODEX_MODEL` | 법안 리포트 생성 모델 override. 기본값은 `gpt-5.4-mini` |
+| `--codex-model` | 테스트 환경의 법안 리포트 생성 모델 지정. 운영은 `gpt-6.1-terra` |
 | `BILL_AGENT_CODEX_TIMEOUT_SECONDS` | Codex 세션 timeout. 기본값은 900초 |
 
 ## 테스트

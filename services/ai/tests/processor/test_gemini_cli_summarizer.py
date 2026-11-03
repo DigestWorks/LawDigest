@@ -12,7 +12,7 @@ def test_cli_summarizer_defaults_to_codex_model():
     summarizer = GeminiCliSummarizer()
 
     assert summarizer.provider == "codex"
-    assert summarizer.model == "gpt-5.4-mini"
+    assert summarizer.model == "gpt-6.1-terra"
     assert summarizer.timeout_seconds == 240
 
 
@@ -131,7 +131,7 @@ def test_gemini_cli_summarizer_falls_back_to_codex_on_primary_failure():
     assert first_command[0] == "gemini"
     assert second_command[:2] == ["codex", "exec"]
     assert "--model" in second_command
-    assert "gpt-5.4-mini" in second_command
+    assert "gpt-6.1-terra" in second_command
     assert result.iloc[0]["title"] == "Codex 대체 제목"
     assert result.iloc[0]["gpt_summary"] == "Codex 대체 상세"
     assert summarizer.failed_bills == []

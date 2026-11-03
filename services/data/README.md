@@ -9,7 +9,7 @@
 - 표준 런타임: `src/lawdigest_data/runtime/`
 - 표준 실행 로그: `/tmp/lawdigest-pipeline/pipeline-runs.jsonl`
 - 표준 AI 요약: 기본 `agent` 엔진의 `ai-summary`
-- 기본 요약 모델: Codex Agent `gpt-5.4-mini`
+- 기본 요약 모델: Codex Agent `gpt-6.1-terra`
 - Airflow: legacy reference
 
 상세 문서:

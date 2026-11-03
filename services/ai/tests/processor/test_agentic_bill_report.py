@@ -1738,7 +1738,7 @@ def test_codex_agent_writes_inspection_artifacts(tmp_path, monkeypatch):
 def test_codex_agent_uses_gpt_54_mini_by_default():
     from lawdigest_ai.processor.agentic_bill_report import DEFAULT_CODEX_MODEL
 
-    assert DEFAULT_CODEX_MODEL == "gpt-5.4-mini"
+    assert DEFAULT_CODEX_MODEL == "gpt-6.1-terra"
 
 
 def test_codex_agent_requires_assembly_api_key(tmp_path, monkeypatch):
@@ -3038,6 +3038,9 @@ def test_fetch_bill_report_targets_can_select_pending_bills():
         _fetch_bill_report_targets(mode="dry_run", limit=1, read_mode="prod", target="pending")
 
     executed_query = cur.execute.call_args.args[0]
+    assert "ingest_status = 'READY'" in executed_query
+    assert "COALESCE(TRIM(gpt_summary), '') = ''" in executed_query
+    assert "NOT EXISTS (SELECT 1 FROM BillReport" in executed_query
     assert "NOT (COALESCE(bill_result, '') LIKE" in executed_query
     assert "COALESCE(bill_result, '') NOT LIKE" in executed_query
 

@@ -6,10 +6,8 @@ import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from lawdigest_ai.config import BILL_CODEX_MODEL
 from lawdigest_ai.rag.schemas import GeneratedAnswer
-
-CODEX_ANSWER_MODEL = "gpt-6.1-terra"
-
 
 class CodexGenerationError(RuntimeError):
     pass
@@ -39,7 +37,7 @@ class CodexAnswerGenerator:
                 "never",
                 "exec",
                 "--model",
-                CODEX_ANSWER_MODEL,
+                BILL_CODEX_MODEL,
                 "--sandbox",
                 "read-only",
                 "--skip-git-repo-check",

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
+from lawdigest_ai.config import BILL_CODEX_MODEL
 from lawdigest_ai.db import get_bill_table_columns, get_db_connection, update_bill_summary
 from lawdigest_ai.processor.legal_term_dictionary_sync import normalize_legal_term
 from lawdigest_ai.processor.legal_term_glossary import (
@@ -23,7 +24,7 @@ from lawdigest_ai.processor.legal_term_glossary import (
 )
 
 DEFAULT_OUTPUT_DIR = "/tmp/lawdigest-bill-agent-reports"
-DEFAULT_CODEX_MODEL = os.getenv("BILL_AGENT_CODEX_MODEL", "gpt-5.4-mini")
+DEFAULT_CODEX_MODEL = BILL_CODEX_MODEL
 DEFAULT_CODEX_BIN = os.getenv("CODEX_CLI_BIN", "codex")
 DEFAULT_CODEX_TIMEOUT_SECONDS = int(os.getenv("BILL_AGENT_CODEX_TIMEOUT_SECONDS", "900"))
 DEFAULT_AGENT_WORKDIR = os.getenv("BILL_AGENT_CODEX_WORKDIR", "/tmp")
@@ -1729,7 +1730,7 @@ def _persist_successful_report_item(*, mode: str, bill: dict[str, Any], item: di
     completed_at = datetime.fromisoformat(str(item["finished_at"]))
     if completed_at.tzinfo is None:
         raise ValueError("리포트 생성 완료 시각에 시간대가 없습니다.")
-    update_bill_summary(
+    saved = update_bill_summary(
         bill_id=str(item["bill_id"]),
         title=payload.get("title") or str(bill.get("bill_name") or "").strip(),
         gpt_summary=payload.get("gpt_summary"),
@@ -1737,8 +1738,9 @@ def _persist_successful_report_item(*, mode: str, bill: dict[str, Any], item: di
         mode=_db_mode_for_execution(mode),
         category=payload.get("category"),
         report_published_at=completed_at.astimezone(timezone.utc).replace(tzinfo=None),
+        **({"preserve_existing": True} if mode == "prod" else {}),
     )
-    return True
+    return saved is not False
 
 
 REPORT_SECTION_ORDER = (
@@ -2006,6 +2008,12 @@ def _fetch_bill_report_targets(
     db_mode = _resolve_read_mode(mode, read_mode)
     bill_columns = get_bill_table_columns(mode=db_mode)
     filters = ["summary IS NOT NULL", "summary != ''"]
+    if db_mode == "prod":
+        filters.extend([
+            "ingest_status = 'READY'",
+            "COALESCE(TRIM(gpt_summary), '') = ''",
+            "NOT EXISTS (SELECT 1 FROM BillReport report WHERE report.bill_id = Bill.bill_id)",
+        ])
     params: list[Any] = []
     if target in {"passed", "pending"}:
         result_filters = " OR ".join(["COALESCE(bill_result, '') LIKE %s" for _ in PASSED_RESULT_TERMS])
@@ -2632,6 +2640,9 @@ def run_agentic_bill_reports(
         raise ValueError(f"batch_session_size는 {MAX_BATCH_SESSION_SIZE} 이하여야 합니다.")
     if not isinstance(failure_retry_attempts, int) or isinstance(failure_retry_attempts, bool) or failure_retry_attempts < 0:
         raise ValueError("failure_retry_attempts는 0 이상의 정수여야 합니다.")
+
+    if mode == "prod" and codex_model not in {None, BILL_CODEX_MODEL}:
+        raise ValueError(f"운영 법안 생성 모델은 {BILL_CODEX_MODEL}입니다.")
 
     targets = _fetch_bill_report_targets(mode=mode, limit=limit, read_mode=read_mode, target=target)
     output_root = Path(output_dir).expanduser().resolve()

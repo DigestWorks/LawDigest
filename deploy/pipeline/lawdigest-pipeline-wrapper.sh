@@ -20,7 +20,7 @@ cd "$LAWDIGEST_PIPELINE_ROOT"
 test -x "$LAWDIGEST_PIPELINE_PYTHON"
 test -d services/data/src/lawdigest_data/runtime
 test -d services/ai/src/lawdigest_ai
-if [[ "$job" == ai-summary ]] && ! command -v codex >/dev/null; then
+if [[ "$job" == ai-summary ]] && ! command -v "${CODEX_CLI_BIN:-codex}" >/dev/null; then
   printf 'Codex CLI is required for ai-summary.\n' >&2
   exit 69
 fi
