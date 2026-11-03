@@ -7,6 +7,9 @@ describe('getPartyColor', () => {
     expect(getPartyColor('더불어민주연합')).toBe(PARTY_COLOR.더불어민주연합);
     expect(getPartyColor('자유통일당')).toBe(PARTY_COLOR.자유통일당);
     expect(getPartyColor('국민의힘 후보')).toBe(PARTY_COLOR.국민의힘);
+    expect(getPartyColor('녹색정의당')).toBe(PARTY_COLOR.녹색정의당);
+    expect(getPartyColor('녹색정의당 후보')).toBe(PARTY_COLOR.녹색정의당);
+    expect(getPartyColor('정의당')).toBe(PARTY_COLOR.정의당);
     expect(getPartyColor('조국')).toBe(PARTY_COLOR.조국혁신당);
   });
 
