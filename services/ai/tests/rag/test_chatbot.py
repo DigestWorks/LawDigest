@@ -9,7 +9,7 @@ import pytest
 from qdrant_client import QdrantClient
 
 from lawdigest_ai.rag.chatbot import InvalidGrounding, LawdigestionChatbot
-from lawdigest_ai.rag.indexing import build_index
+from lawdigest_ai.rag.indexing import build_index, prepare_chunks
 from lawdigest_ai.rag.schemas import GeneratedAnswer, QuestionRequest
 from lawdigest_ai.rag.settings import RagSettings
 from lawdigest_ai.rag.vector_store import VectorStore
@@ -101,6 +101,33 @@ def test_assembly_filter_includes_disposed_previous_assembly_only_when_selected(
     result = qa.answer(QuestionRequest(question="주거 지원 법안은?", assembly=21))
     assert [s.bill_id for s in result.sources] == ["B021"]
     assert result.metadata.indexed_bills == 1
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("2026년 3월 6일 발의된 주거 지원법은?", ["B002", "B001"]),
+        ("2026-03-06에 제출된 주거 지원법은?", ["B002", "B001"]),
+        ("2026년 3월 6일 의결된 주거 지원법은?", ["B001", "B002"]),
+        ("2026년 7월 10일과 2026년 3월 6일 발의된 법안은?", ["B001", "B002"]),
+        ("2026-03-06 이후 발의된 주거 지원법은?", ["B001", "B002"]),
+        ("2026-03-06에 발의되지 않은 주거 지원법은?", ["B001", "B002"]),
+        ("2026년 2월 30일 발의된 주거 지원법은?", ["B001", "B002"]),
+    ],
+)
+def test_only_an_explicit_single_proposal_date_reorders_sources(qa, question, expected):
+    matching = {**bill("B002"), "propose_date": date(2026, 3, 6)}
+    qa.repository.rows["B002"] = matching
+    rows = [qa.repository.rows["B001"], matching]
+    qa.vector_store.search = MagicMock(
+        return_value=[
+            SimpleNamespace(payload=chunk["payload"])
+            for chunk in prepare_chunks(rows, qa.settings)
+        ],
+    )
+    sources, stale = qa._retrieve(QuestionRequest(question=question))
+    assert [source.bill_id for source in sources] == expected
+    assert not stale
 
 
 def test_changed_original_is_not_sent_to_generation(qa):
