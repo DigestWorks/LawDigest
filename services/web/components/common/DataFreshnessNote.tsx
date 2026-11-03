@@ -17,10 +17,12 @@ export function useDataFreshness() {
 export default function DataFreshnessNote({
   scope = 'proposal',
   showPending = false,
+  showSource = true,
   className,
 }: {
   scope?: 'proposal' | 'timeline';
   showPending?: boolean;
+  showSource?: boolean;
   className?: string;
 }) {
   const { data, isPending } = useDataFreshness();
@@ -39,17 +41,19 @@ export default function DataFreshnessNote({
           ? ` · AI 요약 대기 ${data.pending_summary_count.toLocaleString('ko-KR')}건`
           : ''}
       </p>
-      <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {elapsedDays !== null && elapsedDays > 2 && <span>이후 자료는 아직 반영되지 않았습니다.</span>}
-        <a
-          className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground"
-          href="https://likms.assembly.go.kr/bill/bi/main/mainPage.do"
-          target="_blank"
-          rel="noopener noreferrer">
-          출처: 국회 의안정보시스템 <ExternalLink aria-hidden="true" className="size-3" />
-          <span className="sr-only">새 창</span>
-        </a>
-      </div>
+      {elapsedDays !== null && elapsedDays > 2 && <p>이후 자료는 아직 반영되지 않았습니다.</p>}
+      {showSource && (
+        <p>
+          <a
+            className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground"
+            href="https://likms.assembly.go.kr/bill/bi/main/mainPage.do"
+            target="_blank"
+            rel="noopener noreferrer">
+            출처: 국회 의안정보시스템 <ExternalLink aria-hidden="true" className="size-3" />
+            <span className="sr-only">새 창</span>
+          </a>
+        </p>
+      )}
     </div>
   );
 }
