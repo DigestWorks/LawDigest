@@ -49,7 +49,7 @@ class RagSettings:
             ),
             model=os.getenv("RAG_MODEL", "gpt-4o-mini"),
             top_k=int(os.getenv("RAG_TOP_K", "5")),
-            min_score=float(os.getenv("RAG_MIN_SCORE", "0.82" if local else "0.35")),
+            min_score=float(os.getenv("RAG_MIN_SCORE", "0.84" if local else "0.35")),
             qdrant_url=os.getenv("RAG_QDRANT_URL") or os.getenv("QDRANT_URL"),
             qdrant_key=os.getenv("QDRANT_API_KEY"),
             openai_key=os.getenv("RAG_OPENAI_API_KEY")

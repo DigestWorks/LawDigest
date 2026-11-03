@@ -56,7 +56,7 @@ def test_real_cpu_embedding_and_local_qdrant_retrieve_current_korean_source():
         embedding_dir=directory,
         embedding_model=E5_MODEL_ID,
         dimensions=E5_DIMENSIONS,
-        min_score=0.82,
+        min_score=0.84,
     )
     rows = [
         {
