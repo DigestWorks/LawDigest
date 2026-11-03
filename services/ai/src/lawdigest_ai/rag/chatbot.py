@@ -1,9 +1,10 @@
 """현재 원문과 연결된 근거가 있을 때만 법안 답변을 생성한다."""
 
+import json
+import re
+import time
 from collections import OrderedDict
 from datetime import date, datetime
-import json
-import time
 from urllib.parse import quote
 
 from openai import OpenAI
@@ -28,6 +29,11 @@ class RagUnavailable(RuntimeError):
 
 class InvalidGrounding(RagUnavailable):
     pass
+
+
+COMBINED_PASS_RESULTS = re.compile(
+    r"(?:원안가결|수정가결)(?:\s+(?:원안가결|수정가결))+"
+)
 
 
 SYSTEM_PROMPT = """대한민국 국회 법안 자료에 관한 질문에 한국어로 간결하게 답한다.
@@ -134,13 +140,18 @@ class LawdigestionChatbot:
             if request.assembly and payload.get("assembly_number") != request.assembly:
                 continue
             candidates.setdefault(bill_id, []).append(payload)
-        # 후속 질문의 지시 대상은 이전에 인용한 실제 법안으로 한정한다.
+        # 같은 범위 또는 전체 대수로 넓힐 때만 이전에 인용한 법안을 이어서 조회한다.
         prior_ids = []
-        if request.history and any(
-            word in request.question
-            for word in ["그 법안", "이 법안", "해당 법안", "그 내용", "그럼"]
+        last_turn = request.history[-1] if request.history else None
+        if (
+            last_turn
+            and request.assembly in (0, last_turn.assembly)
+            and any(
+                word in request.question
+                for word in ["그 법안", "이 법안", "해당 법안", "그 내용", "그럼"]
+            )
         ):
-            prior_ids = request.history[-1].source_ids[: self.settings.top_k]
+            prior_ids = last_turn.source_ids[: self.settings.top_k]
         rows = self.repository.hydrate(
             list(dict.fromkeys([*prior_ids, *candidates]))[:40], request.assembly
         )
@@ -167,6 +178,9 @@ class LawdigestionChatbot:
             else:
                 stale = True
                 continue
+            result = row.get("bill_result")
+            if result and COMBINED_PASS_RESULTS.fullmatch(result.strip()):
+                result = None
             safe_id = quote(bill_id, safe="")
             sources.append(
                 Source(
@@ -176,7 +190,7 @@ class LawdigestionChatbot:
                     assembly=row["assembly_number"],
                     propose_date=row["propose_date"],
                     stage=row.get("stage") or "확인 중",
-                    result=row.get("bill_result"),
+                    result=result,
                     excerpt=excerpt,
                     detail_url=f"/bill/{safe_id}",
                     official_url=f"https://likms.assembly.go.kr/bill/billDetail.do?billId={safe_id}",

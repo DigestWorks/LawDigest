@@ -122,6 +122,34 @@ def test_status_changes_are_hydrated_without_invalidating_unchanged_original(qa)
     assert result.sources[0].result == "수정가결"
 
 
+def test_combined_committee_results_do_not_imply_a_plenary_result(qa):
+    qa.repository.rows["B001"].update(
+        stage="체계자구 심사", bill_result="수정가결 원안가결"
+    )
+    result = qa.answer("이 법안은 국회를 통과했나요?")
+    assert result.sources[0].stage == "체계자구 심사"
+    assert result.sources[0].result is None
+
+
+@pytest.mark.parametrize("previous_assembly", [22, 0])
+def test_follow_up_does_not_mark_out_of_scope_sources_as_stale(qa, previous_assembly):
+    result = qa.answer(
+        QuestionRequest(
+            question="그 법안은 국회를 통과했나요?",
+            assembly=21,
+            history=[
+                {
+                    "question": "주거 지원 법안은?",
+                    "source_ids": ["B001"],
+                    "assembly": previous_assembly,
+                }
+            ],
+        )
+    )
+    assert [source.bill_id for source in result.sources] == ["B021"]
+    assert result.metadata.lagging is False
+
+
 def test_deleted_evidence_skips_generation(qa):
     qa.repository.rows["B001"] = bill("B002")
     result = qa.answer("청년 주거 지원 내용은?")
