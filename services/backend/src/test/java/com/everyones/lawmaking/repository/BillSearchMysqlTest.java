@@ -458,6 +458,41 @@ class BillSearchMysqlTest {
     }
 
     @Test
+    void timelineIncludesGovernmentAndChairReceiptsWithoutRepresentativeRelations() {
+        String chairId = "PRC_A2A5D0E9X1J6G1Y9Z5K9G4Q4Z3B7E2";
+        String governmentId = "ARC_A2F5P0I9T1R8W1H4N3J8Q0G5I9W9N0";
+        String chairName = "산업재해보상보험법 일부개정법률안(대안)";
+        String governmentName = "국유재산특례제한법 일부개정법률안";
+        insert(chairId, 2213261, chairName, "2025-09-24", chairName);
+        insert(governmentId, 2213110, governmentName, "2025-09-18", governmentName);
+        jdbc.update("UPDATE Bill SET proposers = '기후에너지환경노동위원장' WHERE bill_id = ?", chairId);
+        jdbc.update("UPDATE Bill SET proposers = '정부' WHERE bill_id = ?", governmentId);
+        jdbc.update("UPDATE Bill SET ingest_status = 'PENDING' WHERE bill_id = 'other'");
+        jdbc.update("""
+                INSERT INTO BillTimeline (bill_id,bill_timeline_stage,status_update_date)
+                VALUES (?, '접수', '2025-09-24'), (?, '접수', '2025-09-18'), ('other', '접수', '2025-09-24')
+                """, chairId, governmentId);
+        var facade = new TimelineFacade(new BillTimelineService(timelines),
+                new BillService(repository, statistics, activity),
+                new VotePartyService(voteParties), new VoteRecordService(voteRecords));
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var dates = facade.getTimeline(PageRequest.of(0, 3)).getTimelineResponseList();
+            assertThat(dates).hasSize(2);
+            assertThat(dates.get(0).getSubmittedList()).singleElement().satisfies(bill -> {
+                assertThat(bill.getBillId()).isEqualTo(chairId);
+                assertThat(bill.getBillProposers()).isEqualTo("기후에너지환경노동위원장");
+                assertThat(bill.getPartyInfo()).isEmpty();
+            });
+            assertThat(dates.get(1).getSubmittedList()).singleElement().satisfies(bill -> {
+                assertThat(bill.getBillId()).isEqualTo(governmentId);
+                assertThat(bill.getBillProposers()).isEqualTo("정부");
+                assertThat(bill.getPartyInfo()).isEmpty();
+            });
+        });
+    }
+
+    @Test
     void plenaryUsesDatedResultsAndKeepsVotesOnUnambiguousDates() {
         var party = parties.saveAndFlush(Party.builder().name("표결 정당").build());
         jdbc.update("UPDATE Bill SET bill_result='원안가결' WHERE bill_id IN ('body', 'other')");
