@@ -3,6 +3,9 @@
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import getTimeRemaining from '@/utils/getTimeRemaining';
+import { getChairmanProposerInfo } from '@/utils/chairmanProposer';
+import getImageSrc from '@/utils/getImageSrc';
+import { isGovernmentProposerKind } from '@/utils/governmentProposer';
 import type { Notification } from '@/types';
 import { Avatar, AvatarGroup, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { IconAlert, IconKebab } from '@/public/svgs';
@@ -12,6 +15,7 @@ export default function NotificationItem({
   content,
   created_date,
   type,
+  extra,
   notification_image_url_list,
   target,
   read,
@@ -24,8 +28,27 @@ export default function NotificationItem({
 }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const isRepresentativeSolo = notification_image_url_list.length === 1;
-  const imageUrlList = notification_image_url_list.map((str) => str.split(':'));
+  const isBillUpdate = type === 'bill_stage_update' || type === 'bill_result_update';
+  const proposerText = notification_image_url_list[0]?.replace(/\.png$/, '');
+  const chairman = isBillUpdate ? getChairmanProposerInfo({ proposerKind: extra, proposerText }) : null;
+  const isGovernment = isBillUpdate && (isGovernmentProposerKind(extra) || proposerText === '정부');
+  const partyImages = notification_image_url_list.flatMap((image) => {
+    const separator = image.indexOf(':');
+    if (separator < 1) return [];
+    const party = image.slice(0, separator);
+    const path = image.slice(separator + 1);
+    if (!path.startsWith('/') || path.startsWith('//')) return [];
+    const themedPath = isDark ? path.replace('wide', 'dark') : path;
+    return [{ party, src: getImageSrc(themedPath), alt: `${party} 이미지` }];
+  });
+
+  let images = partyImages;
+  if (isGovernment) {
+    images = [{ party: '', src: '/images/government-logo.png', alt: '정부 로고' }];
+  } else if (chairman) {
+    images = [{ party: '', src: chairman.logoSrc, alt: chairman.logoAlt }];
+  }
+  const firstImage = images[0];
   const linkUrl = `${type === 'congressman_party_update' ? 'congressman' : 'bill'}/${target}`;
 
   return (
@@ -35,28 +58,28 @@ export default function NotificationItem({
           <IconAlert />
         </div>
 
-        {isRepresentativeSolo ? (
+        {images.length <= 1 ? (
           <Avatar
             radius="full"
-            src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${!isDark ? imageUrlList[0][1] : imageUrlList[0][1].replace('wide', 'dark')}`}
+            src={firstImage?.src}
+            alt={firstImage?.alt}
             size="md"
             className="w-[50px] h-[50px]"
             classNames={{
-              base: [
-                `${type === 'bill_stage_update' || type === 'bill_result_update' ? 'bg-white dark:bg-dark-pb p-1' : ''} border ${imageUrlList[0][0]}`,
-              ],
-              img: [`${type === 'bill_stage_update' || type === 'bill_result_update' ? 'object-contain' : ''}`],
+              base: [`${isBillUpdate ? 'bg-white dark:bg-dark-pb p-1' : ''} border ${firstImage?.party ?? ''}`],
+              img: [`${isBillUpdate ? 'object-contain' : ''}`],
             }}
           />
         ) : (
-          <AvatarGroup className={`w-[50px] ${imageUrlList.length >= 3 ? 'gap-0' : ''}`} isGrid max={3}>
-            {imageUrlList.map((notification_image_url) => (
+          <AvatarGroup className={`w-[50px] ${images.length >= 3 ? 'gap-0' : ''}`} isGrid max={3}>
+            {images.map(({ party, src, alt }) => (
               <Avatar
-                key={notification_image_url[0]}
-                src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${!isDark ? notification_image_url[1] : notification_image_url[1].replace('wide', 'dark')}`}
+                key={`${party}:${src}`}
+                src={src}
+                alt={alt}
                 size="sm"
                 classNames={{
-                  base: [`shrink-0 bg-white dark:bg-dark-pb p-1 border ${notification_image_url[0]}`],
+                  base: [`shrink-0 bg-white dark:bg-dark-pb p-1 border ${party}`],
                   img: ['object-contain'],
                 }}
               />
