@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { StatisticsStage, useGetStatisticsStage } from '../apis';
@@ -22,7 +24,8 @@ const chartConfig = {
 
 /** 입법 진행 단계 퍼널 — 접수 대비 누적 도달 비율(가로 막대). */
 export default function StatsStageFunnel() {
-  const { data, isLoading } = useGetStatisticsStage();
+  const query = useGetStatisticsStage();
+  const { data, isLoading } = query;
   const stage = data?.data;
 
   if (isLoading) {
@@ -37,7 +40,16 @@ export default function StatsStageFunnel() {
     );
   }
 
-  if (!stage) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="심사 단계 통계를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (!stage) return <SectionEmpty>심사 단계 통계가 없습니다.</SectionEmpty>;
 
   const base = stage.receipt_count || 1;
   const rows = STAGES.map(({ key, label, opacity }) => ({

@@ -1,46 +1,38 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Spinner } from '@heroui/spinner';
-import { Bill } from '@/components';
+import BillList from '@/components/Bill/BillList/BillList';
+import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useIntersect } from '@/hooks';
-import { BillProps } from '@/types';
 import { useGetBillsByCategory } from '../apis';
 
 export default function CategoryBills({ category }: { category: string }) {
-  const { data, hasNextPage, isFetching, fetchNextPage } = useGetBillsByCategory(category);
-  const [bills, setBills] = useState<BillProps[]>(
-    data ? data.pages.flatMap(({ data: { bill_list } }) => bill_list) : [],
-  );
-
-  const fetchRef = useIntersect(async (entry: IntersectionObserverEntry, observer: IntersectionObserver) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
-    }
+  const query = useGetBillsByCategory(category);
+  const bills = query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [];
+  const fetchRef = useIntersect(() => {
+    if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  useEffect(() => {
-    if (data) {
-      setBills([...data.pages.flatMap(({ data: { bill_list } }) => bill_list)]);
-    }
-  }, [data]);
-
-  if (bills.length === 0 && !isFetching) {
-    return <div className="py-10 text-center text-[14px] text-gray-2">해당 분야의 법안이 없습니다.</div>;
+  if (query.isPending) return <ContentSkeleton />;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="분야 법안을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
+  if (bills.length === 0) return <SectionEmpty>이 분야에 등록된 법안이 없습니다.</SectionEmpty>;
 
   return (
-    <section className="flex flex-col gap-6">
-      {bills.map((bill) => (
-        <Bill {...bill} key={bill.bill_info_dto.bill_id} />
-      ))}
-      {isFetching && (
-        <div className="flex justify-center py-4">
-          <Spinner color="default" />
-        </div>
-      )}
-      <div ref={fetchRef} />
-    </section>
+    <BillList
+      bills={bills}
+      fetchRef={fetchRef}
+      isFetching={query.isFetchingNextPage}
+      hasNextPage={query.hasNextPage}
+      error={query.isFetchNextPageError}
+      onLoadMore={() => void query.fetchNextPage()}
+    />
   );
 }

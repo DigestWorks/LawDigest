@@ -1,7 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { Spinner } from '@heroui/spinner';
+import { useState } from 'react';
 import AssemblySegment, { AssemblySegmentValue } from './AssemblySegment';
 import SeatDistribution from './SeatDistribution';
 import MemberRanking from './MemberRanking';
@@ -22,14 +21,7 @@ export default function AssemblyPanel() {
           <MemberRanking />
           <section className="flex flex-col gap-3">
             <h2 className="text-[15px] font-bold text-primary-3 dark:text-gray-0.5">의원 전체</h2>
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-8">
-                  <Spinner color="default" />
-                </div>
-              }>
-              <MemberList />
-            </Suspense>
+            <MemberList />
           </section>
         </>
       ) : (

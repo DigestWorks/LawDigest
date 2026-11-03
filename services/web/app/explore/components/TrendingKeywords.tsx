@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import Link from 'next/link';
 import { useGetTrendingKeywords } from '../apis';
 
@@ -8,10 +10,26 @@ import { useGetTrendingKeywords } from '../apis';
  * 운영 데이터가 아직 없을 수 있으므로, 키워드가 없으면 섹션 전체를 숨긴다.
  */
 export default function TrendingKeywords() {
-  const { data } = useGetTrendingKeywords(12);
+  const query = useGetTrendingKeywords(12);
+  const { data } = query;
   const keywords = data?.data ?? [];
 
-  if (keywords.length === 0) return null;
+  if (query.isPending)
+    return (
+      <p role="status" className="py-4 text-sm text-muted-foreground">
+        인기 키워드 불러오는 중…
+      </p>
+    );
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="인기 키워드를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (keywords.length === 0) return <SectionEmpty>집계된 인기 키워드가 없습니다.</SectionEmpty>;
 
   return (
     <section className="flex flex-col gap-3">

@@ -95,7 +95,13 @@ export default function StatsTrendArea() {
             <EmptyDescription>기간을 바꿔 보거나 잠시 뒤 다시 확인해 주세요.</EmptyDescription>
           </EmptyHeader>
           {failed && (
-            <Button variant="outline" onClick={() => void detail.refetch()}>
+            <Button
+              variant="outline"
+              disabled={detail.isFetching || fallback.isFetching}
+              onClick={() => {
+                void detail.refetch();
+                void fallback.refetch();
+              }}>
               다시 시도
             </Button>
           )}

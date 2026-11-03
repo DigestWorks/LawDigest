@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   getBillsByCategory,
   getCategoryCounts,
@@ -45,7 +45,7 @@ export const useGetCongressmanRanking = (size = 3) =>
   });
 
 export const useGetCongressmanList = (partyId?: number | null) =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/congressman/list', partyId ?? 'all'],
     queryFn: ({ pageParam }: { pageParam: number }) => getCongressmanList(pageParam, partyId),
     initialPageParam: 0,
@@ -108,7 +108,7 @@ export const useGetStatisticsResultBreakdown = () =>
   });
 
 export const useGetBillsByCategory = (category: string) =>
-  useSuspenseInfiniteQuery({
+  useInfiniteQuery({
     queryKey: ['/bill/category', category],
     queryFn: ({ pageParam }: { pageParam: number }) => getBillsByCategory(category, pageParam),
     initialPageParam: 0,

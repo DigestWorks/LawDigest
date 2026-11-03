@@ -46,3 +46,11 @@ HTTP 계약 검사는 PR #153의 백엔드 404 응답을 재현한 로컬 fixtur
 
 - [승인된 handoff](./2026-11-02-handoff.md), [결함 목록](./2026-11-02-ux-polish-findings.md), `.intent/intent_ux-polish-round-two.md`·`spec_ux-polish-round-two.md`·`plan_ux-polish-round-two.md`.
 - [Next.js의 not-found 응답 규칙](https://nextjs.org/docs/app/api-reference/file-conventions/not-found), [구글 OAuth 오류 안내](https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors).
+
+## 피드와 탐색의 부분 복구 (FEED-08, EXPLORE-11)
+
+- 현재 브랜치의 이전 빌드에서 의원 목록에 503을 재현했다. 국회 탭이 사라지고 전역 오류 화면만 남았다. 성공 응답이 빈 피드에서는 빈 목록 문구만 보였다.
+- 기존 카드와 탭을 유지하는 실패·빈 상태를 적용했다. 분야 법안과 의원 목록은 첫 요청 실패와 다음 페이지 실패를 구분한다. 통계와 분야의 독립 요청에는 각각의 재시도를 제공한다.
+- 로컬 Next 프로덕션 빌드와 읽기 전용 운영 API 중계에서 분야 법안·의원 목록·통계 개요에 503을 재현했다. 실패 섹션만 오류를 표시했고, 국회 탭과 월별 추이, 선택한 분야의 제목이 유지됐다. 응답 정상화 뒤 재시도하면 분야·의원 목록이 복구됐다.
+- 피드 빈 응답에서 본회의 심의 필터를 선택한 뒤 ‘전체 단계 보기’를 눌렀다. 법안 탭을 유지하며 URL에서 단계 필터를 지웠다.
+- 웹 ESLint, Vitest 77건, TypeScript를 포함한 Next 프로덕션 빌드 통과. FEED-19의 로그인 뒤 팔로잉 상태 확인은 실계정 재현을 기다린다.

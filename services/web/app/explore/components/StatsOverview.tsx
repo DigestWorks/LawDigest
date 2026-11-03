@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { useEffect, useRef } from 'react';
 import { animate, motion, useInView, useReducedMotion } from 'framer-motion';
 import { useGetStatisticsOverview } from '../apis';
@@ -70,7 +72,8 @@ function PassRateRing({ rate }: { rate: number }) {
 
 /** KPI 카드 4종 — 총 발의 / 가결 / 계류 중 / 가결률(링 게이지 포함). */
 export default function StatsOverview() {
-  const { data, isLoading } = useGetStatisticsOverview();
+  const query = useGetStatisticsOverview();
+  const { data, isLoading } = query;
   const reduceMotion = useReducedMotion();
   const overview = data?.data;
 
@@ -89,7 +92,16 @@ export default function StatsOverview() {
     );
   }
 
-  if (!overview) return null;
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="입법 현황을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (!overview) return <SectionEmpty>입법 현황 자료가 없습니다.</SectionEmpty>;
 
   const cards = [
     { label: '총 발의', value: overview.total_count, unit: '건', icon: 'stacks' },

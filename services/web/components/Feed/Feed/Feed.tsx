@@ -1,6 +1,8 @@
 'use client';
 
 import DataFreshnessNote from '@/components/common/DataFreshnessNote';
+import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { SectionError } from '@/components/common/SectionState';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useIntersect } from '@/hooks';
@@ -96,6 +98,48 @@ export default function Feed() {
     }
   });
 
+  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '표시할 인기 법안이 없습니다.';
+  if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
+
+  let results;
+  if (activeQuery.isPending) {
+    results = <ContentSkeleton />;
+  } else if (activeQuery.isError && !activeQuery.data) {
+    results = (
+      <div className="mx-5 mt-4">
+        <SectionError
+          message="법안을 불러오지 못했습니다."
+          pending={activeQuery.isFetching}
+          onRetry={() => void activeQuery.refetch()}
+        />
+      </div>
+    );
+  } else if (!bills.length) {
+    results = (
+      <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+        <p role="status" className="text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+        {isLatest && stage && (
+          <Button variant="outline" onClick={() => update('stage', '')}>
+            전체 단계 보기
+          </Button>
+        )}
+      </div>
+    );
+  } else {
+    results = (
+      <BillList
+        bills={bills}
+        isFetching={isLatest && query.isFetchingNextPage}
+        fetchRef={fetchRef}
+        hasNextPage={isLatest && query.hasNextPage}
+        error={isLatest && query.isFetchNextPageError}
+        onLoadMore={() => void query.fetchNextPage()}
+      />
+    );
+  }
+
   return (
     <section>
       <div className="mx-5 mt-5 mb-3">
@@ -142,26 +186,7 @@ export default function Feed() {
               />
             )}
           </section>
-          {activeQuery.isError && !activeQuery.data ? (
-            <div className="flex flex-col items-center gap-3 py-8" role="alert">
-              <p>법안을 불러오지 못했습니다.</p>
-              <Button variant="outline" onClick={() => void activeQuery.refetch()}>
-                다시 불러오기
-              </Button>
-            </div>
-          ) : (
-            <BillList
-              bills={bills}
-              isFetching={activeQuery.isPending || (isLatest && query.isFetchingNextPage)}
-              fetchRef={fetchRef}
-              hasNextPage={isLatest && query.hasNextPage}
-              error={query.isFetchNextPageError}
-              onLoadMore={() => void query.fetchNextPage()}
-            />
-          )}
-          {activeQuery.isSuccess && bills.length === 0 && (
-            <p className="py-10 text-center text-muted-foreground">조건에 맞는 법안이 없습니다.</p>
-          )}
+          {results}
         </>
       )}
     </section>

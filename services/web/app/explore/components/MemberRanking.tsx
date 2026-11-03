@@ -1,5 +1,7 @@
 'use client';
 
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+
 import { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Avatar } from '@heroui/avatar';
@@ -11,10 +13,26 @@ const RANK_BADGE = ['bg-primary-3 text-white', 'bg-gray-3 text-white', 'bg-gray-
 
 /** 발의 활발한 의원 랭킹(상위 3명) — 대표발의 건수 순. */
 export default function MemberRanking() {
-  const { data } = useGetCongressmanRanking(3);
+  const query = useGetCongressmanRanking(3);
+  const { data } = query;
   const ranking = data?.data ?? [];
 
-  if (ranking.length === 0) return null;
+  if (query.isPending)
+    return (
+      <p role="status" className="py-4 text-sm text-muted-foreground">
+        의원 발의 순위 불러오는 중…
+      </p>
+    );
+  if (query.isError && !query.data) {
+    return (
+      <SectionError
+        message="의원 발의 순위를 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+  if (ranking.length === 0) return <SectionEmpty>의원 발의 순위가 없습니다.</SectionEmpty>;
 
   return (
     <section className="flex flex-col gap-3">
