@@ -68,7 +68,7 @@
 | [FEED-13](2026-11-02-ux-polish-findings.md?plain=1#L381) 카드 보조 텍스트와 '자세히 보기' 버튼 대비가 WCAG AA에 못 미친다 | 대기 |  |
 | [FEED-14](2026-11-02-ux-polish-findings.md?plain=1#L390) 정당색을 요약 본문 강조에 쓰고 미등록 정당은 경고 빨강으로 표시한다 | 대기 |  |
 | [FEED-15](2026-11-02-ux-polish-findings.md?plain=1#L399) 피드 카드의 AI 요약에 AI 생성 표시와 출처 경로가 없다 | 대기 |  |
-| [FEED-16](2026-11-02-ux-polish-findings.md?plain=1#L408) 한 줄 제목이 법안명을 반복하고 카드에 법안명이 두 번 나온다 | 대기 |  |
+| [FEED-16](2026-11-02-ux-polish-findings.md?plain=1#L408) 한 줄 제목이 법안명을 반복하고 카드에 법안명이 두 번 나온다 | 운영 재현 | 운영 최신 12건 모두 제목 끝에 정식 법안명이 반복됐다. #160에서 기존 운영 응답을 재생해 변경 요지와 정식명 분리, 상세 공유 제목을 확인했다. 제목 재생성은 #123에서 추적한다. |
 | [FEED-17](2026-11-02-ux-polish-findings.md?plain=1#L417) HOT 탭 기준이 불명확하고 오래된 법안이 섞인다 | 대기 |  |
 | [FEED-19](2026-11-02-ux-polish-findings.md?plain=1#L426) 팔로잉 빈 상태가 원인을 구분하지 않고 다음 행동도 제시하지 않는다 | 대기 |  |
 | [FEED-22](2026-11-02-ux-polish-findings.md?plain=1#L435) 토큰 재발급 핸들러가 컴포넌트 밖에서 useRouter를 호출해 401 처리 시 피드가 오류 화면으로 바뀐다 | 대기 |  |
@@ -119,7 +119,7 @@
 | [PROFILE-06](2026-11-02-ux-polish-findings.md?plain=1#L1759) 존재하지 않는 의원·정당 id가 404가 아니라 HTTP 200과 오류 화면으로 응답한다 | 대기 |  |
 | [PROFILE-07](2026-11-02-ux-polish-findings.md?plain=1#L1768) 정당 의석수와 소속 의원 목록 수가 서로 다르다 | 대기 |  |
 | [PROFILE-08](2026-11-02-ux-polish-findings.md?plain=1#L1777) 프로필 어디에도 데이터 기준일이 없고 발의 목록은 2026-07에서 멈춰 있다 | 대기 |  |
-| [PROFILE-09](2026-11-02-ux-polish-findings.md?plain=1#L1786) 정당 페이지 첫 법안 카드 제목 자리에 제안이유 원문이 노출된다 | 대기 |  |
+| [PROFILE-09](2026-11-02-ux-polish-findings.md?plain=1#L1786) 정당 페이지 첫 법안 카드 제목 자리에 제안이유 원문이 노출된다 | 운영 재현 | 운영 정당 1의 대표발의 표본 3건에 AI 요약이 없었으며 제목이 제안이유 문장이었다. #160의 격리 웹에서 정식 법안명, 제안이유 펼치기와 상세 공유 제목을 확인했다. |
 | [ACCOUNT-04](2026-11-02-ux-polish-findings.md?plain=1#L2004) SSR이 항상 비로그인 분기를 렌더해 로그인 사용자에게 '회원 정보가 없습니다'가 먼저 보이고 hydration 불일치가 난다 | 대기 |  |
 | [ACCOUNT-05](2026-11-02-ux-polish-findings.md?plain=1#L2013) 클라이언트 페이지 안에서 async 컴포넌트와 Suspense 쿼리를 경계 없이 써서 로딩·오류 처리가 없다 | 대기 |  |
 | [ACCOUNT-06](2026-11-02-ux-polish-findings.md?plain=1#L2022) OAuth 실패 시 콜백 페이지가 error 파라미터를 무시하고 마이페이지로 보낸다 | 대기 |  |

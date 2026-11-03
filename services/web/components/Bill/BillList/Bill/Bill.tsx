@@ -37,6 +37,7 @@ import { ACCESS_TOKEN } from '@/constants';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import ProposerList from '@/app/bill/[id]/components/ProposerList/ProposerList';
+import { billHeadline } from '@/lib/billHeadline';
 import { isoDateOnly, proposalDateLabel } from '@/lib/dataFreshness';
 import BillSource from './BillSource';
 import { getPartyColor } from '@/constants/party';
@@ -111,7 +112,9 @@ export default function Bill({
   const [proposersOpen, setProposersOpen] = useState(false);
   const proposerCount = public_proposer_count ?? public_proposer_dto_list?.length ?? 0;
   const aiSummary = gpt_summary?.trim() ? gpt_summary : '';
-  const loadOriginalSummary = !aiSummary && !summary && Boolean(has_original_summary);
+  const officialName = billHeadline(bill_name);
+  const headline = billHeadline(bill_name, aiSummary ? title : null);
+  const loadOriginalSummary = !aiSummary && !summary?.trim() && Boolean(has_original_summary);
   const detailQuery = useQuery({
     ...billDetailQueryOptions(bill_id),
     enabled: (proposersOpen && !public_proposer_dto_list) || (toggleMore && loadOriginalSummary),
@@ -143,9 +146,9 @@ export default function Bill({
   const setSnackbar = useSetAtom(snackbarState);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const originalSummary = summary ?? detailQuery.data?.data?.bill_info_dto.summary ?? '';
+  const originalSummary = summary?.trim() || detailQuery.data?.data?.bill_info_dto.summary?.trim() || '';
   const displayedSummary = aiSummary && !detail ? getFeedSummaryMarkdown(aiSummary) : aiSummary || originalSummary;
-  const summaryLabel = loadOriginalSummary ? '제안이유' : '요약';
+  const summaryLabel = aiSummary ? '요약' : '제안이유';
   let originalSummaryState: ReactNode = <p>공개된 제안이유가 없습니다.</p>;
   if (detailQuery.isFetching) {
     originalSummaryState = <p role="status">제안이유를 불러오는 중입니다.</p>;
@@ -374,11 +377,9 @@ export default function Bill({
             </time>
           )}
 
-          <TitleHeading className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>
-            {title?.trim() || bill_name}
-          </TitleHeading>
+          <TitleHeading className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>{headline}</TitleHeading>
 
-          {title?.trim() && title.trim() !== bill_name && <p className="text-sm text-muted-foreground">{bill_name}</p>}
+          {!headline.endsWith(officialName) && <p className="text-sm text-muted-foreground">{officialName}</p>}
 
           {hot_activity && (
             <p className="text-xs text-muted-foreground">
@@ -429,7 +430,7 @@ export default function Bill({
             <CardBody className={`p-0 leading-normal whitespace-pre-wrap ${detail ? '' : 'text-sm md:text-base'}`}>
               <BillSource billId={bill_id} generated={Boolean(aiSummary)} detail={detail} />
               <div id={summaryId} ref={summaryContent} tabIndex={-1}>
-                {displayedSummary && (!loadOriginalSummary || toggleMore) && (
+                {displayedSummary && (detail || aiSummary || toggleMore) && (
                   <SafeBillSummaryHtml
                     className={summaryContentClassName}
                     style={summaryAccentStyle}

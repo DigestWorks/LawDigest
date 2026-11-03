@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { billHeadline } from '@/lib/billHeadline';
 import { SimilarBill } from '@/types';
 import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
 import { getPartyLogoSrc } from '@/utils';
@@ -23,7 +24,7 @@ export default function AnotherBill({
       <Link
         href={`/bill/${billId}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <p className="text-sm font-semibold lg:text-base">{billTitle || billName}</p>
+        <p className="text-sm font-semibold lg:text-base">{billHeadline(billName, billTitle)}</p>
         <p className="text-sm text-muted-foreground">
           {[assemblyNumber ? `${assemblyNumber}대` : null, proposeDate, billResult || billStage]
             .filter(Boolean)

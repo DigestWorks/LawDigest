@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useId, useState } from 'react';
+import { billHeadline } from '@/lib/billHeadline';
 import { Button } from '@/components/ui/button';
 import type { TimelineBill, TimelinePlenary } from '@/types';
 
@@ -38,7 +39,7 @@ export function TimelineBillList({
               <Link
                 href={`/bill/${encodeURIComponent(bill.bill_id)}`}
                 className="block break-words text-sm font-medium underline-offset-4 hover:underline focus-visible:underline">
-                {bill.bill_title?.trim() || bill.bill_name}
+                {billHeadline(bill.bill_name, bill.bill_title)}
               </Link>
               <p className="break-words text-xs text-muted-foreground">
                 {[bill.bill_proposers, bill.bill_result?.includes('가결 ') ? null : bill.bill_result]

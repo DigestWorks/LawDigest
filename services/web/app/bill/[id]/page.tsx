@@ -1,3 +1,4 @@
+import { billHeadline } from '@/lib/billHeadline';
 import { Metadata } from 'next';
 import { SubHeader } from '@/components';
 import { getPublicBill } from '@/lib/publicDetail';
@@ -13,7 +14,10 @@ export const generateMetadata = async ({ params }: BillDetailPageProps): Promise
   const { data } = await getPublicBill(id);
 
   return getMetadata({
-    title: data.bill_info_dto.title?.trim() || data.bill_info_dto.bill_name,
+    title: billHeadline(
+      data.bill_info_dto.bill_name,
+      data.bill_info_dto.gpt_summary?.trim() ? data.bill_info_dto.title : null,
+    ),
     description: `${data.bill_info_dto.propose_date} 발의, 처리 상태: ${data.bill_info_dto.bill_result?.trim() || data.bill_info_dto.bill_stage}, '${data.bill_info_dto.bill_name}' 관련 발의안`,
     asPath: `/bill/${id}`,
   });
