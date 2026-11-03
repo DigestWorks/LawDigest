@@ -24,6 +24,16 @@ class LifecycleStatusFetcher:
         "PPSL_DT",
     )
 
+    REVIEW_DATE_KEYS = (
+        "PROPOSE_DT", "COMMITTEE_DT", "CMT_PRESENT_DT", "CMT_PROC_DT",
+        "LAW_SUBMIT_DT", "LAW_PRESENT_DT", "LAW_PROC_DT", "PROC_DT",
+    )
+    PLENARY_DATE_KEYS = (
+        "PROPOSE_DT", "COMMITTEE_SUBMIT_DT", "COMMITTEE_PRESENT_DT", "COMMITTEE_PROC_DT",
+        "LAW_SUBMIT_DT", "LAW_PRESENT_DT", "LAW_PROC_DT", "RGS_PRESENT_DT",
+        "RGS_PROC_DT", "CURR_TRANS_DT", "ANNOUNCE_DT",
+    )
+
     def __init__(self, fetcher: DataFetcher | None = None):
         self.fetcher = fetcher or DataFetcher()
 
@@ -68,21 +78,50 @@ class LifecycleStatusFetcher:
                 "review_rows": {},
             }
 
-        rows = self.fetcher._collect_incremental_rows(
-            client,
-            "ALLBILL",
-            {"AGE": age},
-            self.DATE_KEYS,
-            start_bound,
-            end_bound,
+        assembly = f"제{age}대"
+        receipts = client.fetch_rows("BILLRCP", {"ERACO": assembly}, page_size=1000, require_complete=True)
+        receipts_by_id = {row["BILL_ID"]: row for row in receipts}
+        if len(receipts_by_id) != len(receipts):
+            raise RuntimeError("BILLRCP contains duplicate bill IDs")
+
+        # A current event can belong to a much older proposal. Read every page of
+        # each source, including lists whose ordering varies across requests.
+        candidates: Dict[str, str] = {}
+        sources = (
+            (receipts, ("PPSL_DT",)),
+            (client.fetch_rows("nwbqublzajtcqpdae", {"AGE": age}, page_size=1000, require_complete=True), self.REVIEW_DATE_KEYS),
+            (client.fetch_rows("nzpltgfqabtcpsmai", {"AGE": age}, page_size=1000, require_complete=True), self.REVIEW_DATE_KEYS),
+            (client.fetch_rows("nwbpacrgavhjryiph", {"AGE": age}, page_size=1000, require_complete=True), self.PLENARY_DATE_KEYS),
         )
+        for rows, keys in sources:
+            for row in rows:
+                if row.get("AGE") is not None and str(row["AGE"]) != age:
+                    continue
+                dates = (self.fetcher._parse_api_date(row.get(key)) for key in keys)
+                if not any(day is not None and start_bound <= day <= end_bound for day in dates):
+                    continue
+                bill_id = str(row.get("BILL_ID") or "").strip()
+                receipt = receipts_by_id.get(bill_id)
+                if (receipt or row).get("BILL_KIND") not in (None, "법률안"):
+                    continue
+                bill_no = str(row.get("BILL_NO") or "").strip()
+                if not bill_id or not bill_no or candidates.get(bill_id, bill_no) != bill_no:
+                    raise RuntimeError("Official lifecycle lists disagree on a bill identity")
+                if receipt and (str(receipt["BILL_NO"]) != bill_no or receipt["ERACO"] != assembly):
+                    raise RuntimeError(f"BILLRCP identity mismatch for {bill_no}")
+                candidates[bill_id] = bill_no
 
         deduped: Dict[str, Dict[str, Any]] = {}
-        for row in rows:
-            bill_id = str(row.get("BILL_ID") or "").strip()
-            if not bill_id:
+        for bill_id, bill_no in candidates.items():
+            row = client.fetch_bill_lifecycle(bill_no)
+            if (
+                not row or row.get("BILL_ID") != bill_id
+                or str(row.get("BILL_NO")) != bill_no or row.get("ERACO") != assembly
+            ):
+                raise RuntimeError(f"ALLBILL identity mismatch or missing detail for {bill_no}")
+            if row.get("BILL_KND") != "법률안":
                 continue
-            normalized = dict(row)
+            normalized = {**row, "AGE": age}
             for key in self.DATE_KEYS:
                 if key in normalized:
                     normalized[key] = self._normalize_date(normalized.get(key))
