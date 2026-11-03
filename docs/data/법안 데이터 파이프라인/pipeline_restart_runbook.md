@@ -90,7 +90,7 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
   --output-dir /tmp/lawdigest-bill-agent-reports
 ```
 
-이 경로는 기본적으로 Codex MCP 에이전트 기반 리포트 생성기를 실행합니다. 에이전트가 국회·법령·통계 MCP를 사용해 Markdown 리포트를 만들고, `prod` 실행에서는 기존 컬럼인 `title`, `gpt_summary`, `summary_tags`로 반영합니다. 기본 모델은 `gpt-5.4-mini`입니다.
+이 경로는 기본적으로 Codex MCP 에이전트 기반 리포트 생성기를 실행합니다. 에이전트가 국회·법령·통계 MCP를 사용해 Markdown 리포트를 만들고, `prod` 실행에서는 기존 컬럼인 `title`, `gpt_summary`, `summary_tags`로 반영합니다. 기본 모델은 `gpt-6.1-terra`입니다.
 
 Gemini 보조 경로 smoke 예시:
 
@@ -142,7 +142,7 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 - `ASSEMBLY_API_KEY`: 열린국회정보 API 키. 없으면 `sample` 키로 시도하지만 실운영 리포트에는 정식 키를 사용합니다.
 - `LAW_OC`: 국가법령정보센터 Open API 인증키.
 - `KOSIS_API_KEY`: 통계청 KOSIS OpenAPI 키. 원격 `korean-stats` MCP는 별도 키 없이 동작할 수 있지만 로컬/정식 조회 품질을 위해 설정을 권장합니다.
-- `BILL_AGENT_CODEX_MODEL`: Codex 모델 override. 기본값은 `gpt-5.4-mini`입니다.
+- `--codex-model`: 테스트 환경의 Codex 모델을 지정합니다. 운영은 `gpt-6.1-terra`를 사용합니다. 운영은 원문이 있는 공개 법안 중 기존 AI 요약과 리포트가 모두 비어 있는 경우에만 생성하고, 저장 직전 다시 확인합니다. 자동 요약에는 `CODEX_CLI_BIN`의 검증된 절대 경로를 사용합니다.
 - `BILL_AGENT_CODEX_TIMEOUT_SECONDS`: Codex 세션 timeout. 기본값은 900초입니다.
 
 결과 확인:

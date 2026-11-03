@@ -97,7 +97,8 @@ def update_bill_summary(
     category: str | None = None,
     *,
     report_published_at: datetime | None = None,
-) -> None:
+    preserve_existing: bool = False,
+) -> bool:
     """Update the bill summary and optionally publish the validated deep report atomically."""
     if report_published_at is not None and (not title or not gpt_summary):
         raise ValueError("리포트 제목과 본문이 필요합니다.")
@@ -115,6 +116,19 @@ def update_bill_summary(
             params.append(category)
         params.append(bill_id)
         with conn.cursor() as cur:
+            if preserve_existing:
+                cur.execute(
+                    "SELECT ingest_status, gpt_summary FROM Bill WHERE bill_id=%s FOR UPDATE",
+                    (bill_id,),
+                )
+                bill = cur.fetchone()
+                if not bill or bill["ingest_status"] != "READY" or (bill["gpt_summary"] or "").strip():
+                    conn.rollback()
+                    return False
+                cur.execute("SELECT bill_id FROM BillReport WHERE bill_id=%s FOR UPDATE", (bill_id,))
+                if cur.fetchone() is not None:
+                    conn.rollback()
+                    return False
             if report_published_at is not None:
                 cur.execute("SELECT bill_id FROM Bill WHERE bill_id=%s FOR UPDATE", (bill_id,))
                 if cur.fetchone() is None:
@@ -137,6 +151,7 @@ def update_bill_summary(
                 tuple(params),
             )
         conn.commit()
+        return True
     except Exception:
         conn.rollback()
         raise

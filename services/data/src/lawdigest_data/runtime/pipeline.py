@@ -353,6 +353,8 @@ class PipelineRuntime:
         limit: int = 200,
         model: str | None = None,
     ) -> Dict[str, Any]:
+        if mode == "prod":
+            raise ValueError("운영 법안 요약과 리포트는 Codex 에이전트 ai-summary 경로를 사용하세요.")
         params = {"mode": mode, "provider": provider, "limit": limit, "model": model}
 
         def execute(run_id: str) -> List[Dict[str, Any]]:
@@ -376,6 +378,8 @@ class PipelineRuntime:
         provider: str = "all",
         max_jobs: int = 10,
     ) -> Dict[str, Any]:
+        if mode == "prod":
+            raise ValueError("운영 법안 요약과 리포트는 Codex 에이전트 ai-summary 경로를 사용하세요.")
         params = {"mode": mode, "provider": provider, "max_jobs": max_jobs}
 
         def execute(run_id: str) -> List[Dict[str, Any]]:
@@ -402,6 +406,8 @@ class PipelineRuntime:
         model: str | None = None,
         output_path: str = "/tmp/lawdigest_missing_summaries.json",
     ) -> Dict[str, Any]:
+        if mode == "prod":
+            raise ValueError("운영 법안 요약과 리포트는 Codex 에이전트 ai-summary 경로를 사용하세요.")
         params = {
             "mode": mode,
             "provider": provider,
@@ -446,6 +452,8 @@ class PipelineRuntime:
         read_mode: str | None = None,
         target_mode: str = "missing",
     ) -> Dict[str, Any]:
+        if mode == "prod":
+            raise ValueError("운영 법안 요약과 리포트는 Codex 에이전트 ai-summary 경로를 사용하세요.")
         total_limit = limit
         if total_limit < 1:
             raise ValueError("limit는 1 이상이어야 합니다.")
