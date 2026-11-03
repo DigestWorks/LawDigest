@@ -38,6 +38,7 @@ import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import ProposerList from '@/app/bill/[id]/components/ProposerList/ProposerList';
 import { billHeadline } from '@/lib/billHeadline';
+import { billResultLabel } from '@/lib/billStage';
 import { isoDateOnly, proposalDateLabel } from '@/lib/dataFreshness';
 import BillSource from './BillSource';
 import { getPartyColor } from '@/constants/party';
@@ -74,7 +75,7 @@ export default function Bill({
   children,
 }: BillListItem & { detail?: boolean; headingLevel?: 2 | 3; children?: ReactNode }) {
   const archived = assembly_number === 21;
-  const status = bill_result?.trim() || (archived && bill_stage ? `마지막 단계 ${bill_stage}` : bill_stage);
+  const status = billResultLabel(bill_result) || (archived && bill_stage ? `마지막 단계 ${bill_stage}` : bill_stage);
   const titleHeadingLevel = detail ? 1 : headingLevel;
   const TitleHeading = `h${titleHeadingLevel}` as const;
   const summaryHeadingLevel = (titleHeadingLevel + 1) as 2 | 3 | 4;

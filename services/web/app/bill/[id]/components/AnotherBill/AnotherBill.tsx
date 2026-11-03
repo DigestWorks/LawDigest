@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { billHeadline } from '@/lib/billHeadline';
+import { billResultLabel } from '@/lib/billStage';
 import { SimilarBill } from '@/types';
 import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
 import { getPartyLogoSrc } from '@/utils';
@@ -17,7 +18,7 @@ export default function AnotherBill({
   party,
   previous,
 }: SimilarBill & { previous?: boolean }) {
-  const status = billResult?.trim() || (previous && billStage ? `마지막 단계 ${billStage}` : billStage);
+  const status = billResultLabel(billResult) || (previous && billStage ? `마지막 단계 ${billStage}` : billStage);
   const proposers = billProposers
     ?.replace(/([가-힣])의원/g, '$1 의원')
     .replace(/의원\s*등\s*(\d+)\s*인/g, '의원 등 $1인');

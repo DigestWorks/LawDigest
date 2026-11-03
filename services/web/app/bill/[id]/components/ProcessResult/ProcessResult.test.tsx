@@ -21,6 +21,21 @@ describe('법안 처리 결과', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('복합 가결 기록을 확인이 필요한 결과로 표시한다', () => {
+    render(
+      <ProcessResult
+        bill_result="수정가결 원안가결"
+        billStage="체계자구 심사"
+        approval_count={null}
+        total_vote_count={null}
+        party_vote_list={[]}
+      />,
+    );
+    expect(screen.getByText('결과 확인 필요')).toBeInTheDocument();
+    expect(screen.queryByText('수정가결 원안가결')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it('찬성 0표를 미수집으로 취급하지 않는다', () => {
     render(<ProcessResult bill_result="부결" approval_count={0} total_vote_count={232} party_vote_list={[]} />);
     expect(screen.getByRole('img', { name: '표결 차트' })).toBeInTheDocument();
