@@ -1,7 +1,8 @@
-from dataclasses import dataclass, field
 import os
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
+
 from lawdigest_ai.rag.local_embedding import E5_DIMENSIONS, E5_MODEL_ID
 
 
@@ -13,7 +14,9 @@ class RagSettings:
     embedding_dir: str | None = None
     embedding_threads: int = 2
     dimensions: int = 1536
-    model: str = "gpt-5.4-mini"
+    codex_bin: str = "codex"
+    codex_home: str | None = None
+    codex_api_key: str = field(default="", repr=False)
     top_k: int = 5
     min_score: float = 0.35
     qdrant_url: str | None = None
@@ -47,7 +50,9 @@ class RagSettings:
             dimensions=int(
                 os.getenv("RAG_VECTOR_SIZE", str(E5_DIMENSIONS) if local else "1536")
             ),
-            model=os.getenv("RAG_MODEL", "gpt-5.4-mini"),
+            codex_bin=os.getenv("RAG_CODEX_BIN", config.CODEX_CLI_BIN),
+            codex_home=os.getenv("RAG_CODEX_HOME"),
+            codex_api_key=os.getenv("RAG_CODEX_API_KEY", ""),
             top_k=int(os.getenv("RAG_TOP_K", "5")),
             min_score=float(os.getenv("RAG_MIN_SCORE", "0.84" if local else "0.35")),
             qdrant_url=os.getenv("RAG_QDRANT_URL") or os.getenv("QDRANT_URL"),

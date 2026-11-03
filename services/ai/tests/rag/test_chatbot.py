@@ -60,10 +60,8 @@ def qa():
     build_index(
         client, embedder, settings, rows, "lawdigest_rag_v1_test", activate=True
     )
-    llm = MagicMock()
-    llm.responses.parse.return_value = SimpleNamespace(
-        status="completed",
-        output_parsed=GeneratedAnswer(
+    generator = MagicMock(
+        return_value=GeneratedAnswer(
             answerable=True,
             paragraphs=[
                 {
@@ -72,14 +70,14 @@ def qa():
                 }
             ],
             limitations=[],
-        ),
+        )
     )
     service = LawdigestionChatbot(
         settings=settings,
         repository=Repository(rows),
         vector_store=VectorStore(client=client),
         embedder=embedder,
-        llm=llm,
+        generator=generator,
     )
     yield service
     client.close()
@@ -91,10 +89,9 @@ def test_real_local_query_returns_current_evidence_and_structured_answer(qa):
     assert [s.bill_id for s in result.sources] == ["B001"]
     assert result.sources[0].detail_url == "/bill/B001"
     assert result.sources[0].excerpt in qa.repository.rows["B001"]["summary"]
-    kwargs = qa.llm.responses.parse.call_args.kwargs
-    assert kwargs["store"] is False
-    assert kwargs["text_format"] is GeneratedAnswer
-    assert kwargs["model"] == "gpt-5.4-mini"
+    _, context = qa.generator.call_args.args
+    assert context["evidence"][0]["bill_id"] == "B001"
+    assert context["question"] == "청년 주거 지원은 무엇인가요?"
 
 
 def test_assembly_filter_includes_disposed_previous_assembly_only_when_selected(qa):
@@ -136,7 +133,7 @@ def test_changed_original_is_not_sent_to_generation(qa):
     assert result.status == "insufficient_evidence"
     assert result.sources == []
     assert result.metadata.lagging is True
-    qa.llm.responses.parse.assert_not_called()
+    qa.generator.assert_not_called()
 
 
 def test_status_changes_are_hydrated_without_invalidating_unchanged_original(qa):
@@ -181,7 +178,7 @@ def test_deleted_evidence_skips_generation(qa):
     qa.repository.rows["B001"] = bill("B002")
     result = qa.answer("청년 주거 지원 내용은?")
     assert result.status == "insufficient_evidence"
-    qa.llm.responses.parse.assert_not_called()
+    qa.generator.assert_not_called()
 
 
 def test_follow_up_reads_current_original_instead_of_previous_answer(qa):
@@ -218,24 +215,13 @@ def test_follow_up_reads_current_original_instead_of_previous_answer(qa):
     ],
 )
 def test_answer_without_valid_citations_is_rejected(qa, parsed):
-    qa.llm.responses.parse.return_value.output_parsed = GeneratedAnswer.model_validate(
-        parsed
-    )
-    with pytest.raises(InvalidGrounding):
-        qa.answer("주거 지원 내용은?")
-
-
-@pytest.mark.parametrize("status,parsed", [("incomplete", None), ("completed", None)])
-def test_incomplete_or_refused_model_output_is_not_a_success(qa, status, parsed):
-    qa.llm.responses.parse.return_value = SimpleNamespace(
-        status=status, output_parsed=parsed
-    )
+    qa.generator.return_value = GeneratedAnswer.model_validate(parsed)
     with pytest.raises(InvalidGrounding):
         qa.answer("주거 지원 내용은?")
 
 
 def test_model_insufficient_evidence_is_explicit(qa):
-    qa.llm.responses.parse.return_value.output_parsed = GeneratedAnswer(
+    qa.generator.return_value = GeneratedAnswer(
         answerable=False, paragraphs=[], limitations=["시행 여부는 자료에 없습니다."]
     )
     result = qa.answer("지금 시행 중인가요?")

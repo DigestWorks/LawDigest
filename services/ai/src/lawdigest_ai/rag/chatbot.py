@@ -1,14 +1,12 @@
 """현재 원문과 연결된 근거가 있을 때만 법안 답변을 생성한다."""
 
-import json
 import re
 import time
 from collections import OrderedDict
 from datetime import date, datetime
 from urllib.parse import quote
 
-from openai import OpenAI
-
+from lawdigest_ai.rag.codex_generation import CodexAnswerGenerator
 from lawdigest_ai.rag.embedding import build_embedding_generator
 from lawdigest_ai.rag.indexing import chunk_filter, read_manifest
 from lawdigest_ai.rag.repository import BillRepository, content_hash
@@ -76,20 +74,15 @@ class LawdigestionChatbot:
         repository=None,
         vector_store=None,
         embedder=None,
-        llm=None,
+        generator=None,
     ):
         self.settings = settings or RagSettings.from_env()
         self.repository = repository or BillRepository(self.settings.db_mode)
         self.vector_store = vector_store or VectorStore(
             url=self.settings.qdrant_url, api_key=self.settings.qdrant_key
         )
-        self.llm = llm or OpenAI(
-            api_key=self.settings.openai_key,
-            base_url=self.settings.openai_base_url,
-            timeout=25,
-            max_retries=0,
-        )
-        self.embedder = embedder or build_embedding_generator(self.settings, self.llm)
+        self.generator = generator or CodexAnswerGenerator(self.settings)
+        self.embedder = embedder or build_embedding_generator(self.settings)
         self._cached_manifest = None
         self._manifest_expires = 0.0
 
@@ -232,19 +225,7 @@ class LawdigestionChatbot:
             "previous_questions": [turn.question for turn in request.history[-3:]],
             "evidence": [source.model_dump(mode="json") for source in sources],
         }
-        response = self.llm.responses.parse(
-            model=self.settings.model,
-            input=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(context, ensure_ascii=False)},
-            ],
-            text_format=GeneratedAnswer,
-            store=False,
-            max_output_tokens=1400,
-        )
-        if response.status != "completed" or response.output_parsed is None:
-            raise InvalidGrounding("완성된 구조화 답변을 확인할 수 없습니다.")
-        return GeneratedAnswer.model_validate(response.output_parsed)
+        return GeneratedAnswer.model_validate(self.generator(SYSTEM_PROMPT, context))
 
     def answer(self, request):
         if isinstance(request, str):

@@ -18,9 +18,9 @@
 python3.12 services/ai/tools/prepare_rag_embedding_model.py --output-dir /absolute/rag-models/e5-small
 ```
 
-`RAG_EMBEDDING_DIR`에 위 절대 경로를 설정한다. 질문·원문은 같은 모델 revision으로 임베딩한다. 기존 `text-embedding-3-small` 경로를 쓸 때만 `RAG_EMBEDDING_BACKEND=openai`와 그 모델·1536차원을 명시한다. 모델이나 차원을 바꾸면 새 인덱스가 필요하다. 답변 생성은 별도 OpenAI `gpt-5.4-mini` 요청이며 실제 답변 성공을 확인해야 출시할 수 있다.
+`RAG_EMBEDDING_DIR`에 위 절대 경로를 설정한다. 질문·원문은 같은 모델 revision으로 임베딩한다. 기존 `text-embedding-3-small` 경로를 쓸 때만 `RAG_EMBEDDING_BACKEND=openai`와 그 모델·1536차원을 명시한다. 모델이나 차원을 바꾸면 새 인덱스가 필요하다. 답변은 Codex CLI에서 `gpt-6.1-terra`로 생성한다. `RAG_CODEX_BIN`에 검증한 CLI 절대 경로를 설정하고 서비스 전용 `RAG_CODEX_HOME`을 인증하거나 `RAG_CODEX_API_KEY`를 비공개 파일에 설정한다. 운영 인증으로 해당 모델의 구조화 답변을 검증한 뒤 공개한다.
 
-DB 접속은 필요한 SELECT 권한의 계정을 우선 사용한다. 애플리케이션은 `SET TRANSACTION READ ONLY` 뒤 조회하고 rollback·close한다. 질문·답변은 서비스 DB·앱 로그·브라우저 영구 저장소에 저장하지 않으며 OpenAI Responses 호출은 `store=False`다. 제공자의 API 데이터 취급 정책은 별도로 적용된다.
+DB 접속은 필요한 SELECT 권한의 계정을 우선 사용한다. 애플리케이션은 `SET TRANSACTION READ ONLY` 뒤 조회하고 rollback·close한다. 질문·답변은 서비스 DB·앱 로그·브라우저 영구 저장소에 저장하지 않으며 Codex는 일시 세션과 임시 작업 디렉터리를 사용한다. 서비스의 DB·Qdrant 자격 증명은 Codex 프로세스에 전달하지 않는다. 제공자의 API 데이터 취급 정책은 별도로 적용된다.
 
 ## 전체 인덱스 준비와 승인
 
@@ -69,7 +69,7 @@ RAG_PYTHON_BIN=/absolute/python3.12 RAG_ENV_FILE=/absolute/private/rag.env \
 
 ## 검증 근거
 
-- [OpenAI 구조화 출력](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [Codex CLI 비대화식 실행](https://learn.chatgpt.com/docs/non-interactive-mode)
 - [Qdrant 1.15 query points](https://api.qdrant.tech/v-1-15-x/api-reference/search/query-points)
 - [shadcn MessageScroller](https://ui.shadcn.com/docs/components/radix/message-scroller)
 

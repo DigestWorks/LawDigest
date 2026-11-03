@@ -91,7 +91,7 @@ def test_real_cpu_embedding_and_local_qdrant_retrieve_current_korean_source():
             repository=Repository(rows),
             vector_store=VectorStore(client=client),
             embedder=embedder,
-            llm=MagicMock(),
+            generator=MagicMock(),
         )
         sources, stale = service._retrieve(
             QuestionRequest(
