@@ -1,3 +1,4 @@
+import type { MouseEventHandler } from 'react';
 import { Button } from '@/components/ui/button';
 
 export function SectionError({
@@ -6,7 +7,7 @@ export function SectionError({
   pending,
 }: {
   message: string;
-  onRetry: () => void;
+  onRetry: MouseEventHandler<HTMLButtonElement>;
   pending: boolean;
 }) {
   return (
