@@ -115,8 +115,10 @@ export default function Bill({
   }, [bill_id, detail]);
   const detailViewCount = observedView?.id === bill_id ? observedView.count : view_count;
 
-  const [isLiked, setIsLiked] = useState(is_book_mark);
-  const [likeCount, setLikeCount] = useState(bill_like_count);
+  const [hasDetailSession, setHasDetailSession] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (detail) setHasDetailSession(Boolean(getCookie(ACCESS_TOKEN)));
+  }, [detail, bill_id]);
   const mutateBookmark = usePatchBookmark(bill_id);
   const [toggleMore, setToggleMore] = useState(false);
   const summaryId = useId();
@@ -128,11 +130,20 @@ export default function Bill({
   const officialName = billHeadline(bill_name);
   const headline = billHeadline(bill_name, aiSummary ? title : null);
   const loadOriginalSummary = !aiSummary && !summary?.trim() && Boolean(has_original_summary);
+  const checkBookmark = Boolean(detail && hasDetailSession);
   const detailQuery = useQuery({
-    ...billDetailQueryOptions(bill_id),
-    enabled: (proposersOpen && !public_proposer_dto_list) || (toggleMore && loadOriginalSummary),
+    ...billDetailQueryOptions(bill_id, checkBookmark),
+    enabled: checkBookmark || (proposersOpen && !public_proposer_dto_list) || (toggleMore && loadOriginalSummary),
     retry: false,
   });
+  const accountBill = checkBookmark ? detailQuery.data?.data : undefined;
+  const isLiked = accountBill?.is_book_mark ?? is_book_mark;
+  const likeCount = accountBill?.bill_info_dto.bill_like_count ?? bill_like_count;
+  const bookmarkChecking = Boolean(
+    detail && (hasDetailSession === null || (checkBookmark && !accountBill && detailQuery.isFetching)),
+  );
+  const needsBookmarkCheck = checkBookmark && !accountBill;
+  const bookmarkLabel = needsBookmarkCheck && detailQuery.isError ? '법안 스크랩 상태 다시 확인' : '법안 스크랩';
   const proposerList = public_proposer_dto_list ?? detailQuery.data?.data?.public_proposer_dto_list;
   const isGovernmentProposer = isGovernmentBill({
     proposerKind: proposer_kind,
@@ -198,24 +209,27 @@ export default function Bill({
     setToggleMore(!toggleMore);
   }, [toggleMore]);
 
-  const onClickScrab = useCallback(() => {
-    const accessToken = getCookie(ACCESS_TOKEN);
-
-    if (accessToken) {
-      setIsLiked(!isLiked);
-      setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
-      setSnackbar({
-        show: true,
-        type: isLiked ? 'CANCEL' : 'SUCCESS',
-        message: isLiked ? '해당 법안의 스크랩을 취소했습니다.' : '해당 법안을 스크랩했습니다.',
-        duration: 3000,
-      });
-
-      mutateBookmark.mutate(!isLiked);
-    } else {
+  const onClickScrab = () => {
+    if (!getCookie(ACCESS_TOKEN)) {
       setSnackbar({ show: true, type: 'ERROR', message: '로그인이 필요한 서비스입니다.', duration: 3000 });
+      return;
     }
-  }, [isLiked, likeCount, setSnackbar]);
+    if (needsBookmarkCheck) {
+      void detailQuery.refetch();
+      return;
+    }
+    mutateBookmark.mutate(!isLiked, {
+      onSuccess: (bookmarked) =>
+        setSnackbar({
+          show: true,
+          type: bookmarked ? 'SUCCESS' : 'CANCEL',
+          message: bookmarked ? '해당 법안을 스크랩했습니다.' : '해당 법안의 스크랩을 취소했습니다.',
+          duration: 3000,
+        }),
+      onError: () =>
+        setSnackbar({ show: true, type: 'ERROR', message: '스크랩을 변경하지 못했습니다.', duration: 3000 }),
+    });
+  };
 
   const handleCopyClipBoard = useCallback(() => {
     copyClipBoard(`${process.env.NEXT_PUBLIC_DOMAIN}/bill/${bill_id}`);
@@ -475,10 +489,11 @@ export default function Bill({
                       variant="ghost"
                       size="icon"
                       className="size-9 p-0"
-                      aria-label="법안 스크랩"
-                      aria-pressed={isLiked}
+                      aria-label={bookmarkLabel}
+                      aria-pressed={bookmarkChecking || needsBookmarkCheck ? undefined : isLiked}
+                      disabled={bookmarkChecking || mutateBookmark.isPending}
                       onClick={onClickScrab}>
-                      <IconScrabSmall isActive={isLiked} />
+                      <IconScrabSmall isActive={isLiked && !bookmarkChecking && !needsBookmarkCheck} />
                     </ActionButton>
                     <span className="mr-2">스크랩</span>
                     <span>{likeCount}</span>
@@ -517,10 +532,11 @@ export default function Bill({
                       variant="ghost"
                       size="icon"
                       className="size-9 p-0"
-                      aria-label="법안 스크랩"
-                      aria-pressed={isLiked}
+                      aria-label={bookmarkLabel}
+                      aria-pressed={bookmarkChecking || needsBookmarkCheck ? undefined : isLiked}
+                      disabled={bookmarkChecking || mutateBookmark.isPending}
                       onClick={onClickScrab}>
-                      <IconScrabSmall isActive={isLiked} />
+                      <IconScrabSmall isActive={isLiked && !bookmarkChecking && !needsBookmarkCheck} />
                     </ActionButton>
                     <span className="mr-2">스크랩</span>
                     <span>{likeCount}</span>
