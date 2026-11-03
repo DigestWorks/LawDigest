@@ -56,7 +56,7 @@ export default function ProcessResult({
   return (
     <Card className="border border-border p-5 shadow-none">
       <CardHeader className="justify-center">
-        <h4 className="text-lg font-semibold">{result}</h4>
+        <p className="text-lg font-semibold">{result}</p>
       </CardHeader>
       <CardBody className="flex flex-col items-center gap-4 p-0 text-center">
         {!voted && (

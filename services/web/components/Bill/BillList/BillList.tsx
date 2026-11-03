@@ -10,6 +10,7 @@ export default function BillList({
   isFetching,
   fetchRef,
   detail,
+  headingLevel,
   hasNextPage = false,
   onLoadMore,
   error = false,
@@ -18,6 +19,7 @@ export default function BillList({
   isFetching: boolean;
   fetchRef: RefObject<HTMLDivElement | null>;
   detail?: boolean;
+  headingLevel?: 2 | 3;
   hasNextPage?: boolean;
   onLoadMore?: () => void;
   error?: boolean;
@@ -27,7 +29,7 @@ export default function BillList({
   return (
     <section className="max-w-full xl:w-[840px] pb-28">
       {uniqueBills.map((bill) => (
-        <Bill key={bill.bill_info_dto.bill_id} {...bill} detail={detail} />
+        <Bill key={bill.bill_info_dto.bill_id} {...bill} detail={detail} headingLevel={headingLevel} />
       ))}
       {isFetching && (
         <div className="flex justify-center w-full my-4" role="status" aria-label="법안 불러오는 중">

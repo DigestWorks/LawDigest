@@ -70,7 +70,7 @@ export default function NotificationItem({
           <Link href={linkUrl} onClick={() => onClickRead(notification_id, false)}>
             <p className="text-xs font-bold md:text-base ">
               {title} &nbsp;
-              <span className="text-[10px] md:text-sm font-medium text-gray-2 dark:text-gray-3">
+              <span className="text-[10px] md:text-sm font-medium text-gray-2 dark:text-muted-foreground">
                 {getTimeRemaining(created_date)}
               </span>
             </p>

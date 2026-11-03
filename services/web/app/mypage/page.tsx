@@ -23,11 +23,17 @@ export default function MyPage() {
   }, [setSnackbar]);
 
   if (!accessToken)
-    return <div className="flex items-center justify-center h-full [140px] md:mt-[180px]">회원 정보가 없습니다.</div>;
+    return (
+      <section className="flex items-center justify-center h-full [140px] md:mt-[180px]">
+        <h1 className="sr-only">마이페이지</h1>
+        <p>회원 정보가 없습니다.</p>
+      </section>
+    );
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="flex flex-col h-full gap-8 lg:flex-row md:items-center lg:items-start lg:justify-center lg:mt-10 lg:mx-auto lg:ml-10 xl:ml-0">
+        <h1 className="sr-only">마이페이지</h1>
         <UserInfo queryClient={queryClient} />
         <div className="flex flex-col h-full gap-8">
           <PartyList qeuryClient={queryClient} />

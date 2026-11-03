@@ -55,14 +55,14 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
         <PartyLogo party_name={party_name} party_img_url={party_img_url} />
 
         <div className="flex flex-col items-center gap-1">
-          <h2 className="text-2xl font-semibold">{party_name}</h2>
+          <h1 className="text-2xl font-semibold">{party_name}</h1>
           {parliamentary_rank && <p className="text-sm text-muted-foreground">의석 기준 원내 {parliamentary_rank}위</p>}
         </div>
 
         <div className="text-sm">
           <p>
             의석수: {partySeats}석 / {total_congressman_count}석{' '}
-            {seatRatio !== null && <span className="text-gray-2 dark:text-gray-3">{seatRatio}%</span>}
+            {seatRatio !== null && <span className="text-gray-2 dark:text-muted-foreground">{seatRatio}%</span>}
           </p>
           <p>
             지역구 {district_congressman_count}석, 비례대표 {proportional_congressman_count}석

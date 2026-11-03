@@ -49,7 +49,7 @@ export default async function CongressmanDetail({ congressmanId }: { congressman
         />
 
         <div className="flex flex-col justify-between py-3 w-[65%] items-end text-right">
-          <h3 className="text-2xl font-semibold">{congressman_name} 의원</h3>
+          <h1 className="text-2xl font-semibold">{congressman_name} 의원</h1>
           <p className="text-sm text-gray-2">
             {district} {elected}
           </p>
@@ -76,25 +76,25 @@ export default async function CongressmanDetail({ congressmanId }: { congressman
 
         <div className="w-full ml-3 ">
           <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-gray-2 dark:text-gray-3 shrink-0">나이</p>
+            <p className="font-medium text-gray-2 dark:text-muted-foreground shrink-0">나이</p>
             <p className="text-sm font-medium dark:text-gray-1 w-[80%] break-words text-end">
               {age ? `${age} 세` : '-'}
             </p>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-gray-2 dark:text-gray-3 shrink-0">성별</p>
+            <p className="font-medium text-gray-2 dark:text-muted-foreground shrink-0">성별</p>
             <p className="text-sm font-medium dark:text-gray-1 w-[80%] break-words text-end">{gender || '-'}</p>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-gray-2 dark:text-gray-3 shrink-0">번호</p>
+            <p className="font-medium text-gray-2 dark:text-muted-foreground shrink-0">번호</p>
             <p className="text-sm font-medium dark:text-gray-1 w-[80%] break-words text-end">{telephone || '-'}</p>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-gray-2 dark:text-gray-3 shrink-0">이메일</p>
+            <p className="font-medium text-gray-2 dark:text-muted-foreground shrink-0">이메일</p>
             <p className="w-[80%] text-sm font-medium break-words dark:text-gray-1 text-end">{email || '-'}</p>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="font-medium text-gray-2 dark:text-gray-3 shrink-0">의원실</p>
+            <p className="font-medium text-gray-2 dark:text-muted-foreground shrink-0">의원실</p>
             <p className="text-sm font-medium break-words dark:text-gray-1 w-[80%] text-end">{office || '-'}</p>
           </div>
         </div>
@@ -123,7 +123,7 @@ export default async function CongressmanDetail({ congressmanId }: { congressman
               endContent={<IconWeb />}
               variant="bordered"
               radius="full"
-              className="w-[135px] h-8 text-gray-2 mx-auto border-gray-1 dark:border-gray-2 dark:text-gray-3">
+              className="w-[135px] h-8 text-gray-2 mx-auto border-gray-1 dark:border-gray-2 dark:text-muted-foreground">
               홈페이지 방문
             </Button>
           </div>

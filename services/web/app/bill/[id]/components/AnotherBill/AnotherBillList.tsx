@@ -39,10 +39,10 @@ export default function AnotherBillList({ bill_info_dto, similar_bills = [], sim
     });
   return (
     <section className="flex flex-col gap-4 lg:gap-6">
-      <h3 className="text-xl font-semibold">
+      <h2 className="text-xl font-semibold">
         {bill_info_dto.bill_name}의 다른 개정안{' '}
         <span className="text-muted-foreground">{count.toLocaleString()}건</span>
-      </h3>
+      </h2>
       {count === 0 && <p className="text-sm text-muted-foreground">관련된 다른 개정안이 없습니다.</p>}
       {bills.map((bill) => (
         <AnotherBill key={bill.billId} {...bill} />

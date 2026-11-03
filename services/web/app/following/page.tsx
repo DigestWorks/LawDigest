@@ -24,7 +24,12 @@ export default function Following() {
   }, [setSnackbar]);
 
   if (!accessToken)
-    return <div className="flex items-center justify-center h-full [140px] md:mt-[180px]">팔로잉 정보가 없습니다.</div>;
+    return (
+      <section className="flex items-center justify-center h-full [140px] md:mt-[180px]">
+        <h1 className="sr-only">팔로잉</h1>
+        <p>팔로잉 정보가 없습니다.</p>
+      </section>
+    );
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

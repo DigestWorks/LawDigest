@@ -147,9 +147,9 @@ export default function NotificationList() {
       <div className="mb-[18px] ml-3">
         <div className="flex justify-between items-center">
           {notificationCount?.notification_count === 0 ? (
-            <p className="text-sm md:text-base text-gray-2 dark:text-gray-3">알림이 없습니다.</p>
+            <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">알림이 없습니다.</p>
           ) : (
-            <p className="text-sm md:text-base text-gray-2 dark:text-gray-3">
+            <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">
               <span className="text-black dark:text-gray-2">{notificationCount?.notification_count}개</span>의 읽지 않은
               알림이 있습니다.
             </p>
@@ -177,7 +177,7 @@ export default function NotificationList() {
         <div className="flex flex-col gap-3 md:gap-4">
           {notifications &&
             (listByDateStatus[0].length === 0 ? (
-              <p className="text-sm md:text-base text-gray-2 dark:text-gray-3">지난 한 주 알림이 없습니다.</p>
+              <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">지난 한 주 알림이 없습니다.</p>
             ) : (
               listByDateStatus[0].map((notification) => (
                 <NotificationItem
@@ -196,7 +196,7 @@ export default function NotificationList() {
         <div className="flex flex-col gap-3 md:gap-4">
           {notifications &&
             (listByDateStatus[1].length === 0 ? (
-              <p className="text-sm md:text-base text-gray-2 dark:text-gray-3">지난 한 달 알림이 없습니다.</p>
+              <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">지난 한 달 알림이 없습니다.</p>
             ) : (
               listByDateStatus &&
               listByDateStatus[1].map((notification) => (
@@ -216,7 +216,7 @@ export default function NotificationList() {
         <div className="flex flex-col gap-3 md:gap-4">
           {notifications &&
             (listByDateStatus[2].length === 0 ? (
-              <p className="text-sm md:text-base text-gray-2 dark:text-gray-3">지난 알림이 없습니다.</p>
+              <p className="text-sm md:text-base text-gray-2 dark:text-muted-foreground">지난 알림이 없습니다.</p>
             ) : (
               listByDateStatus &&
               listByDateStatus[2].map((notification) => (

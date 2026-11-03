@@ -80,6 +80,7 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
           {billEnabled && (
             <BillList
               bills={bills}
+              headingLevel={3}
               isFetching={bill.isPending || bill.isFetchingNextPage}
               fetchRef={fetchRef}
               hasNextPage={bill.hasNextPage}

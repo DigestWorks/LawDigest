@@ -32,7 +32,7 @@ export default async function UserInfo({ queryClient }: { queryClient: QueryClie
               <LogoutButton />
             </div>
           </div>
-          <p className="text-[#999999] text-xs dark:text-gray-2">{user_email}</p>
+          <p className="text-muted-foreground text-xs">{user_email}</p>
         </div>
       </div>
     </section>

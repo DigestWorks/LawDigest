@@ -67,8 +67,12 @@ export default function Bill({
   public_proposer_count,
   has_original_summary,
   detail,
+  headingLevel = 2,
   children,
-}: BillListItem & { detail?: boolean; children?: ReactNode }) {
+}: BillListItem & { detail?: boolean; headingLevel?: 2 | 3; children?: ReactNode }) {
+  const titleHeadingLevel = detail ? 1 : headingLevel;
+  const TitleHeading = `h${titleHeadingLevel}` as const;
+  const summaryHeadingLevel = (titleHeadingLevel + 1) as 2 | 3 | 4;
   const trackedBill = useRef<string | null>(null);
   const [observedView, setObservedView] = useState<{ id: string; count: number } | null>(null);
   useEffect(() => {
@@ -271,26 +275,26 @@ export default function Bill({
         onClick={(e) => {
           if (!isRepresentativeSolo) e.preventDefault();
         }}>
-        <h3 className="font-medium">
+        <span className="font-medium">
           {isRepresentativeSolo
             ? `${representative_proposer_dto_list[0].representative_proposer_name} 의원`
             : `${representative_proposer_dto_list
                 .map(({ representative_proposer_name }) => representative_proposer_name)
                 .join('·')} 의원`}
-        </h3>
+        </span>
       </Link>
 
       <Popover placement="bottom" showArrow shouldCloseOnScroll={false} onOpenChange={setProposersOpen}>
         <PopoverTrigger>
           <Button aria-label={`발의자 명단 보기 (${proposerCount}인)`} className="p-0 m-0 bg-transparent h-min">
             <Tooltip showArrow content="발의자 명단 보기">
-              <h4 className="text-xs text-gray-2">
+              <span className="text-xs text-muted-foreground">
                 {isRepresentativeSolo
                   ? `${representative_proposer_dto_list[0].representative_proposer_name} 의원 등 ${proposerCount}인`
                   : `${representative_proposer_dto_list
                       .map(({ representative_proposer_name }) => representative_proposer_name)
                       .join('·')} 의원 등 ${proposerCount}인`}
-              </h4>
+              </span>
             </Tooltip>
           </Button>
         </PopoverTrigger>
@@ -336,16 +340,16 @@ export default function Bill({
   if (isGovernmentProposer) {
     proposerIdentityContent = (
       <>
-        <h3 className="font-medium">대한민국 정부</h3>
-        <h4 className="text-xs text-gray-2">{getGovernmentAdministrationName(propose_date)}</h4>
+        <span className="font-medium">대한민국 정부</span>
+        <span className="text-xs text-muted-foreground">{getGovernmentAdministrationName(propose_date)}</span>
       </>
     );
   } else if (chairmanProposerInfo) {
     proposerIdentityContent = (
       <>
-        <h3 className="font-medium">{chairmanProposerInfo.proposerTitle}</h3>
+        <span className="font-medium">{chairmanProposerInfo.proposerTitle}</span>
         {chairmanProposerInfo.committeeName && (
-          <h4 className="text-xs text-gray-2">{chairmanProposerInfo.committeeName}</h4>
+          <span className="text-xs text-muted-foreground">{chairmanProposerInfo.committeeName}</span>
         )}
       </>
     );
@@ -366,11 +370,11 @@ export default function Bill({
             </time>
           )}
 
-          <h2 className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>{title?.trim() || bill_name}</h2>
+          <TitleHeading className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>
+            {title?.trim() || bill_name}
+          </TitleHeading>
 
-          {title?.trim() && title.trim() !== bill_name && (
-            <h3 className="text-sm text-muted-foreground">{bill_name}</h3>
-          )}
+          {title?.trim() && title.trim() !== bill_name && <p className="text-sm text-muted-foreground">{bill_name}</p>}
 
           {hot_activity && (
             <p className="text-xs text-muted-foreground">
@@ -402,7 +406,7 @@ export default function Bill({
                 {proposalDateLabel(propose_date)}
               </time>
               <Chip
-                className="text-xs bg-transparent text-gray-2 border-gray-1 dark:border-gray-3 dark:text-gray-3 border-1"
+                className="text-xs bg-transparent text-muted-foreground border-border border-1"
                 size="sm"
                 variant="bordered"
                 radius="sm">
@@ -423,6 +427,7 @@ export default function Bill({
                     className={summaryContentClassName}
                     style={summaryAccentStyle}
                     markdown={displayedSummary}
+                    sectionLevel={summaryHeadingLevel}
                   />
                 )}
                 {loadOriginalSummary && toggleMore && !displayedSummary && originalSummaryState}
@@ -443,23 +448,30 @@ export default function Bill({
             {!detail && (
               <CardFooter className="flex items-center justify-between p-0 mt-5 -ml-1">
                 <div className="flex gap-2">
-                  <div className="flex items-center text-sm text-gray-3">
-                    <Button isIconOnly size="sm" className="p-0 bg-transparent" onClick={onClickScrab}>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <ActionButton
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9 p-0"
+                      aria-label="법안 스크랩"
+                      aria-pressed={isLiked}
+                      onClick={onClickScrab}>
                       <IconScrabSmall isActive={isLiked} />
-                    </Button>
-                    <h4 className="mr-2">스크랩</h4>
-                    <h4>{likeCount}</h4>
+                    </ActionButton>
+                    <span className="mr-2">스크랩</span>
+                    <span>{likeCount}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-3">
-                    <h4 className="mr-2">조회수</h4>
-                    <h4>{view_count}</h4>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <span className="mr-2">조회수</span>
+                    <span>{view_count}</span>
                   </div>
                   <Tooltip content="링크 복사하기" className="dark:text-white">
                     <Button
                       isIconOnly
                       size="sm"
                       className="bg-transparent"
-                      aria-label="Export Button"
+                      aria-label="법안 링크 복사"
                       onClick={handleCopyClipBoard}>
                       <IconExport />
                     </Button>
@@ -475,20 +487,32 @@ export default function Bill({
             {detail && (
               <CardFooter className="flex items-center justify-between p-0 mt-10">
                 <div className="flex gap-4">
-                  <div className="flex items-center text-sm text-gray-2">
-                    <Button isIconOnly size="sm" className="p-0 bg-transparent" onClick={onClickScrab}>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <ActionButton
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-9 p-0"
+                      aria-label="법안 스크랩"
+                      aria-pressed={isLiked}
+                      onClick={onClickScrab}>
                       <IconScrabSmall isActive={isLiked} />
-                    </Button>
-                    <h4 className="mr-2">스크랩</h4>
-                    <h4>{likeCount}</h4>
+                    </ActionButton>
+                    <span className="mr-2">스크랩</span>
+                    <span>{likeCount}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-2">
-                    <h4 className="mr-2">조회수</h4>
-                    <h4>{detailViewCount}</h4>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <span className="mr-2">조회수</span>
+                    <span>{detailViewCount}</span>
                   </div>
                 </div>
                 <Tooltip content="링크 복사하기">
-                  <Button isIconOnly size="sm" className="bg-transparent" onClick={handleCopyClipBoard}>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    className="bg-transparent"
+                    aria-label="법안 링크 복사"
+                    onClick={handleCopyClipBoard}>
                     <IconExport />
                   </Button>
                 </Tooltip>

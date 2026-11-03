@@ -51,15 +51,15 @@ export default function FollowBoard({
       <div className="grid grid-cols-3 gap-10">
         <div className="flex flex-col items-center gap-[10px]">
           <p className="text-2xl font-semibold">{followCount}</p>
-          <p className="text-sm font-medium text-gray-2 dark:text-gray-3">팔로워</p>
+          <p className="text-sm font-medium text-gray-2 dark:text-muted-foreground">팔로워</p>
         </div>
         <div className="flex flex-col items-center gap-[10px]">
           <p className="text-2xl font-semibold"> {representative_bill_count}</p>
-          <p className="text-sm font-medium text-gray-2 dark:text-gray-3">대표발의법안</p>
+          <p className="text-sm font-medium text-gray-2 dark:text-muted-foreground">대표발의법안</p>
         </div>
         <div className="flex flex-col items-center gap-[10px]">
           <p className="text-2xl font-semibold"> {public_bill_count}</p>
-          <p className="text-sm font-medium text-gray-2 dark:text-gray-3">공동발의법안</p>
+          <p className="text-sm font-medium text-gray-2 dark:text-muted-foreground">공동발의법안</p>
         </div>
       </div>
 
