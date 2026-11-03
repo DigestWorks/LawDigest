@@ -1,0 +1,163 @@
+# 모두의입법 5단계 운영 검증 체크리스트
+
+운영에서 통과를 확인한 blocker와 major는 현재 0건이며, 이 문서에서 감사 항목별 결과를 기록한다.
+
+- 감사 원문의 blocker 16건과 major 118건을 ID로 연결했다. 각 항목의 원문에는 재현 조건, 영향, 수정안이 있다.
+- 운영 재현은 결함이 현재 운영에서 남아 있음을 뜻한다. 부분 확인은 일부 증거만 확보했다는 뜻이다. 통과는 수정 배포 이후 대상 환경에서 전체 재현 절차를 다시 확인하고 근거를 기록할 때 적용한다.
+- 운영 점검 날짜는 2026-11-03 KST다. PR과 로컬 프로덕션 결과는 구현 근거로 관리한다. [승인된 인수인계 절차](2026-11-02-handoff.md)
+
+## 운영 완료 조건
+
+| 조건 | 현재 근거 |
+| --- | --- |
+| blocker·major 전 항목 운영 통과 | 아래 134건을 개별 확인한다. 검증 통과 기록은 0건이다. |
+| 최신 발의일과 오늘의 차이 2일 이내 | 운영 공개 피드 첫 3건은 모두 2026-07-09 발의다. 공개 freshness 경로는 HTTP 401이었다. 전체 수집 기준일은 배포 후 확인한다. |
+| 데이터 파이프라인 timer 7일 연속 성공 | 서버의 systemd 시스템 timer 목록과 등록 목록에 해당 작업이 없다. 등록 승인과 이후 7일 실행 기록이 필요하다. |
+| 실제 계정의 로그인과 30분 후 재요청 | 사용자 화면에서 Google redirect_uri_mismatch가 발생했다. 운영 API가 보내는 콜백은 `https://api.lawdigest.kr/v1/login/oauth2/code/google`이다. [#156](https://github.com/DigestWorks/LawDigest/issues/156) |
+| 스크랩·팔로우·알림·탈퇴 | 실제 계정 검증 대기. 탈퇴 실행 전에 별도 승인을 받는다. |
+| README 세 개와 운영 런북 | 운영 배포와 스케줄 확인 후 루트·웹·백엔드 README 및 실제 운영 런북을 대조한다. |
+| 잔여 minor 수용과 최종 보고 | 운영 검증 결과가 모이면 사용자에게 남은 항목을 제시한다. |
+
+## Blocker 16건
+
+| 항목 | 운영 검증 상태 | 현재 근거 |
+| --- | --- | --- |
+| [FEED-01](2026-11-02-ux-polish-findings.md?plain=1#L283) 리포트 탭과 법안 탭이 같은 목록을 보여 준다 | 대기 |  |
+| [FEED-02](2026-11-02-ux-polish-findings.md?plain=1#L292) 피드 최신 법안이 4개월 전(2026-07-09)에 멈춰 있다 | 운영 재현 | 11월 3일 공개 피드 첫 3건 모두 2026-07-09 발의 |
+| [DETAIL-01](2026-11-02-ux-polish-findings.md?plain=1#L608) 심사 진행 단계가 체계자구 심사·정부이송·철회 법안에서 '위원회 심사'로 잘못 표시되고 단계명에 오타가 있음 | 대기 |  |
+| [TIMELINE-01](2026-11-02-ux-polish-findings.md?plain=1#L907) 타임라인 최신 날짜가 2026-03-27에 멈춰 있다 (단계 동기화 파이프라인 중단) | 대기 |  |
+| [SEARCH-01](2026-11-02-ux-polish-findings.md?plain=1#L1451) 법안 검색 결과가 첫 5건에서 멈추고 더 불러오지 않음 | 대기 |  |
+| [SEARCH-02](2026-11-02-ux-polish-findings.md?plain=1#L1460) 1글자 검색어가 서버 500과 전체 페이지 오류로 이어짐 | 대기 |  |
+| [SEARCH-03](2026-11-02-ux-polish-findings.md?plain=1#L1469) 특수문자가 들어간 검색어가 FULLTEXT 문법 오류로 500 | 대기 |  |
+| [SEARCH-04](2026-11-02-ux-polish-findings.md?plain=1#L1478) 검색 모달 입력창의 지우기(X) 버튼이 404 페이지로 이동 | 대기 |  |
+| [PROFILE-01](2026-11-02-ux-polish-findings.md?plain=1#L1723) 대표/공동발의 탭이 법안 3건만 보여 주고 더 불러올 수 없다 | 대기 |  |
+| [ACCOUNT-01](2026-11-02-ux-polish-findings.md?plain=1#L1986) 토큰 재발급 인터셉터가 컴포넌트 밖에서 useRouter를 호출해 401 처리 전체가 실패한다 | 대기 |  |
+| [ACCOUNT-09](2026-11-02-ux-polish-findings.md?plain=1#L1995) 개인정보처리방침과 이용약관이 없다 | 대기 |  |
+| [TRUST-01](2026-11-02-ux-polish-findings.md?plain=1#L2249) 데이터 기준일이 어디에도 없고, 4개월 공백이 최신 정보처럼 보인다 | 대기 |  |
+| [TRUST-02](2026-11-02-ux-polish-findings.md?plain=1#L2258) 가결된 법안 대부분에서 처리 결과 차트가 숫자 없이 '원안가결 / 300'으로 깨진다 | 대기 |  |
+| [TRUST-03](2026-11-02-ux-polish-findings.md?plain=1#L2267) 처리 단계가 '체계자구 심사'·'정부이송'·'철회'인 법안의 현재 단계가 '위원회 심사'로 잘못 표시되고, 단계명에 오타가 있다 | 대기 |  |
+| [A11Y-01](2026-11-02-ux-polish-findings.md?plain=1#L2485) 법안 요약 본문 전체가 role=button + aria-label로 감싸져 스크린리더가 요약 내용을 읽지 못함 | 대기 |  |
+| [A11Y-02](2026-11-02-ux-polish-findings.md?plain=1#L2494) 다크 모드에서 피드 콘텐츠 탭(리포트·법안·팔로잉) 글자가 배경과 같은 색이 되어 사라짐 | 대기 |  |
+
+## Major 118건
+
+| 항목 | 운영 검증 상태 | 현재 근거 |
+| --- | --- | --- |
+| [SHELL-01](2026-11-02-ux-polish-findings.md?plain=1#L11) 검색어 지우기(x) 버튼이 존재하지 않는 /search 경로로 이동해 404가 뜬다 | 대기 |  |
+| [SHELL-02](2026-11-02-ux-polish-findings.md?plain=1#L20) 데스크톱의 피드·타임라인·탐색·마이페이지에 검색 진입점이 없다 | 대기 |  |
+| [SHELL-03](2026-11-02-ux-polish-findings.md?plain=1#L29) 모바일 검색 FAB가 대화형 질의응답을 약속하지만 실제로는 키워드 검색이라 엉뚱한 결과가 나온다 | 대기 |  |
+| [SHELL-04](2026-11-02-ux-polish-findings.md?plain=1#L38) 회원탈퇴 기능이 어떤 화면에서도 도달할 수 없다 | 대기 |  |
+| [SHELL-05](2026-11-02-ux-polish-findings.md?plain=1#L47) 푸터가 없어 서비스 소개, 데이터 출처, 문의, 이용약관, 개인정보처리방침에 접근할 수 없다 | 대기 |  |
+| [SHELL-07](2026-11-02-ux-polish-findings.md?plain=1#L56) 탐색 화면 아이콘 3개를 위해 4MB Material Symbols 폰트를 모든 페이지에서 render-blocking으로 불러온다 | 부분 확인 | 운영 탐색 HTML에서 전역 Material Symbols 스타일시트와 리가처 3개 확인 |
+| [SHELL-08](2026-11-02-ux-polish-findings.md?plain=1#L65) 페이지 제목에 '타임라인 페이지' 같은 잔재가 남아 있고 사이트 이름이 붙지 않으며 공유 미리보기가 모두 홈과 같다 | 대기 |  |
+| [SHELL-09](2026-11-02-ux-polish-findings.md?plain=1#L74) 존재하지 않는 법안·의원·정당 URL이 404가 아니라 HTTP 200과 '페이지가 작동하지 않습니다' 오류 화면을 낸다 | 대기 |  |
+| [SHELL-10](2026-11-02-ux-polish-findings.md?plain=1#L83) 전역 loading 화면이 'AI 기반 입법정보 제공 플랫폼' 문구와 큰 로고로 모든 페이지 전환을 덮고 헤더 구성까지 바뀐다 | 대기 |  |
+| [SHELL-12](2026-11-02-ux-polish-findings.md?plain=1#L92) 모바일 플로팅 내비에 다크 모드 스타일이 없어 어두운 화면 위에 밝은 유리판이 뜬다 | 대기 |  |
+| [SHELL-13](2026-11-02-ux-polish-findings.md?plain=1#L101) 모바일 플로팅 내비 최소 폭이 374px이라 360~390px 기기에서 좌우 여백이 사라지고 360px에서는 잘린다 | 대기 |  |
+| [SHELL-15](2026-11-02-ux-polish-findings.md?plain=1#L110) 아이콘 전용 컨트롤에 접근 가능한 이름이 없고 일부는 href="#" 링크로 구현돼 있으며 포커스 표시가 제거돼 있다 | 대기 |  |
+| [SHELL-16](2026-11-02-ux-polish-findings.md?plain=1#L119) robots.txt와 sitemap.xml이 없다 | 운영 재현 | 11월 3일 운영 웹 robots.txt와 sitemap.xml 모두 HTTP 404 |
+| [FEED-03](2026-11-02-ux-polish-findings.md?plain=1#L300) 피드에 데이터 최신성 표시가 없고 날짜가 원시 ISO 형식이다 | 대기 |  |
+| [FEED-04](2026-11-02-ux-polish-findings.md?plain=1#L309) 하이드레이션 직후 목록을 비우고 다시 불러와 빈 화면과 스피너가 뜬다 | 대기 |  |
+| [FEED-05](2026-11-02-ux-polish-findings.md?plain=1#L318) 서버 prefetch 결과를 dehydrate 하지 않아 요청이 중복된다 | 대기 |  |
+| [FEED-06](2026-11-02-ux-polish-findings.md?plain=1#L327) 법안 상세에서 뒤로 오면 탭·정렬·필터·스크롤 위치가 모두 초기화된다 | 대기 |  |
+| [FEED-07](2026-11-02-ux-polish-findings.md?plain=1#L336) 단계 필터 값이 queryKey에 없어 캐시가 섞이고 전환이 느리다 | 대기 |  |
+| [FEED-08](2026-11-02-ux-polish-findings.md?plain=1#L345) 피드에 오류 상태와 빈 상태가 없다 | 대기 |  |
+| [FEED-09](2026-11-02-ux-polish-findings.md?plain=1#L354) 페이지 크기가 3건이라 첫 화면과 스크롤 로딩이 잦다 | 대기 |  |
+| [FEED-10](2026-11-02-ux-polish-findings.md?plain=1#L363) 요약 본문 전체가 role=button 이라 스크린리더가 요약 내용을 읽지 못한다 | 대기 |  |
+| [FEED-12](2026-11-02-ux-polish-findings.md?plain=1#L372) 다크 모드에서 콘텐츠 탭(리포트·법안·팔로잉) 글자가 보이지 않는다 | 대기 |  |
+| [FEED-13](2026-11-02-ux-polish-findings.md?plain=1#L381) 카드 보조 텍스트와 '자세히 보기' 버튼 대비가 WCAG AA에 못 미친다 | 대기 |  |
+| [FEED-14](2026-11-02-ux-polish-findings.md?plain=1#L390) 정당색을 요약 본문 강조에 쓰고 미등록 정당은 경고 빨강으로 표시한다 | 대기 |  |
+| [FEED-15](2026-11-02-ux-polish-findings.md?plain=1#L399) 피드 카드의 AI 요약에 AI 생성 표시와 출처 경로가 없다 | 대기 |  |
+| [FEED-16](2026-11-02-ux-polish-findings.md?plain=1#L408) 한 줄 제목이 법안명을 반복하고 카드에 법안명이 두 번 나온다 | 대기 |  |
+| [FEED-17](2026-11-02-ux-polish-findings.md?plain=1#L417) HOT 탭 기준이 불명확하고 오래된 법안이 섞인다 | 대기 |  |
+| [FEED-19](2026-11-02-ux-polish-findings.md?plain=1#L426) 팔로잉 빈 상태가 원인을 구분하지 않고 다음 행동도 제시하지 않는다 | 대기 |  |
+| [FEED-22](2026-11-02-ux-polish-findings.md?plain=1#L435) 토큰 재발급 핸들러가 컴포넌트 밖에서 useRouter를 호출해 401 처리 시 피드가 오류 화면으로 바뀐다 | 대기 |  |
+| [DETAIL-02](2026-11-02-ux-polish-findings.md?plain=1#L617) 로그인 사용자에게 상세 화면의 스크랩 상태가 항상 '안 함'으로 표시되고, 다시 누르면 실패한 요청에 성공 안내가 뜸 (코드 근거) | 대기 |  |
+| [DETAIL-03](2026-11-02-ux-polish-findings.md?plain=1#L626) 존재하지 않는 법안 id: API 500, 페이지는 HTTP 200·제목 없음·범용 오류 화면, HTML에 서버 스택트레이스 노출 | 대기 |  |
+| [DETAIL-04](2026-11-02-ux-polish-findings.md?plain=1#L635) 가결 법안의 표결 카드가 찬성 수 없이 '수정가결 / 300'으로 깨져 표시되고, 분모 300과 수치 의미가 표시되지 않음 | 대기 |  |
+| [DETAIL-05](2026-11-02-ux-polish-findings.md?plain=1#L644) 단계와 처리 결과가 서로 모순되고, 종료된 법안의 결과가 단계 표시에 반영되지 않음 | 대기 |  |
+| [DETAIL-06](2026-11-02-ux-polish-findings.md?plain=1#L653) AI 요약이 없는 법안에 원문 제안이유를 그대로 보여 주면서 'Summarized by GPT-4o'와 AI 요약 경고를 붙임 | 대기 |  |
+| [DETAIL-07](2026-11-02-ux-polish-findings.md?plain=1#L662) '다른 개정안' 목록에 개수 제한·정렬이 없어 최대 761건을 한 번에 렌더링 | 대기 |  |
+| [DETAIL-08](2026-11-02-ux-polish-findings.md?plain=1#L671) '다른 개정안' 목록에 21대 폐기 법안이 '위원회 심사'로 섞여 있고 발의자 문자열 형식이 제각각 | 대기 |  |
+| [DETAIL-09](2026-11-02-ux-polish-findings.md?plain=1#L680) 요약 본문의 제목 강조·형광펜·글머리표를 발의 의원 정당색으로 칠함 | 대기 |  |
+| [DETAIL-10](2026-11-02-ux-polish-findings.md?plain=1#L689) 상세 요약 전체가 aria-label '법안 요약 더 보기'인 버튼으로 감싸져 스크린리더가 본문을 읽지 못함 | 대기 |  |
+| [DETAIL-11](2026-11-02-ux-polish-findings.md?plain=1#L698) 상세로 이동할 때마다 전체 화면 로고 스플래시와 'AI 기반 입법정보 제공 플랫폼' 문구가 뜸 | 대기 |  |
+| [DETAIL-13](2026-11-02-ux-polish-findings.md?plain=1#L707) 단계별 날짜·소관위원회·의안번호·데이터 기준일이 없어 정보의 최신성을 판단할 수 없음 | 대기 |  |
+| [DETAIL-14](2026-11-02-ux-polish-findings.md?plain=1#L716) 보조 텍스트·미래 단계·단계 번호의 명도 대비가 WCAG AA에 크게 못 미침 | 대기 |  |
+| [TIMELINE-02](2026-11-02-ux-polish-findings.md?plain=1#L916) 날짜 제목에 연도와 데이터 기준일이 없어 오래된 데이터인지 알 수 없다 | 대기 |  |
+| [TIMELINE-03](2026-11-02-ux-polish-findings.md?plain=1#L925) 본회의 심사 항목 960건 전부가 '투표 정보가 없습니다'로 표시된다 | 대기 |  |
+| [TIMELINE-04](2026-11-02-ux-polish-findings.md?plain=1#L934) '처리법안 17,481'은 처리된 법안이 아니라 위원회 회부 이상 단계의 법안 수다 | 대기 |  |
+| [TIMELINE-05](2026-11-02-ux-polish-findings.md?plain=1#L943) '가결법안' 수치가 화면마다 다르다 (896 / 828 / 858) | 대기 |  |
+| [TIMELINE-07](2026-11-02-ux-polish-findings.md?plain=1#L952) 위원회 카드의 '심사한 법안 N개 >'를 누르면 보이는 모든 카드의 모달이 한꺼번에 열린다 | 대기 |  |
+| [TIMELINE-08](2026-11-02-ux-polish-findings.md?plain=1#L961) 법안 공포 모달의 모든 법안 링크가 같은 법안으로 이동한다 | 대기 |  |
+| [TIMELINE-09](2026-11-02-ux-polish-findings.md?plain=1#L970) 위원회 심사 캐러셀의 이전 버튼이 소수 페이지를 만들어 카드와 인디케이터가 깨진다 | 대기 |  |
+| [TIMELINE-12](2026-11-02-ux-polish-findings.md?plain=1#L979) '법안 접수' 섹션이 2025-12-04 이후 한 번도 나오지 않는다 | 대기 |  |
+| [TIMELINE-15](2026-11-02-ux-polish-findings.md?plain=1#L988) 본회의 법안 수백 건을 한 장씩 넘기는 캐러셀과 점 인디케이터로 보여 준다 | 대기 |  |
+| [TIMELINE-16](2026-11-02-ux-polish-findings.md?plain=1#L997) 타임라인 API가 캐시 없이 N+1 쿼리를 돌고 size 파라미터 검증이 없다 | 대기 |  |
+| [EXPLORE-01](2026-11-02-ux-polish-findings.md?plain=1#L1143) 분야 목록에 2026-05 중순 이후 법안이 나오지 않고 미분류 법안으로 가는 진입점이 없음 | 대기 |  |
+| [EXPLORE-02](2026-11-02-ux-polish-findings.md?plain=1#L1152) 분야 카드 건수와 통계 도넛 건수가 서로 다른 기준이라 같은 분야 수치가 2.6배 차이 남 | 대기 |  |
+| [EXPLORE-03](2026-11-02-ux-polish-findings.md?plain=1#L1161) 통계·분야 화면 어디에도 데이터 기준일이 없고 추이 차트는 빈 달을 생략함 | 대기 |  |
+| [EXPLORE-05](2026-11-02-ux-polish-findings.md?plain=1#L1170) '가결' 수치가 화면마다 828, 858, 896으로 다르고 같은 통계 패널에서 공포가 가결보다 많음 | 대기 |  |
+| [EXPLORE-06](2026-11-02-ux-polish-findings.md?plain=1#L1179) 처리 결과 구성 범례에 '수정가결 수정가결' 같은 오염된 결과값이 0.0% 항목으로 노출됨 | 대기 |  |
+| [EXPLORE-07](2026-11-02-ux-polish-findings.md?plain=1#L1188) 의석 좌석도와 의원 전체 목록의 정당별 인원이 서로 다름(298석·무소속 없음 vs 293명·무소속 8명) | 대기 |  |
+| [EXPLORE-08](2026-11-02-ux-polish-findings.md?plain=1#L1197) 의원 랭킹·목록의 '대표발의 n건'에 대수 조건과 적재 상태 조건이 없고, 발의 0건 의원은 목록에서 빠짐 | 대기 |  |
+| [EXPLORE-09](2026-11-02-ux-polish-findings.md?plain=1#L1206) 월별 추이의 '가결'이 발의월 기준이라 최근 달이 '가결 0건'으로 보임 | 대기 |  |
+| [EXPLORE-11](2026-11-02-ux-polish-findings.md?plain=1#L1215) 탐색 화면에 오류 상태가 없음: 일부는 조용히 사라지고, 목록 오류는 페이지 전체를 오류 화면으로 바꿈 | 대기 |  |
+| [EXPLORE-13](2026-11-02-ux-polish-findings.md?plain=1#L1224) 분야 카드를 누르면 결과가 17개 카드 아래에 생겨 모바일에서 보이지 않고, 선택을 해제할 수 없음 | 대기 |  |
+| [SEARCH-05](2026-11-02-ux-polish-findings.md?plain=1#L1487) 쿼리 키에 검색어가 없어 이전 검색 결과가 새 검색어 아래에 표시됨 | 대기 |  |
+| [SEARCH-06](2026-11-02-ux-polish-findings.md?plain=1#L1496) 의원·정당 결과 로딩 중에 '검색 결과가 존재하지 않습니다.'가 먼저 보임 | 대기 |  |
+| [SEARCH-07](2026-11-02-ux-polish-findings.md?plain=1#L1505) 모바일 검색이 AI 질문을 유도하지만 실제로는 키워드 검색이라 엉뚱한 결과가 나옴 | 대기 |  |
+| [SEARCH-08](2026-11-02-ux-polish-findings.md?plain=1#L1514) 법안 검색 정렬이 발의일 우선이라 관련도가 낮은 법안이 맨 위에 옴 | 대기 |  |
+| [SEARCH-09](2026-11-02-ux-polish-findings.md?plain=1#L1523) 데스크톱의 피드·타임라인·탐색·마이페이지에 검색 진입점이 없음 | 대기 |  |
+| [SEARCH-10](2026-11-02-ux-polish-findings.md?plain=1#L1532) 검색어 URL 인코딩·디코딩이 경로마다 달라 '&', '/', '#'가 든 검색어가 깨짐 | 대기 |  |
+| [SEARCH-11](2026-11-02-ux-polish-findings.md?plain=1#L1541) 의원 결과가 전·현직 구분 없이 수십 건 한꺼번에 나오고 법안 결과를 밀어냄 | 대기 |  |
+| [SEARCH-16](2026-11-02-ux-polish-findings.md?plain=1#L1550) 검색 UI가 두 벌이라 진입점마다 동작이 다름 | 대기 |  |
+| [SEARCH-17](2026-11-02-ux-polish-findings.md?plain=1#L1559) 검색 모달이 대화상자 접근성 요건을 갖추지 않음 | 대기 |  |
+| [PROFILE-03](2026-11-02-ux-polish-findings.md?plain=1#L1732) 정당 간부 이름이 하드코딩 상수에서 나와 운영 화면에 틀린 인물이 표시된다 | 대기 |  |
+| [PROFILE-04](2026-11-02-ux-polish-findings.md?plain=1#L1741) '원내 N당' 순위가 하드코딩이라 틀리거나 비어 있고 메타 설명에 'undefined'가 찍힌다 | 대기 |  |
+| [PROFILE-05](2026-11-02-ux-polish-findings.md?plain=1#L1750) 무소속 정당 페이지 로고가 깨진 이미지(…/onull)로 나오고 다크 모드에서는 런타임 오류가 난다 | 대기 |  |
+| [PROFILE-06](2026-11-02-ux-polish-findings.md?plain=1#L1759) 존재하지 않는 의원·정당 id가 404가 아니라 HTTP 200과 오류 화면으로 응답한다 | 대기 |  |
+| [PROFILE-07](2026-11-02-ux-polish-findings.md?plain=1#L1768) 정당 의석수와 소속 의원 목록 수가 서로 다르다 | 대기 |  |
+| [PROFILE-08](2026-11-02-ux-polish-findings.md?plain=1#L1777) 프로필 어디에도 데이터 기준일이 없고 발의 목록은 2026-07에서 멈춰 있다 | 대기 |  |
+| [PROFILE-09](2026-11-02-ux-polish-findings.md?plain=1#L1786) 정당 페이지 첫 법안 카드 제목 자리에 제안이유 원문이 노출된다 | 대기 |  |
+| [ACCOUNT-04](2026-11-02-ux-polish-findings.md?plain=1#L2004) SSR이 항상 비로그인 분기를 렌더해 로그인 사용자에게 '회원 정보가 없습니다'가 먼저 보이고 hydration 불일치가 난다 | 대기 |  |
+| [ACCOUNT-05](2026-11-02-ux-polish-findings.md?plain=1#L2013) 클라이언트 페이지 안에서 async 컴포넌트와 Suspense 쿼리를 경계 없이 써서 로딩·오류 처리가 없다 | 대기 |  |
+| [ACCOUNT-06](2026-11-02-ux-polish-findings.md?plain=1#L2022) OAuth 실패 시 콜백 페이지가 error 파라미터를 무시하고 마이페이지로 보낸다 | 대기 |  |
+| [ACCOUNT-07](2026-11-02-ux-polish-findings.md?plain=1#L2031) 로그인 콜백이 router.push를 써서 뒤로 가기가 막힌다 | 대기 |  |
+| [ACCOUNT-08](2026-11-02-ux-polish-findings.md?plain=1#L2040) 로그인 후 원래 보던 위치로 돌아가지 않는다 | 대기 |  |
+| [ACCOUNT-10](2026-11-02-ux-polish-findings.md?plain=1#L2049) 회원 탈퇴 진입점이 화면 어디에도 없다 | 대기 |  |
+| [ACCOUNT-11](2026-11-02-ux-polish-findings.md?plain=1#L2058) 탈퇴 흐름에 결과 안내·실패 처리·삭제 범위 설명이 없고 백엔드는 실패해도 쿠키를 지운다 | 대기 |  |
+| [ACCOUNT-12](2026-11-02-ux-polish-findings.md?plain=1#L2067) 알림 페이지에 로그인 확인과 로딩 상태가 없어 '개의 읽지 않은 알림이 있습니다.'가 노출된다 | 대기 |  |
+| [ACCOUNT-13](2026-11-02-ux-polish-findings.md?plain=1#L2076) 정부·위원장 발의 법안 알림은 이미지 경로가 깨지고 다크 모드에서 알림 목록이 예외로 멈춘다 | 대기 |  |
+| [ACCOUNT-15](2026-11-02-ux-polish-findings.md?plain=1#L2085) 알림 '모두 삭제'에 확인이 없고 성공 스낵바가 요청 결과 전에 뜬다 | 대기 |  |
+| [ACCOUNT-18](2026-11-02-ux-polish-findings.md?plain=1#L2094) 팔로우·스크랩 변경이 마이페이지·팔로잉 목록에 최대 5분 반영되지 않고 실패해도 성공으로 표시된다 | 대기 |  |
+| [TRUST-04](2026-11-02-ux-polish-findings.md?plain=1#L2276) 21대 국회에서 이미 폐기된 법안 약 2.3만 건이 피드에서 '위원회 심사' 중인 것처럼 보인다 | 대기 |  |
+| [TRUST-05](2026-11-02-ux-polish-findings.md?plain=1#L2285) 단계와 결과 데이터가 서로 맞지 않고 갱신이 멈춰 있다 | 대기 |  |
+| [TRUST-06](2026-11-02-ux-polish-findings.md?plain=1#L2294) 타임라인이 7개월 전(2026-03-27)에서 멈췄고, 날짜에 연도가 없으며, 본회의 항목마다 '투표 정보가 없습니다'가 나온다 | 대기 |  |
+| [TRUST-07](2026-11-02-ux-polish-findings.md?plain=1#L2303) 요약 모델 표기 'Summarized by GPT-4o'가 실제 생성 모델과 다르다 | 대기 |  |
+| [TRUST-08](2026-11-02-ux-polish-findings.md?plain=1#L2312) 피드·검색·의원·정당·분야 목록의 요약이 AI 생성물이라는 표시가 없다 | 대기 |  |
+| [TRUST-09](2026-11-02-ux-polish-findings.md?plain=1#L2321) 같은 '가결' 지표가 화면마다 896·858·828로 다르고, '처리법안' 수치는 다른 뜻이다 | 대기 |  |
+| [TRUST-10](2026-11-02-ux-polish-findings.md?plain=1#L2330) 최근 법안에 분야가 없어 분야 탐색에서 빠지고, 분야 건수가 탭마다 다르다 | 대기 |  |
+| [TRUST-11](2026-11-02-ux-polish-findings.md?plain=1#L2339) 정당 상세의 지도부·의석 정보가 오래되어 제품 안의 다른 데이터와 모순된다 | 대기 |  |
+| [TRUST-12](2026-11-02-ux-polish-findings.md?plain=1#L2348) 월별 추이 차트가 수집이 끊긴 달을 빼고 그려 입법 활동이 줄어든 것처럼 보인다 | 대기 |  |
+| [TRUST-13](2026-11-02-ux-polish-findings.md?plain=1#L2357) AI 요약 5%에서 섹션이 두 번 반복된다 | 대기 |  |
+| [TRUST-14](2026-11-02-ux-polish-findings.md?plain=1#L2366) 모바일 검색 제안 문구가 질의응답을 약속하지만 무관한 법안을 돌려준다 | 대기 |  |
+| [TRUST-15](2026-11-02-ux-polish-findings.md?plain=1#L2375) HOT 탭이 인기순이 아니라 발의일 역순으로 정렬되고, 2년 전 스크랩 1건짜리 법안이 'HOT'에 오른다 | 대기 |  |
+| [TRUST-16](2026-11-02-ux-polish-findings.md?plain=1#L2384) 없는 법안 링크가 HTTP 200 '페이지가 작동하지 않습니다' 오류 화면으로 열리고, 공개 API는 잘못된 입력에 500을 낸다 | 대기 |  |
+| [TRUST-20](2026-11-02-ux-polish-findings.md?plain=1#L2393) AI 요약의 하이라이트와 헤딩 강조색이 대표발의자 정당색으로 칠해진다 | 대기 |  |
+| [A11Y-03](2026-11-02-ux-polish-findings.md?plain=1#L2503) 법안 진행 단계 이름 '체계지구 심사' 오기 (정식 용어: 체계·자구 심사) | 대기 |  |
+| [A11Y-05](2026-11-02-ux-polish-findings.md?plain=1#L2512) 모바일 검색이 자연어 질문을 받는 것처럼 안내하지만 실제로는 키워드 검색이라 무관한 결과를 보여줌 | 대기 |  |
+| [A11Y-06](2026-11-02-ux-polish-findings.md?plain=1#L2521) Material Symbols 아이콘이 리가처 텍스트로 DOM에 남아 스크린리더가 'tag', 'account_balance'를 읽고, 폰트 로딩 전에는 화면에도 영문 단어가 보임 | 부분 확인 | 운영 탐색 HTML에 tag, account_balance, monitoring 리가처가 노출됨 |
+| [A11Y-08](2026-11-02-ux-polish-findings.md?plain=1#L2530) 아이콘 전용 버튼·링크 다수에 접근 가능한 이름이 없음 | 대기 |  |
+| [A11Y-09](2026-11-02-ux-polish-findings.md?plain=1#L2539) 본문·메타 텍스트 기본색 #999(text-gray-2)가 흰 배경에서 WCAG AA 대비에 미달 | 대기 |  |
+| [A11Y-10](2026-11-02-ux-polish-findings.md?plain=1#L2548) 다크 모드 보조 텍스트(text-gray-3 #555)와 진행 단계 미도달 항목이 사실상 보이지 않음 | 대기 |  |
+| [A11Y-11](2026-11-02-ux-polish-findings.md?plain=1#L2557) 모바일 플로팅 내비게이션·검색바에 다크 모드 스타일이 전혀 없음 | 대기 |  |
+| [A11Y-13](2026-11-02-ux-polish-findings.md?plain=1#L2566) 전 페이지에 h1이 없고 heading 태그를 글자 크기용으로 남용함 | 부분 확인 | 운영 공개 7개 경로의 HTML에 h1 없음. 법안 상세 표본의 h4 374개 |
+| [A11Y-16](2026-11-02-ux-polish-findings.md?plain=1#L2575) 피드 콘텐츠 탭 '리포트'와 '법안'이 같은 내용을 렌더하고, 탭 상태가 보조기기에 전달되지 않음 | 대기 |  |
+| [A11Y-22](2026-11-02-ux-polish-findings.md?plain=1#L2584) 타임라인 위원회 카드의 개별 모달이 상태 하나를 공유해 한 번 누르면 모든 카드의 모달이 동시에 열림, 모달 제목은 목록과 무관하게 '심사한 법안' 고정 | 대기 |  |
+| [A11Y-29](2026-11-02-ux-polish-findings.md?plain=1#L2593) 개인정보처리방침·이용약관·데이터 출처 표기가 서비스 어디에도 없음 | 대기 |  |
+| [JOURNEY-01](2026-11-02-ux-polish-findings.md?plain=1#L2820) 모바일 플로팅 내비(z-70)가 모달, 검색 모달, 스낵바, 맨 위로 버튼 위에 그려진다 | 대기 |  |
+| [JOURNEY-02](2026-11-02-ux-polish-findings.md?plain=1#L2828) 토큰 재발급 API가 실패해도 200 'success'를 돌려줘서 세션 만료를 클라이언트가 알 수 없다 | 대기 |  |
+| [JOURNEY-03](2026-11-02-ux-polish-findings.md?plain=1#L2836) 비로그인·라이트 테마 첫 방문에서도 모든 페이지가 hydration 오류(React #418)를 낸다 | 대기 |  |
+| [JOURNEY-04](2026-11-02-ux-polish-findings.md?plain=1#L2844) 카카오톡 링크 스크래퍼에는 og 메타가 </html> 뒤에 붙어 내려간다(Next.js streaming metadata) | 대기 |  |
+| [JOURNEY-05](2026-11-02-ux-polish-findings.md?plain=1#L2852) API JSON 응답이 압축되지 않고 피드 카드마다 원문 제안이유와 공동발의자 전체 목록을 보낸다 | 운영 재현 | 11월 3일 공개 API 피드 3건 38,150바이트. gzip 요청에도 Content-Encoding 없음 |
