@@ -18,9 +18,9 @@
 python3.12 services/ai/tools/prepare_rag_embedding_model.py --output-dir /absolute/rag-models/e5-small
 ```
 
-`RAG_EMBEDDING_DIR`에 위 절대 경로를 설정한다. 질문·원문은 같은 모델 revision으로 임베딩한다. 기존 `text-embedding-3-small` 경로를 쓸 때만 `RAG_EMBEDDING_BACKEND=openai`와 그 모델·1536차원을 명시한다. 모델이나 차원을 바꾸면 새 인덱스가 필요하다. 답변 생성은 별도 OpenAI `gpt-4o-mini` 요청이며 실제 답변 성공을 확인해야 출시할 수 있다.
+`RAG_EMBEDDING_DIR`에 위 절대 경로를 설정한다. 질문·원문은 같은 모델 revision으로 임베딩한다. 기존 `text-embedding-3-small` 경로를 쓸 때만 `RAG_EMBEDDING_BACKEND=openai`와 그 모델·1536차원을 명시한다. 모델이나 차원을 바꾸면 새 인덱스가 필요하다. 답변 생성에는 기본 OpenAI `gpt-4o-mini` 또는 `RAG_GENERATION_PROVIDER=gemini`로 선택한 Gemini를 사용한다. Gemini를 선택할 때 `RAG_MODEL`에 모델명을, `RAG_GEMINI_API_KEY`에 비공개 키를 설정한다. 출시 전에 선택한 모델로 실제 답변을 검증한다.
 
-DB 접속은 필요한 SELECT 권한의 계정을 우선 사용한다. 애플리케이션은 `SET TRANSACTION READ ONLY` 뒤 조회하고 rollback·close한다. 질문·답변은 서비스 DB·앱 로그·브라우저 영구 저장소에 저장하지 않으며 OpenAI Responses 호출은 `store=False`다. 제공자의 API 데이터 취급 정책은 별도로 적용된다.
+DB 접속은 필요한 SELECT 권한의 계정을 우선 사용한다. 애플리케이션은 `SET TRANSACTION READ ONLY` 뒤 조회하고 rollback·close한다. 질문·답변은 서비스 DB·앱 로그·브라우저 영구 저장소에 저장하지 않으며 OpenAI Responses 호출은 `store=False`다. Gemini는 GenerateContent의 JSON Schema를 사용한다. 제공자의 API 데이터 취급 정책은 별도로 적용된다.
 
 ## 전체 인덱스 준비와 승인
 
@@ -69,6 +69,7 @@ RAG_PYTHON_BIN=/absolute/python3.12 RAG_ENV_FILE=/absolute/private/rag.env \
 
 ## 검증 근거
 
+- [Gemini 구조화 출력](https://ai.google.dev/gemini-api/docs/structured-output)
 - [OpenAI 구조화 출력](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [Qdrant 1.15 query points](https://api.qdrant.tech/v-1-15-x/api-reference/search/query-points)
 - [shadcn MessageScroller](https://ui.shadcn.com/docs/components/radix/message-scroller)
