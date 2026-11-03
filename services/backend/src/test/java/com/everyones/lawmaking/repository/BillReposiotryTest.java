@@ -3,6 +3,8 @@ package com.everyones.lawmaking.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.everyones.lawmaking.domain.entity.Bill;
+import com.everyones.lawmaking.domain.entity.BillProposer;
+import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.domain.entity.IngestStatusType;
 import com.everyones.lawmaking.global.config.QuerydslConfig;
 import java.time.LocalDate;
@@ -66,6 +68,32 @@ public class BillReposiotryTest {
         assertThat(bills)
                 .extracting(Bill::getId)
                 .containsExactly("summarized");
+    }
+
+    @Test
+    void publicProposerPagesOrderSameDayBillsByDescendingId() {
+        var congressman = entityManager.persist(Congressman.builder()
+                .id("member")
+                .name("테스트 의원")
+                .assemblyNumber(22)
+                .build());
+        for (String id : List.of("bill-a", "bill-c", "bill-b", "bill-d")) {
+            persistReadyBill(id, "짧은 요약", "상세 요약");
+            entityManager.persist(BillProposer.builder()
+                    .bill(entityManager.find(Bill.class, id))
+                    .congressman(congressman)
+                    .build());
+        }
+        entityManager.flush();
+        entityManager.clear();
+
+        var first = billRepository.findBillByPublicProposer(congressman.getId(), PageRequest.of(0, 2));
+        var second = billRepository.findBillByPublicProposer(congressman.getId(), PageRequest.of(1, 2));
+
+        assertThat(first.getContent()).extracting(Bill::getId).containsExactly("bill-d", "bill-c");
+        assertThat(second.getContent()).extracting(Bill::getId).containsExactly("bill-b", "bill-a");
+        assertThat(first.hasNext()).isTrue();
+        assertThat(second.hasNext()).isFalse();
     }
 
     private void persistReadyBill(String billId, String title, String gptSummary) {
