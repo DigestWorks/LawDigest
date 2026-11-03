@@ -11,7 +11,6 @@ import pandas as pd
 
 from ..bills.DataFetcher import DataFetcher
 from ..bills.DataProcessor import DataProcessor
-from ..bills.search_document import build_bill_search_documents
 from ..connectors.DatabaseManager import DatabaseManager
 from ..bills.constants import ProposerKindType
 
@@ -416,6 +415,7 @@ class WorkFlowManager:
         max_propose_date = max((row.get("propose_date") for row in rows if row.get("propose_date")), default=None)
         db.insert_bill_info(
             rows,
+            refresh_search=True,
             checkpoint={
                 "source_name": source_name,
                 "assembly_number": self._safe_to_int(rows[0].get("assembly_number"), default=22),
@@ -438,8 +438,7 @@ class WorkFlowManager:
 
         db = self._build_db_manager(self.mode)
         candidates = db.fetch_bill_search_document_candidates(limit=limit)
-        documents = build_bill_search_documents(candidates)
-        rebuilt = db.upsert_bill_search_documents(documents)
+        rebuilt = db.refresh_bill_search_documents([row["bill_id"] for row in candidates])
         return {
             "mode": self.mode,
             "candidates": len(candidates),
