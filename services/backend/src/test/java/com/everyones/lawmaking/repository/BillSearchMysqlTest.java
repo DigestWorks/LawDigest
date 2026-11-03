@@ -43,7 +43,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-/** 격리된 로컬 MySQL DB에서 운영과 같은 ngram FULLTEXT 쿼리를 실행한다. */
+/** 격리된 로컬 MySQL DB에서 운영과 같은 기본 FULLTEXT 쿼리를 실행한다. */
 @DataJpaTest
 @Import({CongressmanRepositoryCustom.class, BillActivityRepository.class, PublicSitemapRepository.class})
 @ActiveProfiles("test")
@@ -84,7 +84,7 @@ class BillSearchMysqlTest {
         jdbc.execute("""
                 CREATE TABLE IF NOT EXISTS BillSearchDocument (
                   bill_id VARCHAR(255) PRIMARY KEY, search_text LONGTEXT,
-                  FULLTEXT KEY search_index (search_text) WITH PARSER ngram
+                  FULLTEXT KEY search_index (search_text)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """);
         jdbc.update("DELETE FROM BillSearchDocument");
@@ -111,6 +111,26 @@ class BillSearchMysqlTest {
         assertThat(first.getContent()).containsExactly("exact");
         assertThat(first.hasNext()).isTrue();
         assertThat(second.getContent()).containsExactly("body");
+        assertThat(second.hasNext()).isFalse();
+    }
+
+    @Test
+    void officialNamesRemainSearchableWithShortTokensAndWithoutSearchDocuments() {
+        String name = "인공지능 및 데이터 기반 행정 활성화에 관한 법률 일부개정법률안";
+        insert("indexed-official", 4, name, "2026-11-02", name);
+        insert("raw-official", 5, name, "2026-11-03", name);
+        insert("pending-official", 6, name, "2026-11-04", name);
+        jdbc.update("DELETE FROM BillSearchDocument WHERE bill_id = 'raw-official'");
+        jdbc.update("UPDATE Bill SET ingest_status = 'PENDING' WHERE bill_id = 'pending-official'");
+
+        var query = SearchQuery.from(name);
+        var first = repository.findBillByKeyword(PageRequest.of(0, 1), query.text(),
+                SearchQuery.escapeLike(query.text()), query.expression());
+        var second = repository.findBillByKeyword(PageRequest.of(1, 1), query.text(),
+                SearchQuery.escapeLike(query.text()), query.expression());
+        assertThat(first.getContent()).containsExactly("raw-official");
+        assertThat(first.hasNext()).isTrue();
+        assertThat(second.getContent()).containsExactly("indexed-official");
         assertThat(second.hasNext()).isFalse();
     }
 

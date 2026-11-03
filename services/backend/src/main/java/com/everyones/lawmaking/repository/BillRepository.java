@@ -130,17 +130,30 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
                            @Param("current") Boolean current, @Param("assembly") int assembly);
 
     @Query(value = """
-            SELECT bsd.bill_id FROM BillSearchDocument bsd
-            JOIN Bill b ON b.bill_id = bsd.bill_id
-            WHERE b.ingest_status = 'READY'
-              AND MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) > 0
-            ORDER BY CASE
-              WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
-              WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
-              WHEN b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 2
-              ELSE 3 END,
-              MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) DESC,
-              b.propose_date DESC, bsd.bill_id DESC
+            SELECT candidate.bill_id
+            FROM (
+              SELECT b.bill_id, b.propose_date,
+                CASE
+                  WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
+                  WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
+                  ELSE 2
+                END AS match_rank,
+                0 AS relevance
+              FROM Bill b
+              WHERE b.ingest_status = 'READY'
+                AND (b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
+                  OR b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!')
+              UNION ALL
+              SELECT b.bill_id, b.propose_date, 3 AS match_rank,
+                MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) AS relevance
+              FROM BillSearchDocument bsd
+              JOIN Bill b ON b.bill_id = bsd.bill_id
+              WHERE b.ingest_status = 'READY'
+                AND MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) > 0
+            ) candidate
+            GROUP BY candidate.bill_id, candidate.propose_date
+            ORDER BY MIN(candidate.match_rank), MAX(candidate.relevance) DESC,
+              candidate.propose_date DESC, candidate.bill_id DESC
             """, nativeQuery = true)
     Slice<String> findBillByKeyword(Pageable pageable, @Param("keyword") String keyword,
             @Param("namePattern") String namePattern, @Param("expression") String expression);

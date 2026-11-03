@@ -276,6 +276,7 @@ class WorkFlowManager:
             rows.append(
                 {
                     "congressman_id": congressman_id,
+                    "assembly_number": assembly_number,
                     "name": self._coerce_optional_text(row.get("congressmanName")),
                     "party_name": self._coerce_optional_text(row.get("partyName")),
                     "district": self._coerce_optional_text(row.get("district")),
@@ -672,8 +673,23 @@ class WorkFlowManager:
         fetcher = DataFetcher()
         df_lawmakers = fetcher.fetch_lawmakers_data()
         if df_lawmakers is None or df_lawmakers.empty:
-            print("[bill_status_sync] 수집된 의원 데이터가 없습니다.")
-            return {"step": "update_lawmakers_data", "mode": self.mode, "count": 0}
+            raise ValueError("전체 동기화에 빈 의원 명부를 사용할 수 없습니다.")
+
+        expected = df_lawmakers.attrs.get("source_total_count")
+        if (
+            not df_lawmakers.attrs.get("source_complete")
+            or not df_lawmakers.attrs.get("source_all_pages")
+            or expected != len(df_lawmakers)
+            or "MONA_CD" not in df_lawmakers
+            or "HG_NM" not in df_lawmakers
+            or "POLY_NM" not in df_lawmakers
+            or df_lawmakers["MONA_CD"].isna().any()
+            or df_lawmakers["MONA_CD"].astype(str).str.strip().eq("").any()
+            or df_lawmakers["MONA_CD"].astype(str).str.strip().duplicated().any()
+            or df_lawmakers["HG_NM"].fillna("").astype(str).str.strip().eq("").any()
+            or df_lawmakers["POLY_NM"].fillna("").astype(str).str.strip().eq("").any()
+        ):
+            raise ValueError("의원 명부 전체 수집과 코드 유일성을 확인하지 못했습니다.")
 
         df_lawmakers = df_lawmakers.drop(
             columns=[
@@ -717,7 +733,7 @@ class WorkFlowManager:
         rows = self._build_lawmaker_rows(df_lawmakers)
         if self.mode != "dry_run" and rows:
             db = self._build_db_manager(self.mode)
-            db.update_lawmaker_info(rows)
+            db.update_lawmaker_info(rows, full_snapshot=True)
 
         print(f"[bill_status_sync] lawmakers count={len(rows)}")
         return {"step": "update_lawmakers_data", "mode": self.mode, "count": len(rows)}
