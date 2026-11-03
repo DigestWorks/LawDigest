@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from lawdigest_ai.rag.embedding import EmbeddingGenerator  # noqa: E402
+from lawdigest_ai.rag.embedding import build_embedding_generator  # noqa: E402
 from lawdigest_ai.rag.indexing import (  # noqa: E402
     build_index,
     encode_snapshot,
@@ -29,6 +29,8 @@ def main(argv=None):
     )
     parser.add_argument("--collection", help="새 lawdigest_rag_v1_* 컬렉션")
     parser.add_argument("--expected-sha256", help="승인받은 스냅샷의 SHA-256")
+    parser.add_argument("--expected-model", help="승인받은 임베딩 모델 ID")
+    parser.add_argument("--expected-chunks", type=int, help="승인받은 원문 청크 수")
     parser.add_argument(
         "--activate", action="store_true", help="검증 후 활성 별칭 전환"
     )
@@ -36,12 +38,18 @@ def main(argv=None):
     if args.activate and not args.apply:
         parser.error("--activate는 --apply와 함께 지정해야 합니다.")
     if args.apply and (
-        not args.snapshot or not args.expected_sha256 or not args.collection
+        not args.snapshot
+        or not args.expected_sha256
+        or not args.collection
+        or not args.expected_model
+        or not args.expected_chunks
     ):
         parser.error(
-            "--apply에는 --snapshot, --expected-sha256, --collection이 필요합니다."
+            "--apply에는 --snapshot, --expected-sha256, --collection, --expected-model, --expected-chunks가 필요합니다."
         )
     settings = RagSettings.from_env()
+    if args.expected_model and args.expected_model != settings.embedding_model:
+        raise ValueError("임베딩 모델이 승인 대상과 다릅니다.")
     repository = BillRepository(settings.db_mode)
     rows = (
         json.loads(args.snapshot.read_text())
@@ -51,14 +59,17 @@ def main(argv=None):
     digest = snapshot_hash(rows)
     if args.expected_sha256 and digest != args.expected_sha256:
         raise ValueError("스냅샷 해시가 승인 대상과 다릅니다.")
-    chunks = prepare_chunks(rows, settings.embedding_model)
     report = dict(
         mode="apply" if args.apply else "dry_run",
         bill_count=len(rows),
         counts_by_assembly=dict(Counter(str(r["assembly_number"]) for r in rows)),
-        chunk_count=len(chunks),
+        chunk_count=args.expected_chunks
+        if args.apply
+        else len(prepare_chunks(rows, settings)),
         snapshot_sha256=digest,
         embedding_model=settings.embedding_model,
+        embedding_backend=settings.embedding_backend,
+        dimensions=settings.dimensions,
     )
     if args.snapshot_out:
         # 기존 스냅샷을 덮어쓰지 않는다.
@@ -74,21 +85,14 @@ def main(argv=None):
         if store.client is None:
             raise RuntimeError("Qdrant를 사용할 수 없습니다.")
         try:
-            from openai import OpenAI
-
-            llm = OpenAI(
-                api_key=settings.openai_key,
-                base_url=settings.openai_base_url,
-                timeout=30,
-                max_retries=1,
-            )
             report["manifest"] = build_index(
                 store.client,
-                EmbeddingGenerator(model_name=settings.embedding_model, client=llm),
+                build_embedding_generator(settings),
                 settings,
                 rows,
                 args.collection,
                 activate=args.activate,
+                expected_chunks=args.expected_chunks,
             )
         finally:
             store.client.close()

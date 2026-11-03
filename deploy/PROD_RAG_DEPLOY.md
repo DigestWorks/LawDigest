@@ -10,7 +10,15 @@
 
 ## 설정과 의존성
 
-`services/ai/rag.env.example`을 비공개 파일에 복사한다. 실행 사용자 소유·권한 600 또는 400으로 보관하고, `RAG_INTERNAL_TOKEN`은 32바이트 이상의 난수로 만든다. 모델 기본값은 `gpt-4o-mini`, 임베딩은 `text-embedding-3-small` 1536차원이다. AI 배치 환경과 분리한 venv에 `requirements-rag.txt`를 설치한다. Qdrant 1.15 서버에 맞춰 client 1.15 계열을 사용하며 기존 공유 환경을 업그레이드하지 않는다.
+`services/ai/rag.env.example`을 비공개 파일에 복사한다. 실행 사용자 소유·권한 600 또는 400으로 보관하고, `RAG_INTERNAL_TOKEN`은 32바이트 이상의 난수로 만든다. Python 3.12 이상의 전용 venv에 `requirements-rag.txt`를 설치한다. Qdrant 1.15 서버에 맞춰 client 1.15 계열을 사용하며 기존 공유 환경을 업그레이드하지 않는다.
+
+기본 임베딩은 [multilingual-E5-small](https://huggingface.co/intfloat/multilingual-e5-small)의 384차원 int8 ONNX 모델이다. 아래 명령은 공개 가중치와 토크나이저만 내려받고 고정 revision·파일 크기·SHA-256을 확인한다. 모델 파일을 Git에 넣지 않는다. 조회·인덱스 구축에는 로컬 CPU를 사용한다.
+
+```bash
+python3.12 services/ai/tools/prepare_rag_embedding_model.py --output-dir /absolute/rag-models/e5-small
+```
+
+`RAG_EMBEDDING_DIR`에 위 절대 경로를 설정한다. 질문·원문은 같은 모델 revision으로 임베딩한다. 기존 `text-embedding-3-small` 경로를 쓸 때만 `RAG_EMBEDDING_BACKEND=openai`와 그 모델·1536차원을 명시한다. 모델이나 차원을 바꾸면 새 인덱스가 필요하다. 답변 생성은 별도 OpenAI `gpt-4o-mini` 요청이며 실제 답변 성공을 확인해야 출시할 수 있다.
 
 DB 접속은 필요한 SELECT 권한의 계정을 우선 사용한다. 애플리케이션은 `SET TRANSACTION READ ONLY` 뒤 조회하고 rollback·close한다. 질문·답변은 서비스 DB·앱 로그·브라우저 영구 저장소에 저장하지 않으며 OpenAI Responses 호출은 `store=False`다. 제공자의 API 데이터 취급 정책은 별도로 적용된다.
 
@@ -24,13 +32,14 @@ RAG_ENV_FILE=/absolute/private/rag.env PYTHONPATH=services/ai/src \
   --snapshot-out /absolute/private/rag-snapshot.json
 ```
 
-dry_run의 대수별 법안 수·청크 수·모델·SHA-256·새 컬렉션명·별칭 전환 여부를 제시하고 해당 실행 승인을 받는다. 원문 변경이 있으면 다시 스냅샷을 만든다. 임베딩할 공개 원문이 OpenAI API로 전송된다.
+dry_run의 대수별 법안 수·청크 수·모델·SHA-256·새 컬렉션명·별칭 전환 여부를 제시하고 해당 실행 승인을 받는다. 원문 변경이 있으면 다시 스냅샷을 만든다. 기본 E5 경로는 임베딩 원문을 외부 API에 보내지 않는다. 답변을 생성할 때는 질문과 선택된 공개 원문을 생성 모델에 전달한다.
 
 ```bash
 RAG_ENV_FILE=/absolute/private/rag.env PYTHONPATH=services/ai/src \
   /absolute/rag-venv/bin/python services/ai/tools/index_rag_bills.py \
   --apply --snapshot /absolute/private/rag-snapshot.json \
-  --expected-sha256 승인받은_해시 --collection lawdigest_rag_v1_승인받은_버전 --activate
+  --expected-sha256 "$APPROVED_RAG_SHA" --expected-model "$APPROVED_RAG_MODEL" \
+  --expected-chunks "$APPROVED_RAG_CHUNKS" --collection "$APPROVED_RAG_COLLECTION" --activate
 ```
 
 명령은 현재 DB 전체와 스냅샷을 다시 대조한다. 새 컬렉션만 만들고 모든 청크 적재·개수·스키마·모델 검사가 끝난 뒤 별칭을 원자적으로 전환한다. 중간 실패 시 기존 별칭을 유지한다. 실패 컬렉션 삭제도 별도 운영 쓰기 범위로 다룬다. 약 112건만 있는 과거 실험 인덱스는 전체 출시 인덱스로 사용하지 않는다.
@@ -40,7 +49,8 @@ RAG_ENV_FILE=/absolute/private/rag.env PYTHONPATH=services/ai/src \
 main에 포함된 깨끗한 워크트리에서 실행한다. 기존 서버 체크아웃의 다른 변경을 보존한다.
 
 ```bash
-RAG_ENV_FILE=/absolute/private/rag.env bash deploy/deploy-rag.sh /absolute/target-worktree
+RAG_PYTHON_BIN=/absolute/python3.12 RAG_ENV_FILE=/absolute/private/rag.env \
+  bash deploy/deploy-rag.sh /absolute/target-worktree
 ```
 
 스크립트는 release별 소스·venv·resolved 의존성을 보관한다. 루프백에서 인증된 22대 인덱스 상태가 사용 가능한지 확인하고, 실패 시 이전 프로세스 복구를 시도한다. 웹·nginx·DB·인덱스는 변경하지 않는다. API 접근 로그는 끄며 실패 로그에는 예외 종류만 남긴다.

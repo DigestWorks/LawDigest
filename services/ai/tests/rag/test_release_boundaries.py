@@ -176,7 +176,9 @@ def test_embedding_preserves_response_order_and_rejects_missing_or_nonfinite_vec
 def test_index_failure_keeps_old_alias_and_never_recreates_collection():
     settings = replace(RagSettings(), dimensions=3)
     embedder = MagicMock()
-    embedder.generate_many.side_effect = lambda texts: [[1.0, 0.0, 0.0] for _ in texts]
+    embedder.generate_many.side_effect = lambda texts, **kwargs: [
+        [1.0, 0.0, 0.0] for _ in texts
+    ]
     client = QdrantClient(":memory:")
     try:
         build_index(
@@ -206,9 +208,29 @@ def test_chunking_keeps_unicode_and_token_limit():
 
     encoding = tiktoken.encoding_for_model("text-embedding-3-small")
     text = "청년의 임차료 지원 범위를 확대한다.\n" * 500
-    chunks = list(chunk_text(text, encoding))
+    chunks = list(chunk_text(text, lambda value: len(encoding.encode(value))))
     assert len(chunks) > 1
     assert all(
         chunk in text and "�" not in chunk and len(encoding.encode(chunk)) <= 700
         for chunk in chunks
     )
+
+
+def test_index_never_writes_when_chunk_count_differs_from_approval():
+    settings = replace(RagSettings(), dimensions=3)
+    embedder = MagicMock()
+    client = QdrantClient(":memory:")
+    try:
+        with pytest.raises(ValueError, match="승인 범위"):
+            build_index(
+                client,
+                embedder,
+                settings,
+                [bill()],
+                "lawdigest_rag_v1_count_test",
+                expected_chunks=99,
+            )
+        assert not client.collection_exists("lawdigest_rag_v1_count_test")
+        embedder.generate_many.assert_not_called()
+    finally:
+        client.close()

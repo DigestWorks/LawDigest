@@ -10,6 +10,7 @@ import uuid
 import tiktoken
 from qdrant_client import models
 
+from lawdigest_ai.rag.local_embedding import E5_CONTEXT, load_local_tokenizer
 from lawdigest_ai.rag.repository import content_hash
 
 SCHEMA_VERSION = 1
@@ -25,12 +26,14 @@ def snapshot_hash(rows):
     return hashlib.sha256(encode_snapshot(rows)).hexdigest()
 
 
-def chunk_text(text, encoding, max_tokens=700, overlap_chars=100):
+def chunk_text(text, count_tokens, max_tokens=700, overlap_chars=100):
     """토큰 제한을 지키면서 유니코드 문자를 중간에서 자르지 않는다."""
     position = 0
     while position < len(text):
         end = min(position + 1400, len(text))
-        while len(encoding.encode(text[position:end])) > max_tokens:
+        while count_tokens(text[position:end]) > max_tokens:
+            if end - position <= 1:
+                raise ValueError("원문 청크의 토큰 제한이 너무 작습니다.")
             end = position + max(1, int((end - position) * 0.8))
         if end < len(text):
             boundary = text.rfind("\n", position + (end - position) // 2, end)
@@ -44,8 +47,19 @@ def chunk_text(text, encoding, max_tokens=700, overlap_chars=100):
         position = max(position + 1, end - min(overlap_chars, (end - position) // 4))
 
 
-def prepare_chunks(rows, model):
-    encoding = tiktoken.encoding_for_model(model)
+def prepare_chunks(rows, settings):
+    local = settings.embedding_backend == "e5"
+    tokenizer = (
+        load_local_tokenizer(settings.embedding_dir)
+        if local
+        else tiktoken.encoding_for_model(settings.embedding_model)
+    )
+
+    def count_tokens(text):
+        if local:
+            return len(tokenizer.encode(text, add_special_tokens=False).ids)
+        return len(tokenizer.encode(text))
+
     chunks = []
     ids = set()
     for row in rows:
@@ -62,15 +76,25 @@ def prepare_chunks(rows, model):
             or not str(row.get("summary") or "").strip()
         ):
             raise ValueError("원문과 대수가 확인되지 않은 법안입니다.")
-        for number, text in enumerate(chunk_text(row["summary"], encoding)):
+        header = f"법안명: {str(row['bill_name'])[:220]}\n발의일: {row['propose_date']}\n대수: {row['assembly_number']}\n"
+        budget = (
+            min(440, E5_CONTEXT - count_tokens(f"passage: {header}") - 8)
+            if local
+            else 700
+        )
+        if budget < 64:
+            raise ValueError("법안의 검색 메타데이터가 너무 깁니다.")
+        for number, text in enumerate(
+            chunk_text(row["summary"], count_tokens, max_tokens=budget)
+        ):
             chunks.append(
                 {
                     "id": str(uuid.uuid5(NAMESPACE, f"{bill_id}:{number}")),
-                    "embedding_text": f"법안명: {row['bill_name']}\n발의일: {row['propose_date']}\n대수: {row['assembly_number']}\n{text}",
+                    "embedding_text": header + text,
                     "payload": {
                         "kind": "bill_chunk",
                         "schema_version": SCHEMA_VERSION,
-                        "embedding_model": model,
+                        "embedding_model": settings.embedding_model,
                         "bill_id": bill_id,
                         "source_hash": content_hash(row),
                         "assembly_number": int(row["assembly_number"]),
@@ -131,7 +155,15 @@ def read_manifest(client, collection, settings):
 
 
 def build_index(
-    client, embedder, settings, rows, collection, *, activate=False, batch_size=32
+    client,
+    embedder,
+    settings,
+    rows,
+    collection,
+    *,
+    activate=False,
+    batch_size=32,
+    expected_chunks=None,
 ):
     if not re.fullmatch(r"lawdigest_rag_v1_[a-z0-9_-]+", collection):
         raise ValueError("새 질의응답 버전 컬렉션만 생성할 수 있습니다.")
@@ -152,7 +184,9 @@ def build_index(
             settings.collection
         ):
             raise ValueError("활성 별칭 이름이 실제 컬렉션과 충돌합니다.")
-    chunks = prepare_chunks(rows, settings.embedding_model)
+    chunks = prepare_chunks(rows, settings)
+    if expected_chunks is not None and len(chunks) != expected_chunks:
+        raise ValueError("인덱스 청크 수가 승인 범위와 다릅니다.")
     client.create_collection(
         collection,
         vectors_config=models.VectorParams(
@@ -161,7 +195,9 @@ def build_index(
     )
     for start in range(0, len(chunks), batch_size):
         batch = chunks[start : start + batch_size]
-        vectors = embedder.generate_many([item["embedding_text"] for item in batch])
+        vectors = embedder.generate_many(
+            [item["embedding_text"] for item in batch], input_type="passage"
+        )
         if len(vectors) != len(batch) or any(
             len(vector) != settings.dimensions for vector in vectors
         ):

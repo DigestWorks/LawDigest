@@ -69,10 +69,14 @@ class EmbeddingGenerator:
                 return None
         return None
 
-    def generate_many(self, texts: List[str]) -> List[List[float]]:
+    def generate_many(
+        self, texts: List[str], *, input_type="passage"
+    ) -> List[List[float]]:
         """출시 경로에서는 실패·누락 벡터를 성공으로 숨기지 않는다."""
-        if not texts or any(
-            not isinstance(text, str) or not text.strip() for text in texts
+        if (
+            input_type not in {"passage", "query"}
+            or not texts
+            or any(not isinstance(text, str) or not text.strip() for text in texts)
         ):
             raise ValueError("임베딩할 원문이 비었습니다.")
         if self.model_type != "openai" or self.client is None:
@@ -90,3 +94,19 @@ class EmbeddingGenerator:
         ):
             raise RuntimeError("유효하지 않은 임베딩 결과입니다.")
         return vectors
+
+
+def build_embedding_generator(settings, openai_client=None):
+    if settings.embedding_backend == "e5":
+        from lawdigest_ai.rag.local_embedding import LocalE5Embedder
+
+        return LocalE5Embedder(settings.embedding_dir, settings.embedding_threads)
+    if settings.embedding_backend != "openai":
+        raise ValueError("지원하지 않는 임베딩 실행 방식입니다.")
+    client = openai_client or OpenAI(
+        api_key=settings.openai_key,
+        base_url=settings.openai_base_url,
+        timeout=30,
+        max_retries=1,
+    )
+    return EmbeddingGenerator(model_name=settings.embedding_model, client=client)

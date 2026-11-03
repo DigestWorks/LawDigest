@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 from openai import OpenAI
 
-from lawdigest_ai.rag.embedding import EmbeddingGenerator
+from lawdigest_ai.rag.embedding import build_embedding_generator
 from lawdigest_ai.rag.indexing import chunk_filter, read_manifest
 from lawdigest_ai.rag.repository import BillRepository, content_hash
 from lawdigest_ai.rag.schemas import (
@@ -63,9 +63,7 @@ class LawdigestionChatbot:
             timeout=25,
             max_retries=0,
         )
-        self.embedder = embedder or EmbeddingGenerator(
-            model_name=self.settings.embedding_model, client=self.llm
-        )
+        self.embedder = embedder or build_embedding_generator(self.settings, self.llm)
         self._cached_manifest = None
         self._manifest_expires = 0.0
 
@@ -112,7 +110,7 @@ class LawdigestionChatbot:
         query = request.question
         if previous:
             query += "\n이전 질문: " + " / ".join(text[:350] for text in previous[-2:])
-        vector = self.embedder.generate_many([query])[0]
+        vector = self.embedder.generate_many([query], input_type="query")[0]
         if len(vector) != self.settings.dimensions:
             raise RagUnavailable("검색 모델의 차원을 확인할 수 없습니다.")
         hits = self.vector_store.search(

@@ -8,12 +8,13 @@ TASK_COMMON_DIR="$(git -C "$TARGET_ROOT" rev-parse --path-format=absolute --git-
 SHARED_ROOT="$(dirname "$TASK_COMMON_DIR")"
 RUNTIME_ROOT="$SHARED_ROOT/.runtime/rag"
 PRIVATE_ENV="${RAG_ENV_FILE:?RAG_ENV_FILE must point to a private absolute env file}"
+RAG_PYTHON_EXE="${RAG_PYTHON_BIN:-python3}"
 case "$PRIVATE_ENV" in /*) ;; *) echo '환경 파일은 절대 경로여야 합니다.' >&2; exit 1;; esac
 test -r "$PRIVATE_ENV"
 test -f "$SOURCE_DIR/src/lawdigest_ai/rag/api.py"
 command -v pm2 >/dev/null
 command -v flock >/dev/null
-command -v curl >/dev/null
+"$RAG_PYTHON_EXE" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else "RAG에는 Python 3.12 이상이 필요합니다.")'
 mkdir -p "$RUNTIME_ROOT/releases"
 exec 9>"$RUNTIME_ROOT/deploy.lock"
 flock -n 9 || { echo '다른 RAG 배포가 진행 중입니다.' >&2; exit 1; }
@@ -25,7 +26,7 @@ git -C "$TARGET_ROOT" merge-base --is-ancestor "$TASK_SHA" origin/main || {
   echo 'main에 포함된 커밋만 배포할 수 있습니다.' >&2; exit 1;
 }
 # 비밀값은 출력하거나 PM2 설정에 복사하지 않는다.
-python3 - "$PRIVATE_ENV" <<'PY'
+"$RAG_PYTHON_EXE" - "$PRIVATE_ENV" <<'PY'
 import os, stat, sys
 info = os.stat(sys.argv[1])
 if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
@@ -35,7 +36,7 @@ PY
 RELEASE="$RUNTIME_ROOT/releases/$(date -u +%Y%m%dT%H%M%SZ)-${TASK_SHA:0:12}"
 mkdir "$RELEASE"
 git -C "$TARGET_ROOT" archive "$TASK_SHA" services/ai | tar -x -C "$RELEASE"
-python3 -m venv "$RELEASE/.venv"
+"$RAG_PYTHON_EXE" -m venv "$RELEASE/.venv"
 "$RELEASE/.venv/bin/python" -m pip install --disable-pip-version-check -q -r "$RELEASE/services/ai/requirements-rag.txt"
 "$RELEASE/.venv/bin/python" -m pip freeze > "$RELEASE/requirements-resolved.txt"
 printf '%s\n' "$TASK_SHA" > "$RELEASE/commit-sha"

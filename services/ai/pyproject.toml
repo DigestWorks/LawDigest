@@ -35,6 +35,9 @@ rag = [
   "tiktoken>=0.12,<1",
   "openai>=2.24,<2.25",
   "qdrant-client>=1.15,<1.16",
+  "onnxruntime==1.31.1",
+  "tokenizers==0.23.3",
+  "numpy==2.5.4",
 ]
 
 [tool.setuptools]

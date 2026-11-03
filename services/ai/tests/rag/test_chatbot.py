@@ -53,7 +53,9 @@ def qa():
     settings = replace(RagSettings(), dimensions=3, min_score=0.1)
     client = QdrantClient(":memory:")
     embedder = MagicMock()
-    embedder.generate_many.side_effect = lambda texts: [[1.0, 0.0, 0.0] for _ in texts]
+    embedder.generate_many.side_effect = lambda texts, **kwargs: [
+        [1.0, 0.0, 0.0] for _ in texts
+    ]
     rows = [bill(), bill("B021", 21)]
     build_index(
         client, embedder, settings, rows, "lawdigest_rag_v1_test", activate=True
