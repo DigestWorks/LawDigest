@@ -19,12 +19,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StatisticsService {
+
+    private static final Pattern COMBINED_PASS_RESULTS = Pattern.compile("(?:원안가결|수정가결)(?:\\s+(?:원안가결|수정가결))+");
 
     private final StatisticsRepository statisticsRepository;
     private final BillTimelineRepository billTimelineRepository;
@@ -98,6 +103,20 @@ public class StatisticsService {
     }
 
     public List<ResultBreakdownDto> getResultBreakdown() {
-        return statisticsRepository.findResultBreakdown(currentAssembly());
+        var counts = new HashMap<String, Long>();
+        for (var row : statisticsRepository.findResultBreakdown(currentAssembly())) {
+            String result = row.getResult();
+            if (result == null || result.isBlank()) {
+                result = "결과 기록 없음";
+            } else if (COMBINED_PASS_RESULTS.matcher(result.strip()).matches()) {
+                result = "결과 확인 필요";
+            }
+            counts.merge(result, row.getCount(), Long::sum);
+        }
+        return counts.entrySet().stream()
+                .map(entry -> new ResultBreakdownDto(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingLong(ResultBreakdownDto::getCount).reversed()
+                        .thenComparing(ResultBreakdownDto::getResult))
+                .toList();
     }
 }

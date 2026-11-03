@@ -8,6 +8,7 @@ import com.everyones.lawmaking.domain.entity.Party;
 import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.service.StatisticsService;
+import com.everyones.lawmaking.service.BillService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -151,6 +152,38 @@ class BillSearchMysqlTest {
         assertThat(detail.getBillNumber()).isEqualTo(1);
         assertThat(detail.getStageDates()).containsExactly(
                 new BillDetailInfo.StageDate("위원회 심사", LocalDate.of(2026, 3, 27)));
+    }
+
+    @Test
+    void categorySurfacesAndTimelineShareCurrentAssemblyScope() {
+        jdbc.update("UPDATE Bill SET category = ?, bill_result = ?, stage = ? WHERE bill_id = ?",
+                "economy", "원안가결", "본회의 심의", "exact");
+        jdbc.update("UPDATE Bill SET category = ?, stage = ? WHERE bill_id = ?",
+                "economy", "공포", "body");
+        jdbc.update("UPDATE Bill SET bill_result = ? WHERE bill_id = ?", "수정가결 원안가결", "other");
+        repository.saveAndFlush(Bill.builder().id("previous").billNumber(19).assemblyNumber(21)
+                .billName("이전 대수").category("economy").billResult("수정가결")
+                .ingestStatus(IngestStatusType.READY).build());
+        repository.saveAndFlush(Bill.builder().id("staged").billNumber(20).assemblyNumber(22)
+                .billName("아직 검증되지 않음").category("economy").billResult("수정가결")
+                .ingestStatus(IngestStatusType.PENDING).build());
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            var bills = new BillService(repository, statistics);
+            var stats = new StatisticsService(statistics, timelines);
+            var page = bills.getBillListByCategory(PageRequest.of(0, 10), "economy");
+            assertThat(page.getBillList()).extracting(b -> b.getBillInfoDto().getBillId())
+                    .containsExactly("body", "exact");
+            assertThat(bills.getCategoryCounts()).singleElement().satisfies(category ->
+                    assertThat(category.getCount()).isEqualTo(2));
+            assertThat(stats.getBillCountByCategory()).singleElement().satisfies(category ->
+                    assertThat(category.getCount()).isEqualTo(2));
+            var timeline = bills.getBillStateCount();
+            assertThat(timeline.getPassedCount()).isEqualTo(1).isEqualTo(stats.getOverview().getPassedCount());
+            assertThat(timeline.getTreatmentCount()).isEqualTo(2);
+            assertThat(stats.getResultBreakdown()).extracting(result -> result.getResult())
+                    .containsExactlyInAnyOrder("원안가결", "결과 기록 없음", "결과 확인 필요");
+        });
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {

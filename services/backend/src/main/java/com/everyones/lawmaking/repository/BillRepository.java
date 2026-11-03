@@ -1,6 +1,5 @@
 package com.everyones.lawmaking.repository;
 
-import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
 import com.everyones.lawmaking.domain.entity.Bill;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
@@ -156,15 +155,6 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             "WHERE b.id IN :billIds " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY")
     List<Bill> findBillsWithPartiesByIds(@Param("billIds") List<String> billIds);
-
-    @Query("SELECT new com.everyones.lawmaking.common.dto.response.BillStateCountResponse(" +
-            "COUNT(b), " +
-            "SUM(CASE WHEN b.stage IN ('위원회 심사', '본회의 심의', '체계자구 심사', '정부이송', '공포') THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN b.stage IN ('정부이송', '공포') THEN 1 ELSE 0 END)) " +
-            "FROM Bill b "+
-            "where b.assemblyNumber = :currentAssemblyNumber " +
-            "and b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY")
-    BillStateCountResponse findStateCount(@Param("currentAssemblyNumber") int currentAssemblyNumber);
 
     @Query(value = "SELECT jt.tag AS keyword, COUNT(*) AS cnt " +
             "FROM Bill b, " +

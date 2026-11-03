@@ -32,18 +32,18 @@ export default function TimelineBoard() {
           </div>
         </div>
         <Divider orientation="vertical" className="h-[82px] bg-gray-2 hidden md:block" />
-        <div className="flex gap-10">
+        <div className="grid w-full grid-cols-3 gap-2 text-center md:w-auto md:gap-6">
           <div className="flex flex-col items-center gap-2">
             <span className="text-2xl font-semibold">{billState && billState.receipt_count}</span>
-            <span className="text-sm font-medium text-gray-2">접수법안</span>
+            <span className="text-sm font-medium text-gray-2">접수 법안</span>
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="text-2xl font-semibold">{billState && billState.treatment_count}</span>
-            <span className="text-sm font-medium text-gray-2">처리법안</span>
+            <span className="text-sm font-medium text-gray-2">위원회 심사 이상</span>
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="text-2xl font-semibold">{billState && billState.passed_count}</span>
-            <span className="text-sm font-medium text-gray-2">가결법안</span>
+            <span className="text-sm font-medium text-gray-2">가결 기록</span>
           </div>
         </div>
       </CardBody>

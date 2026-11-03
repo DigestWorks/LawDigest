@@ -10,7 +10,7 @@ import { SkeletonBar } from './StatsSkeleton';
 
 /**
  * 알려진 처리 결과별 색 — 디자인 토큰 기반(Neutral First).
- * 가결 계열=soft assembly blue, 폐기·철회=회색 사다리, 부결=alert-red, 계류(미결정)=quiet divider.
+ * 가결 계열=soft assembly blue, 폐기·철회=회색 사다리, 부결=alert-red, 결과 기록 없음=quiet divider.
  */
 const RESULT_COLORS: Record<string, string> = {
   원안가결: '#96BCFA',
@@ -21,6 +21,8 @@ const RESULT_COLORS: Record<string, string> = {
   철회: '#555555',
   부결: '#E63946',
   계류: '#E0E0E0',
+  '결과 기록 없음': '#E0E0E0',
+  '결과 확인 필요': '#55555580',
 };
 const EXTRA_PALETTE = ['#99999980', '#55555580', '#96BCFA80', '#E0E0E080'];
 
@@ -43,7 +45,6 @@ export default function StatsResultComposition() {
     );
   }
 
-  // 신규 API 미배포 환경에서는 카드 자체를 숨긴다.
   if (query.isError && !query.data) {
     return (
       <SectionError
@@ -100,7 +101,9 @@ export default function StatsResultComposition() {
             <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: seg.color }} />
             <span className="truncate">{seg.result}</span>
             <b className="ml-auto shrink-0 tabular-nums text-primary-3 dark:text-gray-0.5">
-              {((seg.count / total) * 100).toFixed(1)}%
+              {seg.count > 0 && (seg.count / total) * 100 < 0.1
+                ? '<0.1%'
+                : `${((seg.count / total) * 100).toFixed(1)}%`}
             </b>
           </span>
         ))}

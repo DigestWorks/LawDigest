@@ -70,7 +70,7 @@ function PassRateRing({ rate }: { rate: number }) {
   );
 }
 
-/** KPI 카드 4종 — 총 발의 / 가결 / 계류 중 / 가결률(링 게이지 포함). */
+/** KPI 카드 4종 — 총 발의 / 가결 / 결과 기록 없음 / 가결률(링 게이지 포함). */
 export default function StatsOverview() {
   const query = useGetStatisticsOverview();
   const { data, isLoading } = query;
@@ -106,7 +106,7 @@ export default function StatsOverview() {
   const cards = [
     { label: '총 발의', value: overview.total_count, unit: '건', icon: 'stacks' },
     { label: '가결', value: overview.passed_count, unit: '건', icon: 'task_alt' },
-    { label: '계류 중', value: overview.pending_count, unit: '건', icon: 'hourglass_top' },
+    { label: '결과 기록 없음', value: overview.pending_count, unit: '건', icon: 'hourglass_top' },
     { label: '가결률', value: overview.pass_rate, unit: '%', icon: 'percent', decimals: 1 },
   ];
 

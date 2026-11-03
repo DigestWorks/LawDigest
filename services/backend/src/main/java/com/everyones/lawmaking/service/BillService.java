@@ -13,6 +13,7 @@ import com.everyones.lawmaking.global.error.UserException;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.repository.BillRepository;
+import com.everyones.lawmaking.repository.StatisticsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,7 @@ import java.util.Comparator;
 @Transactional(readOnly = true)
 public class BillService {
     private final BillRepository billRepository;
+    private final StatisticsRepository statisticsRepository;
 
     private static final String BILL_ID_KEY_STRING = "billId";
 
@@ -45,11 +47,12 @@ public class BillService {
 
     public BillListResponse getBillListByCategory(Pageable pageable, String category) {
         var userIdOptional = AuthenticationUtil.getUserId();
-        return billRepository.findBillByCategoryAndPage(pageable, userIdOptional, category);
+        return billRepository.findBillByCategoryAndPage(
+                pageable, userIdOptional, category, BillInfoConstant.getCurrentAssemblyNumber());
     }
 
     public List<CategoryCountDto> getCategoryCounts() {
-        return billRepository.countByCategory();
+        return statisticsRepository.findBillCountByCategory(BillInfoConstant.getCurrentAssemblyNumber());
     }
 
     public List<TrendingKeywordDto> getTrendingKeywords(int size) {
@@ -269,7 +272,9 @@ public class BillService {
 
     public BillStateCountResponse getBillStateCount() {
         int currentAssemblyNumber = BillInfoConstant.getCurrentAssemblyNumber();
-        return billRepository.findStateCount(currentAssemblyNumber);
+        var overview = statisticsRepository.findOverview(currentAssemblyNumber);
+        var stages = statisticsRepository.findStageFunnel(currentAssemblyNumber);
+        return new BillStateCountResponse(overview.getTotalCount(), stages.getCommitteeCount(), overview.getPassedCount());
     }
 
 
