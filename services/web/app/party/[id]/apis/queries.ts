@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery, QueryClient, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { nextBillPage } from '@/lib/billQueries';
 import { BILL_TAB } from '@/constants';
 import { ValueOf } from '@/types';
@@ -14,8 +14,8 @@ export const useGetBillByParty = (id: number, type: ValueOf<typeof BILL_TAB>) =>
     getNextPageParam: nextBillPage,
   });
 
-export const useGetPartyDetail = ({ partyId, queryClient }: { partyId: number; queryClient: QueryClient }) =>
-  queryClient.fetchQuery({
+export const useGetPartyDetail = (partyId: number) =>
+  useQuery({
     queryKey: ['/party/detail', partyId],
     queryFn: () => getPartyDetail(partyId),
   });

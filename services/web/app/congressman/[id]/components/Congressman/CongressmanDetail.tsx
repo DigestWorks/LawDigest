@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { SectionError } from '@/components/common/SectionState';
 import { Card } from '@heroui/card';
 import { Avatar } from '@heroui/avatar';
 import { Chip, Divider, Button, Link as NextUILink, Accordion, AccordionItem } from '@heroui/react';
@@ -7,11 +7,24 @@ import FollowBoard from './FollowBoard';
 import { useGetCongressmanDetail } from '../../apis';
 import PartyLogo from './PartyLogo';
 
-export default async function CongressmanDetail({ congressmanId }: { congressmanId: string }) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const queryClient = useQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: congressman } = await useGetCongressmanDetail({ congressmanId, queryClient });
+export default function CongressmanDetail({ congressmanId }: { congressmanId: string }) {
+  const query = useGetCongressmanDetail(congressmanId);
+  const profile = query.data?.data;
+
+  if (!profile) {
+    return query.isPending ? (
+      <p role="status" className="p-5 text-sm text-muted-foreground">
+        의원 프로필을 불러오는 중…
+      </p>
+    ) : (
+      <SectionError
+        message="의원 프로필을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
   const {
     congressman_name,
     party_id,
@@ -32,7 +45,7 @@ export default async function CongressmanDetail({ congressmanId }: { congressman
     follow_count,
     brief_history,
     telephone,
-  } = congressman;
+  } = profile;
 
   return (
     <Card

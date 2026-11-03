@@ -1,6 +1,6 @@
 'use client';
 
-import { QueryClient, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useInfiniteQuery, useQueryClient, useQuery } from '@tanstack/react-query';
 import { nextBillPage } from '@/lib/billQueries';
 import { BILL_TAB } from '@/constants';
 import { ValueOf } from '@/types';
@@ -14,14 +14,8 @@ export const useGetBillByCongressman = (id: string, type: ValueOf<typeof BILL_TA
     getNextPageParam: nextBillPage,
   });
 
-export const useGetCongressmanDetail = ({
-  congressmanId,
-  queryClient,
-}: {
-  congressmanId: string;
-  queryClient: QueryClient;
-}) =>
-  queryClient.fetchQuery({
+export const useGetCongressmanDetail = (congressmanId: string) =>
+  useQuery({
     queryKey: ['/congressman/detail', congressmanId],
     queryFn: () => getCongressmanDetail(congressmanId),
   });
