@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule LawDigest bill-ingest
+
+[Timer]
+OnCalendar=*-*-* 01:10:00 Asia/Seoul
+Unit=lawdigest-pipeline@bill-ingest.service
+
+[Install]
+WantedBy=timers.target

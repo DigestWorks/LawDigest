@@ -1,9 +1,8 @@
 import pytest
-
 from lawdigest_ai.processor.category_classifier import (
+    classify_bill,
     classify_by_committee,
     classify_by_content,
-    classify_bill,
 )
 
 
@@ -93,3 +92,11 @@ def test_classify_bill_prefers_committee_then_content_then_unknown():
     assert classify_bill("본회의", "조세특례제한법 일부개정법률안", "") == "economy"
     # 위원회도 내용도 못 잡으면 unknown
     assert classify_bill("본회의", "맥락 없는 제목", "맥락 없는 요약") == "unknown"
+
+
+def test_local_council_members_are_not_healthcare_facilities():
+    name = "제주특별자치도 설치 및 국제자유도시 조성을 위한 특별법 일부개정법률안"
+    title = "제주특별자치도의회 의원 정수 조정을 위한 개정안"
+    assert classify_bill("정치개혁특별위원회", name, title) == "politics"
+    assert classify_bill(None, name, title) == "unknown"
+    assert classify_by_content("의원급 기관 개설에 관한 법률안") == "health"
