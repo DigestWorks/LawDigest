@@ -44,6 +44,7 @@ public class BillController {
     @Operation(summary = "메인피드 조회", description = "메인피드에 들어갈 데이터를 가져옵니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 페이지, 크기 또는 단계"),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류 (문제 지속시 BE팀 문의)",
@@ -67,10 +68,10 @@ public class BillController {
                     "본회의 심의", "공포"})
             @RequestParam(name = "stage", required = false) String stage
             ) {
-        var pageable = PageRequest.of(page, size);
-        if(StringUtils.hasText(stage) && !BillStageType.containsValue(stage)) {
-            throw new IllegalArgumentException(stage);
+        if (page < 0 || size < 1 || (StringUtils.hasText(stage) && !BillStageType.containsValue(stage))) {
+            throw new RequestParameterException();
         }
+        var pageable = PageRequest.of(page, size);
         var result = billFacade.getBillList(pageable, stage);
         return BaseResponse.ok(limitToRequestedSize(result, size));
     }
