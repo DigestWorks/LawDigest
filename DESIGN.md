@@ -148,7 +148,7 @@ components:
 - **Info Lime**: 특별한 정보성 표식에만 사용한다. 법안·정치 정보의 기본 강조색으로 남발하지 않는다.
 
 ### Tertiary
-- **Party Spectrum**: 정당 색상은 고정 디자인 토큰이 아니라 정당명, 로고, 당색 변경에 따라 바뀔 수 있는 도메인 데이터다. 후보, 정당, 발의자, 여론조사, 타임라인 표식에만 사용하며, 실제 색상값의 source of truth는 `services/web/constants/party/party.ts`의 `PARTY_COLOR`와 `getPartyColor()`다. 향후 DB나 관리자 설정으로 이전해도 디자인 원칙은 유지된다.
+- **Party Spectrum**: 정당 색상은 고정 디자인 토큰이 아니라 정당명, 로고, 당색 변경에 따라 바뀔 수 있는 도메인 데이터다. 후보, 정당, 발의자, 여론조사, 타임라인 표식과 단일 대표발의자의 AI 요약 강조에 사용하며, 실제 색상값의 source of truth는 `services/web/constants/party/party.ts`의 `PARTY_COLOR`와 `getPartyColor()`다. 향후 DB나 관리자 설정으로 이전해도 디자인 원칙은 유지된다.
 - **Alert Red**: 오류, 경고, AI 요약 주의 문구, 선거 임박 상태처럼 사용자의 주의가 필요한 순간에만 사용한다.
 
 ### Neutral
@@ -162,7 +162,7 @@ components:
 
 **The Neutral First Rule.** 화면의 80% 이상은 무채색 정보 표면이어야 한다. 정치색과 레인보우는 정보 구조가 요구할 때만 등장한다.
 
-**The Party Color Is Data Rule.** 정당 색상은 제품 팔레트가 아니라 변경 가능한 도메인 데이터다. `DESIGN.md`는 정당별 실제 색상값을 소유하지 않고, 소속, 비교, 지도, 차트, 타임라인 표식에만 사용한다는 원칙을 소유한다. CTA, 배경 장식, 감정적 강조에는 사용하지 않는다. 새 구현은 `PARTY_COLOR`를 직접 참조하거나 `getPartyColor()`를 통해 색을 가져온다.
+**The Party Color Is Data Rule.** 정당 색상은 제품 팔레트가 아니라 변경 가능한 도메인 데이터다. `DESIGN.md`는 정당별 실제 색상값을 소유하지 않고, 소속, 비교, 지도, 차트, 타임라인 표식에서 사용한다. 단일 대표발의자가 확인된 법안의 AI 요약에는 같은 색을 강조에 쓸 수 있다. 미등록 정당과 단일 소속이 없는 요약은 중립색을 쓴다. CTA와 배경 장식에는 사용하지 않는다. 새 구현은 `PARTY_COLOR`를 직접 참조하거나 `getPartyColor()`를 통해 색을 가져온다.
 
 **The Rainbow Entry Rule.** 레인보우는 브랜드 서명과 검색·탐색 진입점에만 사용한다. 본문 카드 안의 텍스트 강조나 정치 정보 강조에 쓰지 않는다.
 

@@ -38,11 +38,8 @@ import { snackbarState } from '@/store';
 import ProposerList from '@/app/bill/[id]/components/ProposerList/ProposerList';
 import { isoDateOnly, proposalDateLabel } from '@/lib/dataFreshness';
 import BillSource from './BillSource';
-import {
-  getFeedSummaryMarkdown,
-  getPartyAccentColor,
-  getSummaryVisibilityClassNames,
-} from './renderBillSummaryMarkdown';
+import { getPartyColor } from '@/constants/party';
+import { getFeedSummaryMarkdown, getSummaryVisibilityClassNames } from './renderBillSummaryMarkdown';
 import SafeBillSummaryHtml from './SafeBillSummaryHtml';
 import { Button as ActionButton } from '@/components/ui/button';
 
@@ -90,7 +87,8 @@ export default function Bill({
   const isRepresentativeSolo =
     !isGovernmentProposer && !isChairmanProposer && representative_proposer_dto_list.length === 1;
   const partyName = isRepresentativeSolo ? representative_proposer_dto_list[0].party_name : '다수';
-  let proposerCardBorderClassName = partyName;
+  const partyAccent = getPartyColor(isRepresentativeSolo ? partyName : null);
+  let proposerCardBorderClassName = '';
   if (isGovernmentProposer) {
     proposerCardBorderClassName = 'lawdigest-government-proposer-card';
   } else if (isChairmanProposer) {
@@ -106,12 +104,10 @@ export default function Bill({
     expanded: toggleMore,
   });
   const summaryAccentStyle = {
-    '--lawdigest-summary-accent': isGovernmentProposer
-      ? '#c60c30'
-      : chairmanProposerInfo?.accentColor ?? getPartyAccentColor(partyName),
+    '--lawdigest-summary-accent': isGovernmentProposer ? '#c60c30' : chairmanProposerInfo?.accentColor ?? partyAccent,
     '--lawdigest-summary-accent-secondary': isGovernmentProposer
       ? '#003478'
-      : chairmanProposerInfo?.accentColor ?? getPartyAccentColor(partyName),
+      : chairmanProposerInfo?.accentColor ?? partyAccent,
   } as CSSProperties;
   const summaryContentClassName =
     `${summaryClassName} ${isGovernmentProposer ? 'lawdigest-summary-government-accent' : ''}`.trim();
@@ -421,6 +417,7 @@ export default function Bill({
         className={`flex flex-col w-full md:w-auto md:flex-col ${detail ? 'md:border-l md:dark:border-dark-l' : ''}`}>
         <div className="pt-4 pb-6">
           <Card
+            style={isGovernmentProposer || isChairmanProposer ? undefined : { borderColor: partyAccent }}
             className={`flex flex-row h-[78px] mx-5 border-1.5 items-center justify-between px-[18px] dark:bg-gray-4 md:w-[410px] lg:max-w-full lg:w-[490px] md:float-right ${detail ? 'md:w-[300px] lg:float-left' : ''} ${proposerCardBorderClassName}`}
             radius="sm"
             shadow="sm">
