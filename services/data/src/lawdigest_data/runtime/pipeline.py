@@ -248,7 +248,7 @@ class PipelineRuntime:
         def execute(run_id: str) -> List[Dict[str, Any]]:
             manager = _build_workflow_manager(mode)
             steps: List[Dict[str, Any]] = []
-            self._record_step(run_id, steps, "update_lawmakers", manager.update_lawmakers_data())
+            fetched_steps = []
             for fetch_name, upsert_name in (
                 ("fetch_lifecycle_step", "upsert_lifecycle_step"),
                 ("fetch_vote_step", "upsert_vote_step"),
@@ -259,15 +259,23 @@ class PipelineRuntime:
                     fetch_name,
                     getattr(manager, fetch_name)(start_date=start_date, end_date=end_date, age=age),
                 )
+                fetched_steps.append((upsert_name, fetched))
+
+            self._record_step(run_id, steps, "update_lawmakers", manager.update_lawmakers_data())
+            for upsert_name, fetched in fetched_steps:
                 artifact_path = fetched.get("artifact_path")
                 if artifact_path:
                     self._record_step(run_id, steps, upsert_name, getattr(manager, upsert_name)(artifact_path))
                 else:
+                    verified = fetched.get("verified_empty") is True
                     self._record_step(
                         run_id,
                         steps,
                         f"skip_{upsert_name}",
-                        {"status": "empty", "reason": "no artifact"},
+                        {
+                            "status": "success" if verified else "empty",
+                            "reason": "verified_no_changes" if verified else "no artifact",
+                        },
                     )
             return steps
 

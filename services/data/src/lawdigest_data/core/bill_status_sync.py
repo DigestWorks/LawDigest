@@ -69,7 +69,10 @@ class BillStatusSyncService:
         payload = self.lifecycle_fetcher.fetch(start_date=start_date, end_date=end_date, age=age)
         rows = payload.get("rows") or []
         if not rows:
-            return {"mode": self.mode, "fetched": 0, "artifact_path": None, "step": "fetch_lifecycle"}
+            return {
+                "mode": self.mode, "fetched": 0, "artifact_path": None, "step": "fetch_lifecycle",
+                "verified_empty": payload.get("source_checked") is True,
+            }
         artifact_path = self._write_artifact("bill_status_lifecycle_fetch", payload)
         return {
             "mode": self.mode,
@@ -158,7 +161,10 @@ class BillStatusSyncService:
         payload = self.vote_fetcher.fetch(start_date=start_date, end_date=end_date, age=age)
         vote_rows = payload.get("vote_rows") or []
         if not vote_rows:
-            return {"mode": self.mode, "fetched": 0, "artifact_path": None, "step": "fetch_vote"}
+            return {
+                "mode": self.mode, "fetched": 0, "artifact_path": None, "step": "fetch_vote",
+                "verified_empty": payload.get("source_checked") is True,
+            }
         artifact_path = self._write_artifact("bill_status_vote_fetch", payload)
         return {
             "mode": self.mode,

@@ -1,0 +1,19 @@
+[Unit]
+Description=LawDigest pipeline (%i)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+UMask=0077
+EnvironmentFile=/etc/lawdigest-pipeline/runtime.env
+Environment=PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin
+LoadCredential=approval:/etc/lawdigest-pipeline/approvals/%i
+StateDirectory=lawdigest-pipeline
+StateDirectoryMode=0700
+LogsDirectory=lawdigest-pipeline
+LogsDirectoryMode=0700
+ExecStart=/usr/local/libexec/lawdigest-pipeline-wrapper %i
+TimeoutStartSec=3h
