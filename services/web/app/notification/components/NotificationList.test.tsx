@@ -25,7 +25,8 @@ vi.mock('../apis', () => ({
 it('다크 모드에서 첫 알림 응답을 받으면 알림과 메뉴를 표시한다', () => {
   query.mockReturnValue({ data: undefined });
   const { rerender } = render(<NotificationList />);
-  expect(screen.queryByText('법안 접수 표본')).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('알림을 불러오는 중입니다.');
+  expect(screen.queryByRole('button', { name: '전체 알림 관리' })).not.toBeInTheDocument();
 
   query.mockReturnValue({
     data: [
@@ -46,6 +47,18 @@ it('다크 모드에서 첫 알림 응답을 받으면 알림과 메뉴를 표�
 
   expect(screen.getByText('법안 접수 표본')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '법안 접수 표본 알림 관리' })).toBeInTheDocument();
+});
+
+it('알림 목록 요청에 실패하면 다시 불러오기만 표시한다', async () => {
+  const user = userEvent.setup();
+  const refetch = vi.fn();
+  query.mockReturnValue({ isError: true, refetch });
+
+  render(<NotificationList />);
+  expect(screen.getByRole('alert')).toHaveTextContent('알림을 불러오지 못했습니다.');
+  expect(screen.queryByRole('button', { name: '전체 알림 관리' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '다시 불러오기' }));
+  expect(refetch).toHaveBeenCalledOnce();
 });
 
 it.each([
