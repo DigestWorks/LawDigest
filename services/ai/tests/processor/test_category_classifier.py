@@ -115,3 +115,10 @@ def test_local_council_members_are_not_healthcare_facilities():
 )
 def test_reviewed_law_titles_override_committee_category(committee, name, expected):
     assert classify_bill(committee, name) == expected
+
+
+def test_scheduled_rules_skip_unverified_content_fallback():
+    name = "조세특례제한법 일부개정법률안"
+    assert classify_bill("본회의", name, allow_content_fallback=False) == "unknown"
+    assert classify_bill("기획재정위원회", name, allow_content_fallback=False) == "economy"
+    assert classify_bill(None, "중대범죄수사청법안", allow_content_fallback=False) == "justice"

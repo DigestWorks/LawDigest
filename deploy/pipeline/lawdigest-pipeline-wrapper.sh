@@ -67,6 +67,6 @@ case "$job" in
     ;;
   bill-category-backfill)
     cd services/ai
-    exec "$LAWDIGEST_PIPELINE_PYTHON" -m scripts.backfill_bill_category --mode prod --age 22 --execute
+    exec "$LAWDIGEST_PIPELINE_PYTHON" -m scripts.backfill_bill_category --mode prod --age 22 --execute --verified-only
     ;;
 esac

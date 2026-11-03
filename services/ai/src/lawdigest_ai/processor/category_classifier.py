@@ -128,6 +128,8 @@ def classify_bill(
     committee: str | None,
     bill_name: str | None,
     summary: str | None = None,
+    *,
+    allow_content_fallback: bool = True,
 ) -> str:
     """백필 오케스트레이터: 법률명 예외 → 위원회 매핑 → 내용 분류 → unknown."""
     name = (bill_name or "").strip()
@@ -140,7 +142,6 @@ def classify_bill(
     by_committee = classify_by_committee(committee, text)
     if by_committee is not None:
         return by_committee
-    by_content = classify_by_content(bill_name, summary)
-    if by_content is not None:
-        return by_content
+    if allow_content_fallback:
+        return classify_by_content(bill_name, summary) or UNKNOWN_CODE
     return UNKNOWN_CODE
