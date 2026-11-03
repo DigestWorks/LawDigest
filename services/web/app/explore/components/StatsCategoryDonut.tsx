@@ -71,7 +71,7 @@ export default function StatsCategoryDonut() {
   return (
     <StatsCard title="분야별 분포" icon="donut_small" subtitle={`${raw.length}개 분야`} delay={0.15}>
       <div className="flex items-center gap-4">
-        <ChartContainer config={chartConfig} className="aspect-square h-[168px] shrink-0">
+        <ChartContainer config={chartConfig} className="aspect-square h-[168px] w-[168px] shrink-0">
           <PieChart>
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="name" />} />
             <Pie
@@ -123,7 +123,7 @@ export default function StatsCategoryDonut() {
               onFocus={() => setActiveIndex(i)}
               onBlur={() => setActiveIndex(null)}
               className={clsx(
-                'flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[12px] transition-colors duration-150',
+                'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[12px] transition-colors duration-150',
                 activeIndex === i
                   ? 'bg-gray-0.5 text-primary-3 dark:bg-dark-l dark:text-gray-0.5'
                   : 'text-gray-3 dark:text-gray-1',
