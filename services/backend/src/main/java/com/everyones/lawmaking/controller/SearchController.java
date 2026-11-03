@@ -1,6 +1,6 @@
 package com.everyones.lawmaking.controller;
 
-import com.everyones.lawmaking.common.dto.response.SearchBillResponse;
+import com.everyones.lawmaking.common.dto.bill.BillCardDto;
 import com.everyones.lawmaking.common.dto.response.SearchDataResponse;
 import com.everyones.lawmaking.common.dto.response.SearchKeywordResponse;
 import com.everyones.lawmaking.facade.SearchFacade;
@@ -137,17 +137,18 @@ public class SearchController {
             ),
     })
     @GetMapping("/bill")
-    public BaseResponse<SearchBillResponse> searchBill (
+    public BaseResponse<?> searchBill (
             @Parameter(example = "소방", description = "소방 관련 법안을 검색하려는 검색어")
             @RequestParam("search_word") String searchWord,
             @Parameter(example = "0", description = "검색 결과 페이징을 위한 페이지 넘버")
-            @RequestParam("page") int page) {
+            @RequestParam("page") int page,
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact) {
         if (page < 0) {
             throw new RequestParameterException();
         }
         var query = SearchQuery.from(searchWord);
         var result = searchFacade.searchBill(query.text(), page);
-        return BaseResponse.ok(result);
+        return BaseResponse.ok(compact ? BillCardDto.searchPage(result) : result);
 
     }
 

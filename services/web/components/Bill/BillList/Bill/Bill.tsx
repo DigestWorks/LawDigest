@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { useState, useCallback, useEffect, useId, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
 import {
   Card,
@@ -19,9 +20,9 @@ import {
   PopoverContent,
 } from '@heroui/react';
 import Link from 'next/link';
-import type { BaseResponse, BillProps, ViewCountResponse } from '@/types';
+import type { BaseResponse, BillListItem, ViewCountResponse } from '@/types';
 import { IconExport, IconScrabSmall } from '@/public/svgs';
-import { usePatchBookmark } from '@/app/bill/[id]/apis';
+import { billDetailQueryOptions, usePatchBookmark } from '@/app/bill/[id]/apis';
 import {
   copyClipBoard,
   getPartyLogoSrc,
@@ -63,9 +64,11 @@ export default function Bill({
   is_book_mark,
   hot_activity,
   public_proposer_dto_list,
+  public_proposer_count,
+  has_original_summary,
   detail,
   children,
-}: BillProps) {
+}: BillListItem & { detail?: boolean; children?: ReactNode }) {
   const trackedBill = useRef<string | null>(null);
   const [observedView, setObservedView] = useState<{ id: string; count: number } | null>(null);
   useEffect(() => {
@@ -95,11 +98,23 @@ export default function Bill({
   const mutateBookmark = usePatchBookmark(bill_id);
   const [toggleMore, setToggleMore] = useState(false);
   const summaryId = useId();
+  const summaryContent = useRef<HTMLDivElement>(null);
+  const proposerContent = useRef<HTMLDivElement>(null);
+  const [proposersOpen, setProposersOpen] = useState(false);
+  const proposerCount = public_proposer_count ?? public_proposer_dto_list?.length ?? 0;
+  const aiSummary = gpt_summary?.trim() ? gpt_summary : '';
+  const loadOriginalSummary = !aiSummary && !summary && Boolean(has_original_summary);
+  const detailQuery = useQuery({
+    ...billDetailQueryOptions(bill_id),
+    enabled: (proposersOpen && !public_proposer_dto_list) || (toggleMore && loadOriginalSummary),
+    retry: false,
+  });
+  const proposerList = public_proposer_dto_list ?? detailQuery.data?.data?.public_proposer_dto_list;
   const isGovernmentProposer = isGovernmentBill({
     proposerKind: proposer_kind,
     billId: bill_id,
     representativeProposerCount: representative_proposer_dto_list.length,
-    publicProposerCount: public_proposer_dto_list.length,
+    publicProposerCount: proposerCount,
   });
   const chairmanProposerInfo = getChairmanProposerInfo({
     proposerKind: proposer_kind,
@@ -120,8 +135,28 @@ export default function Bill({
   const setSnackbar = useSetAtom(snackbarState);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const aiSummary = gpt_summary?.trim() ? gpt_summary : '';
-  const displayedSummary = aiSummary && !detail ? getFeedSummaryMarkdown(aiSummary) : aiSummary || summary;
+  const originalSummary = summary ?? detailQuery.data?.data?.bill_info_dto.summary ?? '';
+  const displayedSummary = aiSummary && !detail ? getFeedSummaryMarkdown(aiSummary) : aiSummary || originalSummary;
+  const summaryLabel = loadOriginalSummary ? '제안이유' : '요약';
+  let originalSummaryState: ReactNode = <p>공개된 제안이유가 없습니다.</p>;
+  if (detailQuery.isFetching) {
+    originalSummaryState = <p role="status">제안이유를 불러오는 중입니다.</p>;
+  } else if (detailQuery.isError) {
+    originalSummaryState = (
+      <>
+        <p role="alert">제안이유를 불러오지 못했습니다.</p>
+        <ActionButton
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            summaryContent.current?.focus({ preventScroll: true });
+            void detailQuery.refetch();
+          }}>
+          다시 불러오기
+        </ActionButton>
+      </>
+    );
+  }
   const { summaryClassName } = getSummaryVisibilityClassNames({
     detail: Boolean(detail),
     expanded: toggleMore,
@@ -245,31 +280,54 @@ export default function Bill({
         </h3>
       </Link>
 
-      <Popover placement="bottom" showArrow>
+      <Popover placement="bottom" showArrow shouldCloseOnScroll={false} onOpenChange={setProposersOpen}>
         <PopoverTrigger>
-          <Button className="p-0 m-0 bg-transparent h-min">
+          <Button aria-label={`발의자 명단 보기 (${proposerCount}인)`} className="p-0 m-0 bg-transparent h-min">
             <Tooltip showArrow content="발의자 명단 보기">
               <h4 className="text-xs text-gray-2">
                 {isRepresentativeSolo
-                  ? `${representative_proposer_dto_list[0].representative_proposer_name} 의원 등 ${public_proposer_dto_list.length}인`
+                  ? `${representative_proposer_dto_list[0].representative_proposer_name} 의원 등 ${proposerCount}인`
                   : `${representative_proposer_dto_list
                       .map(({ representative_proposer_name }) => representative_proposer_name)
-                      .join('·')} 의원 등 ${public_proposer_dto_list.length}인`}
+                      .join('·')} 의원 등 ${proposerCount}인`}
               </h4>
             </Tooltip>
           </Button>
         </PopoverTrigger>
         <PopoverContent>
-          <ProposerList
-            representativeProposerList={representative_proposer_dto_list}
-            publicProposerList={public_proposer_dto_list}
-            billId={bill_id}
-            proposerKind={proposer_kind}
-            proposerText={proposers}
-            committee={committee}
-            proposeDate={propose_date}
-            popover
-          />
+          <div ref={proposerContent} tabIndex={-1} className="outline-none">
+            {proposerList ? (
+              <ProposerList
+                representativeProposerList={representative_proposer_dto_list}
+                publicProposerList={proposerList}
+                billId={bill_id}
+                proposerKind={proposer_kind}
+                proposerText={proposers}
+                committee={committee}
+                proposeDate={propose_date}
+                popover
+              />
+            ) : (
+              <div className="p-3">
+                {detailQuery.isError ? (
+                  <>
+                    <p role="alert">발의자 명단을 불러오지 못했습니다.</p>
+                    <ActionButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        proposerContent.current?.focus({ preventScroll: true });
+                        void detailQuery.refetch();
+                      }}>
+                      다시 불러오기
+                    </ActionButton>
+                  </>
+                ) : (
+                  <p role="status">발의자 명단을 불러오는 중입니다.</p>
+                )}
+              </div>
+            )}
+          </div>
         </PopoverContent>
       </Popover>
     </>
@@ -359,13 +417,17 @@ export default function Bill({
           <div className={!detail ? 'md:w-[440px] lg:w-[490px]' : ''}>
             <CardBody className={`p-0 leading-normal whitespace-pre-wrap ${detail ? '' : 'text-sm md:text-base'}`}>
               <BillSource billId={bill_id} generated={Boolean(aiSummary)} detail={detail} />
-              <SafeBillSummaryHtml
-                className={summaryContentClassName}
-                style={summaryAccentStyle}
-                id={summaryId}
-                markdown={displayedSummary}
-              />
-              {!detail && (
+              <div id={summaryId} ref={summaryContent} tabIndex={-1}>
+                {displayedSummary && (!loadOriginalSummary || toggleMore) && (
+                  <SafeBillSummaryHtml
+                    className={summaryContentClassName}
+                    style={summaryAccentStyle}
+                    markdown={displayedSummary}
+                  />
+                )}
+                {loadOriginalSummary && toggleMore && !displayedSummary && originalSummaryState}
+              </div>
+              {!detail && (displayedSummary || loadOriginalSummary) && (
                 <ActionButton
                   variant="ghost"
                   className="self-start"
@@ -373,7 +435,7 @@ export default function Bill({
                   onClick={onClickToggleMore}
                   aria-expanded={toggleMore}
                   aria-controls={summaryId}>
-                  {toggleMore ? '요약 접기' : '요약 더 보기'}
+                  {toggleMore ? `${summaryLabel} 접기` : `${summaryLabel} 더 보기`}
                 </ActionButton>
               )}
             </CardBody>

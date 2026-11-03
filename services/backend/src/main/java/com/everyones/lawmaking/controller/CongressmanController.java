@@ -1,7 +1,7 @@
 package com.everyones.lawmaking.controller;
 
+import com.everyones.lawmaking.common.dto.bill.BillCardDto;
 import com.everyones.lawmaking.common.dto.CongressmanRankingDto;
-import com.everyones.lawmaking.common.dto.response.BillListResponse;
 import com.everyones.lawmaking.common.dto.response.CongressmanLikeResponse;
 import com.everyones.lawmaking.common.dto.response.CongressmanListResponse;
 import com.everyones.lawmaking.common.dto.response.CongressmanResponse;
@@ -98,7 +98,7 @@ public class CongressmanController {
             ),
     })
     @GetMapping("/bill_info")
-    public BaseResponse<BillListResponse> getCongressmanBills(
+    public BaseResponse<?> getCongressmanBills(
             @Parameter(example = "0PK7354M", description = "의원 Id")
             @RequestParam("congressman_id") String congressmanId,
             @Parameter(example = "represent_proposer", description = "해당 의원의 법안 대표 발의 기준, 공동 발의 기준 여부")
@@ -109,14 +109,13 @@ public class CongressmanController {
             @Parameter(example = "0")
             @RequestParam("page") int page,
             @Parameter(example = "3")
-            @RequestParam("size") int size) {
+            @RequestParam("size") int size,
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact) {
         Pageable pageable = PageRequest.of(page, size);
-        if (type.equals("represent_proposer")) {
-            var representativeBills = billFacade.getBillsFromRepresentativeProposer(congressmanId, pageable, stage);
-            return BaseResponse.ok(representativeBills);
-        }
-        var publicProposerBills = billFacade.getBillsFromPublicProposer(congressmanId, pageable, stage);
-        return BaseResponse.ok(publicProposerBills);
+        var response = type.equals("represent_proposer")
+                ? billFacade.getBillsFromRepresentativeProposer(congressmanId, pageable, stage)
+                : billFacade.getBillsFromPublicProposer(congressmanId, pageable, stage);
+        return BaseResponse.ok(compact ? BillCardDto.page(response) : response);
     }
 
     @Operation(summary = "의원 좋아요", description = "의원이 좋아요 클릭")

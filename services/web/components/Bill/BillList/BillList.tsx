@@ -1,4 +1,4 @@
-import { BillResponse } from '@/types';
+import { BillListItem } from '@/types';
 import { RefObject } from 'react';
 import { Spinner } from '@heroui/spinner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ export default function BillList({
   onLoadMore,
   error = false,
 }: {
-  bills: BillResponse[];
+  bills: BillListItem[];
   isFetching: boolean;
   fetchRef: RefObject<HTMLDivElement | null>;
   detail?: boolean;

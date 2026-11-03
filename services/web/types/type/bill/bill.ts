@@ -79,3 +79,10 @@ export interface BillProps extends BillResponse {
   children?: ReactNode;
   detail?: boolean;
 }
+
+export type BillListItem = Omit<BillResponse, 'bill_info_dto' | 'public_proposer_dto_list'> & {
+  bill_info_dto: Omit<BillResponse['bill_info_dto'], 'summary'> & { summary?: string | null };
+  public_proposer_dto_list?: BillResponse['public_proposer_dto_list'];
+  public_proposer_count?: number;
+  has_original_summary?: boolean;
+};

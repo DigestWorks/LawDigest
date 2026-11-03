@@ -3,7 +3,7 @@ import { BillResponse, BookmarkResponse, SimilarBillsResponse } from '@/types';
 
 export const getBillDetail = async (billId: string) =>
   http.get<BillResponse>({
-    url: `/bill/detail/${billId}`,
+    url: `/bill/detail/${encodeURIComponent(billId)}`,
   });
 
 export const getSimilarBills = (billId: string, page: number) =>

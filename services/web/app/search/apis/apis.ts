@@ -10,5 +10,5 @@ export const getSearchCongressmanParty = async (searchWord: string) =>
 export const getSearchBill = async (searchWord: string, page: number) =>
   http.get<SearchBillResponse>({
     url: `/search/bill`,
-    params: { search_word: searchWord, page },
+    params: { search_word: searchWord, page, compact: true },
   });

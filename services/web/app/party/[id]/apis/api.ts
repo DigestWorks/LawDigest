@@ -1,6 +1,13 @@
 import { Dispatch, SetStateAction } from 'react';
 import http from '@/api';
-import { FeedResponse, PartyDetailResponse, ValueOf, PartyCongressmanResponse, PartyFollowResponse } from '@/types';
+import {
+  BillListItem,
+  FeedResponse,
+  PartyDetailResponse,
+  ValueOf,
+  PartyCongressmanResponse,
+  PartyFollowResponse,
+} from '@/types';
 import { BILL_TAB } from '@/constants';
 
 export const getBillByParty = async (
@@ -8,9 +15,9 @@ export const getBillByParty = async (
   type: ValueOf<typeof BILL_TAB> | Dispatch<SetStateAction<ValueOf<typeof BILL_TAB>>>,
   page: number,
 ) =>
-  http.get<FeedResponse>({
+  http.get<FeedResponse<BillListItem>>({
     url: `/party/bill`,
-    params: { party_id: partyId, type, page, size: 10 },
+    params: { party_id: partyId, type, page, size: 10, compact: true },
   });
 
 export const getPartyDetail = (partyId: number) =>
