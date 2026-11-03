@@ -53,7 +53,7 @@ class TestDatabaseManagerLawmaker(unittest.TestCase):
                 # Mock existing lawmakers (C001, C002) -> C002 should be disabled
                 self.cursor.fetchall.return_value = [{"congressman_id": "C001"}, {"congressman_id": "C002"}]
                 
-                self.db_manager.update_lawmaker_info(lawmaker_data)
+                self.db_manager.update_lawmaker_info(lawmaker_data, full_snapshot=True)
                 
                 # Verify _ensure_parties called
                 mock_ensure_parties.assert_called_once()

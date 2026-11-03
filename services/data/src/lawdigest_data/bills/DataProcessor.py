@@ -51,6 +51,9 @@ class DataProcessor:
             .str.extract(self.BILL_NAME_PROPOSER_PATTERN, expand=False)
             .fillna("")
         )
+        extracted_proposers = extracted_proposers.where(
+            extracted_proposers.str.contains("의원", regex=False), ""
+        )
         existing_proposers = (
             df_bills_congressman["proposers"]
             if "proposers" in df_bills_congressman.columns
@@ -65,7 +68,10 @@ class DataProcessor:
         print("\n[bill_name에서 발의자 정보 제거 중...]")
         df_bills_congressman["bill_name"] = (
             df_bills_congressman["bill_name"]
-            .str.replace(self.BILL_NAME_STRIP_PATTERN, "", regex=True)
+            .where(
+                extracted_proposers.eq(""),
+                df_bills_congressman["bill_name"].str.replace(self.BILL_NAME_STRIP_PATTERN, "", regex=True),
+            )
             .str.strip()
         )
         print("[bill_name 정리 완료]")
@@ -84,26 +90,15 @@ class DataProcessor:
                     lambda value: value if isinstance(value, list) else []
                 )
 
-        # 아래 로직은 'proposers' 컬럼이 생성된 후에 실행됩니다.
-        # '의원'이라는 단어 앞에 있는 한글 이름을 모두 찾습니다.
-        df_bills_congressman["rstProposerNameList"] = df_bills_congressman["proposers"].apply(
-            self._extract_proposer_names
-        )
-
-        if 'publicProposerIdList' not in df_bills_congressman.columns:
-            df_bills_congressman['publicProposerIdList'] = [
-                [f'ID_{i}{j}' for j in range(1, 20)] for i in range(len(df_bills_congressman))
-            ]
-
-        # 이름 개수에 맞춰 proposer ID를 맞춰서 생성합니다.
-        df_bills_congressman["rstProposerIdList"] = [
-            row["publicProposerIdList"][: len(row["rstProposerNameList"])]
-            for _, row in df_bills_congressman.iterrows()
-        ]
+        df_bills_congressman["rstProposerIdList"] = df_bills_congressman["representativeProposerIdList"]
 
         relation_ready_mask = (
             df_bills_congressman["publicProposerIdList"].apply(bool)
             & df_bills_congressman["rstProposerIdList"].apply(bool)
+            & df_bills_congressman.apply(
+                lambda row: set(row["rstProposerIdList"]).issubset(row["publicProposerIdList"]),
+                axis=1,
+            )
         )
         if not relation_ready_mask.all():
             unresolved_ids = df_bills_congressman.loc[~relation_ready_mask, "bill_id"].tolist()
@@ -114,11 +109,11 @@ class DataProcessor:
 
         # 제외할 컬럼 목록
         # ProposerName 컬럼이 존재할 경우에만 삭제 시도
-        columns_to_drop = ["rstProposerNameList"]
+        columns_to_drop = []
         if "ProposerName" in df_bills_congressman.columns:
             columns_to_drop.append('ProposerName')
 
-        df_bills_congressman.drop(columns=columns_to_drop, inplace=True, errors="ignore")
+        df_bills_congressman = df_bills_congressman.drop(columns=columns_to_drop, errors="ignore")
 
         return df_bills_congressman
 

@@ -4,6 +4,7 @@ import sys
 from unittest.mock import Mock, patch
 
 import pandas as pd
+import pytest
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -107,6 +108,7 @@ def test_update_lawmakers_data_dry_run():
         }
     )
 
+    df_lawmakers.attrs.update(source_total_count=1, source_complete=True, source_all_pages=True)
     manager = WorkFlowManager("dry_run")
 
     with patch.object(DataFetcher, "fetch_lawmakers_data", return_value=df_lawmakers), patch.object(
@@ -117,6 +119,39 @@ def test_update_lawmakers_data_dry_run():
     assert result["mode"] == "dry_run"
     assert result["count"] == 1
     mock_db_builder.assert_not_called()
+
+
+@pytest.mark.parametrize("ids,total,complete", [(["M1"], 2, False), (["M1", "M1"], 2, True)])
+def test_incomplete_or_duplicate_lawmaker_snapshot_never_opens_database(ids, total, complete):
+    frame = pd.DataFrame({"MONA_CD": ids, "HG_NM": ["이름"] * len(ids), "POLY_NM": ["정당"] * len(ids)})
+    frame.attrs.update(source_total_count=total, source_complete=complete, source_all_pages=True)
+    with patch.object(DataFetcher, "fetch_lawmakers_data", return_value=frame), patch.object(
+        WorkFlowManager, "_build_db_manager"
+    ) as database:
+        with pytest.raises(ValueError, match="전체 수집"):
+            WorkFlowManager("prod").update_lawmakers_data()
+    database.assert_not_called()
+
+
+def test_empty_lawmaker_snapshot_is_not_recorded_as_success():
+    with patch.object(DataFetcher, "fetch_lawmakers_data", return_value=pd.DataFrame()), patch.object(
+        WorkFlowManager, "_build_db_manager"
+    ) as database:
+        with pytest.raises(ValueError, match="빈 의원 명부"):
+            WorkFlowManager("prod").update_lawmakers_data()
+    database.assert_not_called()
+
+
+def test_valid_lawmaker_snapshot_explicitly_enables_full_sync_and_keeps_assembly():
+    frame = pd.DataFrame({"MONA_CD": ["M1"], "HG_NM": ["이름"], "POLY_NM": ["정당"], "UNITS": ["제22대"]})
+    frame.attrs.update(source_total_count=1, source_complete=True, source_all_pages=True)
+    with patch.object(DataFetcher, "fetch_lawmakers_data", return_value=frame), patch.object(
+        WorkFlowManager, "_build_db_manager"
+    ) as database:
+        WorkFlowManager("prod").update_lawmakers_data()
+    call = database.return_value.update_lawmaker_info.call_args
+    assert call.kwargs == {"full_snapshot": True}
+    assert call.args[0][0]["assembly_number"] == 22
 
 
 def test_fetch_process_upsert_bills_flow_uses_artifacts(tmp_path):
