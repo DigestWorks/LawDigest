@@ -11,6 +11,7 @@ def test_process_congressman_bills_requests_coactors_for_current_bills_only():
         {
             "bill_id": ["BILL-1"],
             "publicProposerIdList": [["P1"]],
+            "representativeProposerIdList": [["P1"]],
         }
     )
 
@@ -32,7 +33,12 @@ def test_process_congressman_bills_requests_coactors_for_current_bills_only():
 def test_process_congressman_bills_excludes_bills_when_coactors_api_is_empty():
     fetcher = Mock()
     fetcher.fetch_bills_coactors.return_value = pd.DataFrame(
-        columns=["bill_id", "representativeProposerIdList", "publicProposerIdList", "ProposerName"]
+        columns=[
+            "bill_id",
+            "representativeProposerIdList",
+            "publicProposerIdList",
+            "ProposerName",
+        ]
     )
 
     processor = DataProcessor(fetcher)
@@ -49,10 +55,60 @@ def test_process_congressman_bills_excludes_bills_when_coactors_api_is_empty():
     assert result.empty
 
 
+def test_process_preserves_explicit_representative_even_when_not_first_public_member():
+    fetcher = Mock()
+    fetcher.fetch_bills_coactors.return_value = pd.DataFrame(
+        {
+            "bill_id": ["BILL-1"],
+            "publicProposerIdList": [["JOINT", "REP"]],
+            "representativeProposerIdList": [["REP"]],
+        }
+    )
+    result = DataProcessor(fetcher).process_congressman_bills(
+        pd.DataFrame(
+            {
+                "bill_id": ["BILL-1"],
+                "bill_name": ["테스트법(일부개정)"],
+                "proposer_kind": ["의원"],
+                "proposers": ["홍길동의원 등 2인"],
+            }
+        )
+    )
+    assert result.iloc[0]["rstProposerIdList"] == ["REP"]
+    assert result.iloc[0]["proposers"] == "홍길동의원 등 2인"
+    assert result.iloc[0]["bill_name"] == "테스트법(일부개정)"
+
+
+def test_process_rejects_unconfirmed_representative_without_guessing_from_order():
+    fetcher = Mock()
+    fetcher.fetch_bills_coactors.return_value = pd.DataFrame(
+        {
+            "bill_id": ["BILL-1"],
+            "publicProposerIdList": [["JOINT", "REP"]],
+            "representativeProposerIdList": [[]],
+        }
+    )
+    result = DataProcessor(fetcher).process_congressman_bills(
+        pd.DataFrame(
+            {
+                "bill_id": ["BILL-1"],
+                "bill_name": ["테스트법(홍길동의원 등 2인)"],
+                "proposer_kind": ["의원"],
+            }
+        )
+    )
+    assert result.empty
+
+
 def test_process_congressman_bills_excludes_text_only_proposers_when_relations_are_missing():
     fetcher = Mock()
     fetcher.fetch_bills_coactors.return_value = pd.DataFrame(
-        columns=["bill_id", "representativeProposerIdList", "publicProposerIdList", "ProposerName"]
+        columns=[
+            "bill_id",
+            "representativeProposerIdList",
+            "publicProposerIdList",
+            "ProposerName",
+        ]
     )
 
     processor = DataProcessor(fetcher)

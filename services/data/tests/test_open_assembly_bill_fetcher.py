@@ -1,6 +1,6 @@
 import os
 import sys
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pandas as pd
 
@@ -91,7 +91,9 @@ def test_discover_bill_candidates_collects_base_bill_rows(monkeypatch):
     monkeypatch.setattr(data_fetcher_module, "OpenAssemblyBillClient", _FakeClient)
 
     fetcher = DataFetcher(filter_data=False)
-    df = fetcher.discover_bill_candidates(start_date="2026-04-15", end_date="2026-04-15", age="22")
+    df = fetcher.discover_bill_candidates(
+        start_date="2026-04-15", end_date="2026-04-15", age="22"
+    )
 
     assert len(df) == 1
     row = df.iloc[0]
@@ -107,7 +109,9 @@ def test_fetch_bills_data_uses_open_assembly_hydration(monkeypatch):
     monkeypatch.setattr(data_fetcher_module, "OpenAssemblyBillClient", _FakeClient)
 
     fetcher = DataFetcher(filter_data=False)
-    df = fetcher.fetch_bills_data(start_date="2026-04-15", end_date="2026-04-15", age="22")
+    df = fetcher.fetch_bills_data(
+        start_date="2026-04-15", end_date="2026-04-15", age="22"
+    )
 
     assert len(df) == 1
     row = df.iloc[0]
@@ -124,10 +128,14 @@ def test_fetch_bills_data_uses_open_assembly_hydration(monkeypatch):
 
 def test_fetch_bills_data_keeps_partial_bill_without_summary(monkeypatch):
     monkeypatch.setenv("APIKEY_billsInfo", "test-key")
-    monkeypatch.setattr(data_fetcher_module, "OpenAssemblyBillClient", _FakeClientWithoutSummary)
+    monkeypatch.setattr(
+        data_fetcher_module, "OpenAssemblyBillClient", _FakeClientWithoutSummary
+    )
 
     fetcher = DataFetcher(filter_data=False)
-    df = fetcher.fetch_bills_data(start_date="2026-04-15", end_date="2026-04-15", age="22")
+    df = fetcher.fetch_bills_data(
+        start_date="2026-04-15", end_date="2026-04-15", age="22"
+    )
 
     assert len(df) == 1
     row = df.iloc[0]
@@ -136,12 +144,20 @@ def test_fetch_bills_data_keeps_partial_bill_without_summary(monkeypatch):
     assert row["stage"] == "위원회 심사"
 
 
-def test_fetch_bills_data_keeps_partial_bill_when_optional_open_assembly_rows_are_missing(monkeypatch):
+def test_fetch_bills_data_keeps_partial_bill_when_optional_open_assembly_rows_are_missing(
+    monkeypatch,
+):
     monkeypatch.setenv("APIKEY_billsInfo", "test-key")
-    monkeypatch.setattr(data_fetcher_module, "OpenAssemblyBillClient", _FakeClientWithMissingOptionalResponses)
+    monkeypatch.setattr(
+        data_fetcher_module,
+        "OpenAssemblyBillClient",
+        _FakeClientWithMissingOptionalResponses,
+    )
 
     fetcher = DataFetcher(filter_data=False)
-    df = fetcher.fetch_bills_data(start_date="2026-04-15", end_date="2026-04-15", age="22")
+    df = fetcher.fetch_bills_data(
+        start_date="2026-04-15", end_date="2026-04-15", age="22"
+    )
 
     assert len(df) == 1
     row = df.iloc[0]
@@ -172,11 +188,15 @@ def test_fetch_bills_coactors_retries_empty_bill_response():
         ]
     )
 
-    with patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}), patch.object(
-        fetcher,
-        "fetch_data_generic",
-        side_effect=[empty_response, valid_response],
-    ) as fetch_data, patch("lawdigest_data.bills.DataFetcher.time.sleep"):
+    with (
+        patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}),
+        patch.object(
+            fetcher,
+            "fetch_data_generic",
+            side_effect=[empty_response, valid_response],
+        ) as fetch_data,
+        patch("lawdigest_data.bills.DataFetcher.time.sleep"),
+    ):
         result = fetcher.fetch_bills_coactors(
             df_bills=pd.DataFrame({"bill_id": ["BILL-1"]}),
             max_retry=1,
@@ -185,3 +205,94 @@ def test_fetch_bills_coactors_retries_empty_bill_response():
     assert result["bill_id"].tolist() == ["BILL-1"]
     assert fetch_data.call_count == 2
     assert "max_retry" not in fetch_data.call_args_list[0].kwargs["params"]
+
+
+def test_empty_api_uses_complete_official_list_before_repeated_requests():
+    fetcher = DataFetcher()
+    fetcher.df_lawmakers = pd.DataFrame({"HG_NM": ["홍길동"], "MONA_CD": ["M1"]})
+    official = {
+        "bill_id": "PRC_SAMPLE",
+        "publicProposerIdList": ["M1"],
+        "representativeProposerIdList": ["M1"],
+        "ProposerName": ["홍길동"],
+    }
+    with (
+        patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}),
+        patch.object(fetcher, "fetch_data_generic", return_value=pd.DataFrame()) as api,
+        patch(
+            "lawdigest_data.bills.DataFetcher.fetch_likms_proposers",
+            return_value=official,
+        ) as fallback,
+    ):
+        result = fetcher.fetch_bills_coactors(
+            pd.DataFrame({"bill_id": ["PRC_SAMPLE"], "billNumber": [2222388]})
+        )
+    assert result.iloc[0]["representativeProposerIdList"] == ["M1"]
+    assert api.call_count == fallback.call_count == 1
+
+
+def test_public_list_without_confirmed_representative_is_not_guessed():
+    fetcher = DataFetcher()
+    fetcher.df_lawmakers = pd.DataFrame({"HG_NM": ["홍길동"], "MONA_CD": ["M1"]})
+    public_only = pd.DataFrame(
+        [
+            {
+                "BILL_ID": "BILL-1",
+                "PUBL_PROPOSER": "공동발의",
+                "PPSR_CD": "M1",
+                "PPSR_NM": "홍길동",
+            }
+        ]
+    )
+    with (
+        patch.dict("os.environ", {"APIKEY_billProposers": "test-key"}),
+        patch.object(fetcher, "fetch_data_generic", return_value=public_only),
+    ):
+        result = fetcher.fetch_bills_coactors(pd.DataFrame({"bill_id": ["BILL-1"]}))
+    assert result.empty
+
+
+def test_generic_paging_marks_partial_snapshot_incomplete():
+    fetcher = DataFetcher()
+    with (
+        patch.object(fetcher.session, "get", return_value=Mock(content=b"response")),
+        patch.object(
+            fetcher, "_parse_response", side_effect=[([{"MONA_CD": "M1"}], 2), ([], 0)]
+        ),
+    ):
+        frame = fetcher.fetch_data_generic(
+            "https://example.com/api",
+            {"pIndex": 1},
+            fetcher.mapper_open_xml,
+            format="xml",
+        )
+    assert len(frame) == 1
+    assert frame.attrs == {
+        "source_total_count": 2,
+        "source_complete": False,
+        "source_all_pages": True,
+    }
+
+
+def test_generic_paging_marks_complete_snapshot_after_last_page():
+    fetcher = DataFetcher()
+    with (
+        patch.object(fetcher.session, "get", return_value=Mock(content=b"response")),
+        patch.object(
+            fetcher,
+            "_parse_response",
+            side_effect=[([{"MONA_CD": "M1"}], 2), ([{"MONA_CD": "M2"}], 2)],
+        ),
+    ):
+        frame = fetcher.fetch_data_generic(
+            "https://example.com/api",
+            {"pIndex": 1},
+            fetcher.mapper_open_xml,
+            format="xml",
+        )
+    assert len(frame) == 2
+    assert frame.attrs == {
+        "source_total_count": 2,
+        "source_complete": True,
+        "source_all_pages": True,
+    }
