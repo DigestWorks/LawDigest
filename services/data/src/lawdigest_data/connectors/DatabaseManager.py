@@ -783,7 +783,8 @@ class DatabaseManager:
                     continue
                 
                 # 업데이트 대상 추가
-                update_bill_params.append((stage, bill_id))
+                if not item.get("timeline_only"):
+                    update_bill_params.append((stage, bill_id))
                 insert_timeline_params.append((
                     bill_id, committee, stage, update_date, None # bill_result is null initially in logic
                 ))
@@ -796,6 +797,7 @@ class DatabaseManager:
                     update_bill_params
                 )
                 
+            if insert_timeline_params:
                 # BillTimeline 테이블 Insert
                 cursor.executemany(
                     """

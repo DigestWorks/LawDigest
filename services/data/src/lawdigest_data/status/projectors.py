@@ -150,6 +150,9 @@ class BillLifecycleProjector:
             events = self._build_events(row, review_rows)
             if not events:
                 continue
+            if row.get("receipt_only"):
+                lifecycle_events.extend({**event, "timeline_only": True} for event in events)
+                continue
             lifecycle_events.extend(events)
             latest = events[-1]
             lifecycle_updates.append(

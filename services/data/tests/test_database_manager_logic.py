@@ -404,5 +404,20 @@ class TestDatabaseManagerLogic(unittest.TestCase):
             self.assertEqual(len(insert_args[0][1]), 1)
             self.assertEqual(insert_args[0][1][0][0], "BILL2")
 
+    def test_update_bill_stage_can_insert_only_the_timeline(self):
+        self.db_manager.get_existing_bill_ids = MagicMock(return_value=["BILL1"])
+        self.cursor.fetchall.return_value = []
+        with patch.object(self.db_manager, "transaction") as transaction:
+            transaction.return_value.__enter__.return_value = self.cursor
+            self.db_manager.update_bill_stage([
+                {"bill_id": "BILL1", "stage": "접수", "status_update_date": "2026-11-03", "timeline_only": True},
+            ])
+
+        self.cursor.executemany.assert_called_once()
+        query, params = self.cursor.executemany.call_args.args
+        self.assertIn("INSERT INTO BillTimeline", query)
+        self.assertEqual(params, [("BILL1", None, "접수", "2026-11-03", None)])
+
+
 if __name__ == '__main__':
     unittest.main()
