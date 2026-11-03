@@ -44,3 +44,4 @@ flowchart TD
 가장 위험한 단계는 불완전한 인덱스와 잘못된 출처를 정상 답변으로 내보내는 것이다. 스키마·현재 내용 해시·참조 ID를 검사하고 실패는 별도 상태로 보낸다. 인덱스 구축은 기존 컬렉션을 덮어쓰지 않고 검증 후 버전을 전환한다. 실패 시 이전 인덱스·서비스 release로 복구한다.
 
 검증 명령: 변경 Python Ruff 및 rag pytest, `uv build services/ai`, 웹 `npm run lint`, `npm test`, `npx tsc --noEmit`, `npm run build`, 배포 스크립트 `bash -n`. 실제 모델·Qdrant 검색과 1440px·375px 라이트/다크 조작 결과를 별도로 기록한다. 운영 인덱스 구축·증분 갱신·timer와 운영 DB 쓰기는 각각 승인 범위를 지킨다.
+Gemini 구조화 응답과 근거 부족·잘못된 인용·실패 응답을 확인하고 공개 법안으로 실제 생성을 검증한다.

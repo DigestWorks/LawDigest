@@ -48,3 +48,4 @@ flowchart LR
 Python 회귀·실제 Qdrant 검색·구조화 출력 검증, 웹 lint/test/type/build, 데스크톱·375px·다크 화면에서 질문→답변→출처→뒤로 가기·취소·재시도를 확인한다. 공개 법안으로 실제 모델 응답도 검증한다. 임시 로컬 인덱스 검증과 운영 출시 검증을 구분한다. 운영 인덱스·배포·같은 조작까지 확인한 뒤 관련 결함을 닫는다.
 
 공식 근거: [OpenAI 구조화 출력](https://developers.openai.com/api/docs/guides/structured-outputs), [Qdrant 1.15 Query API](https://api.qdrant.tech/v-1-15-x/api-reference/search/query-points), [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/).
+생성 제공자는 OpenAI 또는 Gemini를 선택한다. 같은 원문·인용 계약을 두 경로에 적용한다.
