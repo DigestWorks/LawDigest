@@ -1,5 +1,6 @@
 'use client';
 
+import { Flame } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
@@ -34,7 +35,7 @@ export default function TrendingKeywords() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-1.5">
-        <span className="material-symbols-outlined text-[20px] text-theme-alert">local_fire_department</span>
+        <Flame aria-hidden="true" className="size-5 shrink-0 text-theme-alert" />
         <h2 className="text-[15px] font-bold text-primary-3 dark:text-gray-0.5">지금 뜨는 키워드</h2>
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:flex-wrap md:overflow-visible md:px-0">

@@ -1,10 +1,11 @@
 import { Layout } from '@/components';
-import { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 
-export const metadata: Metadata = {
-  title: '타임라인 페이지',
-  description: '법안들의 타임라인을 날짜별로 자세히 확인할 수 있는 페이지',
-};
+export const metadata = getMetadata({
+  title: '타임라인',
+  description: '날짜별 국회 법안 접수, 위원회 심사, 본회의 심의와 공포 기록을 확인합니다.',
+  asPath: '/timeline',
+});
 
 export default function TimelineLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -39,6 +39,10 @@ module.exports = {
         'slide-in-right': 'slideInRight 0.3s ease-out both',
         'bar-grow': 'barGrow 0.4s ease-out 0.28s both',
       },
+      // Legacy gray-2 text follows the reading color without changing gray fills or borders.
+      textColor: {
+        'gray-2': 'hsl(var(--muted-foreground) / <alpha-value>)',
+      },
       colors: {
         background: 'hsl(var(--background) / <alpha-value>)',
         foreground: 'hsl(var(--foreground) / <alpha-value>)',

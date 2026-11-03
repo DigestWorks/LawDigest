@@ -1,5 +1,6 @@
 'use client';
 
+import { Filter } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
@@ -30,7 +31,7 @@ export default function StatsStageFunnel() {
 
   if (isLoading) {
     return (
-      <StatsCard title="입법 진행 단계" icon="filter_alt" delay={0.05}>
+      <StatsCard title="입법 진행 단계" icon={Filter} delay={0.05}>
         <div className="flex h-[190px] flex-col justify-between py-1">
           {STAGES.map(({ key }) => (
             <SkeletonBar key={key} className="h-7 w-full" />
@@ -60,7 +61,7 @@ export default function StatsStageFunnel() {
   }));
 
   return (
-    <StatsCard title="입법 진행 단계" icon="filter_alt" subtitle="접수 대비 도달률" delay={0.05}>
+    <StatsCard title="입법 진행 단계" icon={Filter} subtitle="접수 대비 도달률" delay={0.05}>
       <ChartContainer config={chartConfig} className="aspect-auto h-[190px] w-full">
         <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 44, top: 0, bottom: 0 }}>
           <XAxis type="number" hide domain={[0, base]} />

@@ -1,9 +1,9 @@
-import { QueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getFollowingBill, getFollowingCongressman } from './apis';
 import { nextBillPage } from '@/lib/billQueries';
 
-export const useGetFollowingCongressman = (queryClient: QueryClient) =>
-  queryClient.fetchQuery({
+export const useGetFollowingCongressman = () =>
+  useQuery({
     queryKey: ['/following-tab/congressman'],
     queryFn: () => getFollowingCongressman(),
   });

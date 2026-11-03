@@ -1,5 +1,6 @@
 'use client';
 
+import { ChartNoAxesCombined } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from 'recharts';
@@ -66,7 +67,7 @@ export default function StatsTrendArea() {
   return (
     <StatsCard
       title="월별 발의·가결 추이"
-      icon="show_chart"
+      icon={ChartNoAxesCombined}
       subtitle={
         <span className="flex gap-1" role="tablist" aria-label="조회 기간">
           {PERIODS.map((period) => (

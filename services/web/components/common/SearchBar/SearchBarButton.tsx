@@ -14,7 +14,7 @@ export default function SearchBarButton({ keyword }: { keyword?: string }) {
         aria-label="검색어 입력 열기"
         onClick={(event) => open({ show: true, trigger: event.currentTarget, keyword })}>
         <Search data-icon="inline-start" />
-        <span className="truncate">{keyword || '법안, 의원, 정당명으로 검색'}</span>
+        <span className="truncate">{keyword || '법안·의안번호·의원·정당 검색'}</span>
       </Button>
     </div>
   );

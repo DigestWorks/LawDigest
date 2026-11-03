@@ -6,7 +6,7 @@ import getQueryClient from '@/lib/getQueryClient';
 import { Feed, Layout } from '@/components';
 import { feedQueryOptions } from '@/lib/billQueries';
 import { reportQueryOptions } from '@/lib/reportQueries';
-import { feedContent, feedStage } from '@/lib/feedState';
+import { feedAssembly, feedContent, feedStage } from '@/lib/feedState';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +15,12 @@ type HomeProps = { searchParams: Promise<Record<string, string | string[] | unde
 async function HomeFeed({ params }: { params: Awaited<HomeProps['searchParams']> }) {
   const queryClient = getQueryClient();
   const tab = feedContent(typeof params.tab === 'string' ? params.tab : '');
+  const assembly = feedAssembly(typeof params.assembly === 'string' ? params.assembly : '');
   if (tab === 'report') {
     await queryClient.prefetchInfiniteQuery(reportQueryOptions());
-  } else if (tab === 'bill' && params.sort !== 'hot') {
+  } else if (tab === 'bill' && (assembly !== '22' || params.sort !== 'hot')) {
     const stage = feedStage(typeof params.stage === 'string' ? params.stage : '');
-    await queryClient.prefetchInfiniteQuery(feedQueryOptions(stage));
+    await queryClient.prefetchInfiniteQuery(feedQueryOptions(stage, assembly));
   }
   return (
     <ListHydrationBoundary state={dehydrate(queryClient)}>

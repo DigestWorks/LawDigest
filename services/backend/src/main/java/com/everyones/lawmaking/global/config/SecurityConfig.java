@@ -142,7 +142,8 @@ public class SecurityConfig implements WebMvcConfigurer { // WebMvcConfigurer Ïù
      * */
     @Bean
     public OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler() {
-        return new OAuth2AuthenticationFailureHandler(oAuth2AuthorizationRequestBasedOnCookieRepository(), oAuth2ClientTokenRepository);
+        return new OAuth2AuthenticationFailureHandler(
+                oAuth2AuthorizationRequestBasedOnCookieRepository(), oAuth2ClientTokenRepository, appProperties);
     }
 
     @Bean

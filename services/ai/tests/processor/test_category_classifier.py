@@ -100,3 +100,18 @@ def test_local_council_members_are_not_healthcare_facilities():
     assert classify_bill("정치개혁특별위원회", name, title) == "politics"
     assert classify_bill(None, name, title) == "unknown"
     assert classify_by_content("의원급 기관 개설에 관한 법률안") == "health"
+
+
+@pytest.mark.parametrize(
+    ("committee", "name", "expected"),
+    [
+        ("정무위원회", "국립묘지의 설치 및 운영에 관한 법률 일부개정법률안", "welfare"),
+        ("국방위원회", "국립묘지의 설치 및 운영에 관한 법률 일부개정법률안", "welfare"),
+        ("행정안전위원회", "중대범죄수사청법안", "justice"),
+        ("행정안전위원회", "중대범죄수사청 조직 및 운영에 관한 법률안(대안)", "justice"),
+        ("행정안전위원회", "중대범죄수사청 설치 및 운영에 관한 법률안", "justice"),
+        ("행정안전위원회", "중대범죄수사청 조직 및 운영에 관한 법률 일부개정법률안", "justice"),
+    ],
+)
+def test_reviewed_law_titles_override_committee_category(committee, name, expected):
+    assert classify_bill(committee, name) == expected

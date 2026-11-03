@@ -32,7 +32,7 @@ export default function ProgressStage({
           const recordedDate = stageDates.find((event) => event.stage === stage)?.date;
           const dateLabel = koreanDateLabel(recordedDate);
           let marker = (
-            <span className="flex size-5 items-center justify-center rounded-full border border-border text-xs">
+            <span className="flex size-5 items-center justify-center rounded-full border border-current text-xs">
               {index + 1}
             </span>
           );

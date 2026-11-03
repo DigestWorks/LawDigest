@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.global.handler;
 
+import com.everyones.lawmaking.global.config.OAuthConfig.AppProperties;
 import com.everyones.lawmaking.global.util.CookieUtil;
 import com.everyones.lawmaking.repository.OAuth2AuthorizationRequestBasedOnCookieRepository;
 import com.everyones.lawmaking.repository.OAuth2ClientTokenRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.net.URI;
 
 import static com.everyones.lawmaking.repository.OAuth2AuthorizationRequestBasedOnCookieRepository.REDIRECT_URI_PARAM_COOKIE_NAME;
 
@@ -23,12 +25,14 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
 
     private final OAuth2AuthorizationRequestBasedOnCookieRepository authorizationRequestRepository;
     private final OAuth2ClientTokenRepository oAuth2ClientTokenRepository;
+    private final AppProperties appProperties;
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws ServletException, IOException {
         var targetUrl = CookieUtil.getCookie(request, REDIRECT_URI_PARAM_COOKIE_NAME)
                 .map(Cookie::getValue)
-                .orElse(("/v1/login"));
+                .filter(this::isAllowedRedirect)
+                .orElse("/v1/login");
         targetUrl = UriComponentsBuilder.fromUriString(targetUrl)
                 .queryParam("error", exception.getLocalizedMessage())
                 .build()
@@ -46,4 +50,21 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
+    private boolean isAllowedRedirect(String value) {
+        final URI target;
+        try {
+            target = URI.create(value);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+        if (target.getScheme() == null || target.getHost() == null || target.getUserInfo() != null) {
+            return false;
+        }
+
+        return appProperties.getOauth2ClientRedirectUri().stream()
+                .map(URI::create)
+                .anyMatch(allowed -> target.getScheme().equalsIgnoreCase(allowed.getScheme())
+                        && target.getHost().equalsIgnoreCase(allowed.getHost())
+                        && target.getPort() == allowed.getPort());
+    }
 }

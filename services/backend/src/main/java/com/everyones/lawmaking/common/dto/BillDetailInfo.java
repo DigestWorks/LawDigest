@@ -20,7 +20,6 @@ import java.util.List;
 public class BillDetailInfo extends BillInfoDto{
 
     private String billLink;
-    private String billResult;
     private List<StageDate> stageDates;
 
     public record StageDate(String stage, @JsonFormat(pattern = "yyyy-MM-dd") LocalDate date) {
@@ -30,7 +29,6 @@ public class BillDetailInfo extends BillInfoDto{
     public BillDetailInfo(Bill bill) {
         super(bill);
         this.billLink = bill.getBillLink();
-        this.billResult = bill.getBillResult();
         var timeline = bill.getBillTimelineList();
         this.stageDates = timeline == null ? List.of() : timeline.stream()
                 .filter(event -> event.getStatusUpdateDate() != null && event.getBillTimelineStage() != null)

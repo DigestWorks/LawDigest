@@ -1,5 +1,6 @@
 'use client';
 
+import { ChartColumnStacked } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useMemo, useState } from 'react';
@@ -73,7 +74,7 @@ export default function StatsCategoryPartyStack() {
 
   if (isLoading) {
     return (
-      <StatsCard title="분야별 정당 구성" icon="stacked_bar_chart" delay={0.2}>
+      <StatsCard title="분야별 정당 구성" icon={ChartColumnStacked} delay={0.2}>
         <SkeletonBar className="h-[240px] w-full" />
       </StatsCard>
     );
@@ -98,7 +99,7 @@ export default function StatsCategoryPartyStack() {
   }, {}) satisfies ChartConfig;
 
   return (
-    <StatsCard title="분야별 정당 구성" icon="stacked_bar_chart" subtitle={`상위 ${rows.length}개 분야`} delay={0.2}>
+    <StatsCard title="분야별 정당 구성" icon={ChartColumnStacked} subtitle={`상위 ${rows.length}개 분야`} delay={0.2}>
       <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
         <BarChart data={rows} margin={{ left: 4, right: 4, top: 8 }}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />

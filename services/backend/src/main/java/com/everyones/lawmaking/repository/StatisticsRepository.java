@@ -59,13 +59,16 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
             "ORDER BY COUNT(b) DESC")
     List<PartyBillCountDto> findBillCountByParty(@Param("assembly") int assembly);
 
-    @Query("SELECT new com.everyones.lawmaking.common.dto.CategoryCountDto(b.category, COUNT(b)) " +
-            "FROM Bill b " +
-            "WHERE b.assemblyNumber = :assembly " +
-            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
-            "AND b.category IS NOT NULL " +
-            "GROUP BY b.category " +
-            "ORDER BY COUNT(b) DESC")
+    @Query("""
+            SELECT new com.everyones.lawmaking.common.dto.CategoryCountDto(
+                CASE WHEN b.category IS NULL OR TRIM(b.category) = '' THEN 'unknown' ELSE b.category END,
+                COUNT(b))
+            FROM Bill b
+            WHERE b.assemblyNumber = :assembly
+              AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY
+            GROUP BY CASE WHEN b.category IS NULL OR TRIM(b.category) = '' THEN 'unknown' ELSE b.category END
+            ORDER BY COUNT(b) DESC
+            """)
     List<CategoryCountDto> findBillCountByCategory(@Param("assembly") int assembly);
 
     @Query(value = "SELECT DATE_FORMAT(b.propose_date, '%Y-%m') AS ym, COUNT(*) AS cnt " +

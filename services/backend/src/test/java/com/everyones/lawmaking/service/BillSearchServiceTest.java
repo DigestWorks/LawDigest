@@ -19,7 +19,7 @@ class BillSearchServiceTest {
     void hydrationKeepsRelevanceOrderInsteadOfRepositoryDateOrder() {
         var repository = mock(BillRepository.class);
         var pageable = PageRequest.of(0, 10);
-        when(repository.findBillByKeyword(eq(pageable), eq("의료법"), eq("의료법"), eq("+의료법*")))
+        when(repository.findBillByKeyword(eq(pageable), eq("의료법"), eq("의료법"), eq("+의료법*"), isNull()))
                 .thenReturn(new SliceImpl<>(List.of("older-exact", "newer-body"), pageable, false));
         when(repository.findBillInfoByIdList(List.of("older-exact", "newer-body")))
                 .thenReturn(List.of(bill("newer-body", "2026-07-09"), bill("older-exact", "2026-01-01")));

@@ -6,7 +6,7 @@ import { SectionError } from '@/components/common/SectionState';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useIntersect } from '@/hooks';
-import { feedContent, feedStage } from '@/lib/feedState';
+import { feedAssembly, feedContent, feedStage, type FeedAssembly } from '@/lib/feedState';
 import { Button } from '@/components/ui/button';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
 import BillList from '@/components/Bill/BillList/BillList';
@@ -20,6 +20,12 @@ import ReportFeed from './ReportFeed';
 import FollowingCongressmanStrip from './FollowingCongressmanStrip';
 
 type ContentType = 'report' | 'bill' | 'following';
+
+const ASSEMBLY_FILTERS: { label: string; value: FeedAssembly }[] = [
+  { label: '제22대', value: '22' },
+  { label: '제21대', value: '21' },
+  { label: '전체 대수', value: 'all' },
+];
 
 const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }[] = [
   {
@@ -78,10 +84,12 @@ export default function Feed() {
   const pathname = usePathname();
   const params = useSearchParams();
   const contentType = feedContent(params.get('tab'));
-  const feedType = params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
+  const assembly = feedAssembly(params.get('assembly'));
+  const feedType =
+    assembly === '22' && params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
   const stage = feedStage(params.get('stage'));
   const isLatest = feedType === FEED_TAB.sortedByLatest;
-  const query = useGetBillByStage(stage, contentType === 'bill' && isLatest);
+  const query = useGetBillByStage(stage, assembly, contentType === 'bill' && isLatest);
   const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
   const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
   const activeQuery = isLatest ? query : popular;
@@ -91,6 +99,7 @@ export default function Feed() {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(name, value);
     else next.delete(name);
+    if (name === 'assembly') next.delete('sort');
     router.push(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
   };
   const fetchRef = useIntersect(() => {
@@ -144,7 +153,7 @@ export default function Feed() {
   return (
     <section>
       <div className="mx-5 mt-5 mb-3">
-        <h2 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h2>
+        <h1 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h1>
         <DataFreshnessNote className="mt-2" showPending />
       </div>
       <div className="relative flex items-center gap-[5px] mx-6 mb-3" role="group" aria-label="피드 종류">
@@ -177,11 +186,28 @@ export default function Feed() {
       {contentType === 'bill' && (
         <>
           <NotificationTopThree />
+          <div className="mx-5 mt-3 flex flex-wrap gap-2" role="group" aria-label="국회 대수">
+            {ASSEMBLY_FILTERS.map(({ label, value }) => (
+              <Button
+                key={value}
+                type="button"
+                variant={assembly === value ? 'default' : 'outline'}
+                size="sm"
+                aria-pressed={assembly === value}
+                onClick={() => update('assembly', value === '22' ? '' : value)}>
+                {label}
+              </Button>
+            ))}
+          </div>
           <section className="flex items-center justify-between mx-5 mt-2">
-            <FeedTab
-              type={feedType}
-              clickHandler={(key) => update('sort', key === FEED_TAB.sortedByPopularity ? 'hot' : '')}
-            />
+            {assembly === '22' ? (
+              <FeedTab
+                type={feedType}
+                clickHandler={(key) => update('sort', key === FEED_TAB.sortedByPopularity ? 'hot' : '')}
+              />
+            ) : (
+              <span className="text-sm font-medium text-muted-foreground">최신순</span>
+            )}
             {isLatest && (
               <StageDropdown
                 type={stage || '전체'}

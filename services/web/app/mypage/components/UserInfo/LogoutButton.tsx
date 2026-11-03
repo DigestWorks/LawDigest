@@ -25,7 +25,7 @@ export default function LogoutButton() {
       radius="full"
       size="sm"
       variant="bordered"
-      className="h-8 bg-transparent border-1 border-[#E0E0E0] text-[#999999] dark:border-gray-3 dark:text-gray-2">
+      className="h-8 bg-transparent border-1 border-[#E0E0E0] text-muted-foreground dark:border-gray-3">
       로그아웃
     </Button>
   );

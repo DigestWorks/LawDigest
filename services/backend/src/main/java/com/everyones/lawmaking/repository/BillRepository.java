@@ -115,17 +115,26 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     List<Bill> findFeedBillInfoByIdList(List<String> billList);
 
     // 유사한 법안 조회 법안과 같은 이름을 가진 법안 조회
-    @Query("SELECT b FROM Bill b " +
-            "WHERE b.billName = :billName " +
+    String SIMILAR_BILL_FILTER = " FROM Bill b WHERE b.billName = :billName " +
             "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
-            "AND b.id != :billId ORDER BY b.proposeDate DESC, b.id DESC")
-    Page<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId, Pageable pageable);
+            "AND b.id != :billId " +
+            "AND (:current IS NULL OR (:current = true AND b.assemblyNumber = :assembly) " +
+            "OR (:current = false AND b.assemblyNumber > 0 AND b.assemblyNumber < :assembly))";
+
+    @Query("SELECT b" + SIMILAR_BILL_FILTER + " ORDER BY b.proposeDate DESC, b.id DESC")
+    Page<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId,
+                                @Param("current") Boolean current, @Param("assembly") int assembly, Pageable pageable);
+
+    @Query("SELECT COUNT(b)" + SIMILAR_BILL_FILTER)
+    long countSimilarBills(@Param("billName") String billName, @Param("billId") String billId,
+                           @Param("current") Boolean current, @Param("assembly") int assembly);
 
     @Query(value = """
             SELECT candidate.bill_id
             FROM (
               SELECT b.bill_id, b.propose_date,
                 CASE
+                  WHEN b.bill_number = :billNumber THEN -1
                   WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
                   WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
                   ELSE 2
@@ -133,7 +142,7 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
                 0 AS relevance
               FROM Bill b
               WHERE b.ingest_status = 'READY'
-                AND (b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
+                AND (b.bill_number = :billNumber OR b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
                   OR b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!')
               UNION ALL
               SELECT b.bill_id, b.propose_date, 3 AS match_rank,
@@ -148,7 +157,8 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
               candidate.propose_date DESC, candidate.bill_id DESC
             """, nativeQuery = true)
     Slice<String> findBillByKeyword(Pageable pageable, @Param("keyword") String keyword,
-            @Param("namePattern") String namePattern, @Param("expression") String expression);
+            @Param("namePattern") String namePattern, @Param("expression") String expression,
+            @Param("billNumber") Integer billNumber);
 
 
 

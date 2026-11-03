@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.repository;
 
+import com.everyones.lawmaking.common.dto.projection.PlenaryEvent;
 import com.everyones.lawmaking.domain.entity.BillTimeline;
 import jakarta.persistence.Tuple;
 import java.time.LocalDate;
@@ -41,6 +42,17 @@ public interface BillTimelineRepository extends JpaRepository<BillTimeline,Long>
             "    else 5 " +
             "end")
     List<String> findBillTimelineBetweenProposeDateAndStage(@Param("proposeDate") LocalDate localDate, @Param("stage") String stage);
+
+    @Query("""
+            select new com.everyones.lawmaking.common.dto.projection.PlenaryEvent(
+                event.bill.id, event.statusUpdateDate, event.billResult)
+            from BillTimeline event
+            where event.billTimelineStage = '본회의 심의' and event.bill.id in (
+                select sameDay.bill.id from BillTimeline sameDay
+                where sameDay.statusUpdateDate = :date and sameDay.billTimelineStage = '본회의 심의'
+            )
+            """)
+    List<PlenaryEvent> findPlenaryHistoryForDate(@Param("date") LocalDate date);
 
     List<BillTimeline> findByBillIdAndBillTimelineStageAndBillResult(String bill_id, String billTimelineStage, String billResult);
 

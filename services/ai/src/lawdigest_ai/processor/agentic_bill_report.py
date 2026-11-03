@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -138,6 +139,7 @@ description: Use for Lawdigest bill report generation from deterministic evidenc
 - `title`는 원문이나 `쉬운 요약`의 첫 문장을 그대로 복사하지 말고, 여러 핵심 변화가 있으면 가장 중요한 2~3개를 짧은 명사형으로 묶으세요.
 - 예: `선관위원장 상임화·상임위원 확대 및 감사·인사검증 강화를 위한 선거관리위원회법 일부개정법률안`
 - `report_body`에는 사용자에게 보여줄 최종 Markdown 리포트만 넣으세요. 첫 줄은 반드시 `# 법안명`으로 시작하세요.
+- 두 번째 수준의 섹션 제목은 위에 제시한 순서대로 각각 한 번만 쓰세요.
 - `tooltips`에는 법제처 용어 사전 후보 중 본문 문맥에서 일반 독자에게 꼭 필요한 high-confidence 용어만 넣으세요.
 - 후보에 없는 용어를 새로 만들지 마세요. `surface`는 `report_body`에 실제로 등장하는 표현이어야 합니다.
 - `definition`은 참고용이며 최종 툴팁 정의는 파이프라인이 후보 사전 정의로만 주입합니다.
@@ -1723,6 +1725,7 @@ def _persist_successful_report_item(*, mode: str, bill: dict[str, Any], item: di
         report_body=Path(str(report_path)).read_text(encoding="utf-8"),
         generated_title=item.get("title"),
     )
+    _validate_report_sections(payload["gpt_summary"])
     completed_at = datetime.fromisoformat(str(item["finished_at"]))
     if completed_at.tzinfo is None:
         raise ValueError("리포트 생성 완료 시각에 시간대가 없습니다.")
@@ -1738,13 +1741,55 @@ def _persist_successful_report_item(*, mode: str, bill: dict[str, Any], item: di
     return True
 
 
+REPORT_SECTION_ORDER = (
+    "쉬운 요약",
+    "주요 내용",
+    "왜 나왔나",
+    "무엇이 달라지나",
+    "누구에게 영향이 있나",
+    "봐야 할 점",
+    "확인한 근거",
+)
+
+
+def _validate_report_sections(body: str) -> list[str]:
+    headings = []
+    open_fence = None
+    for line in body.splitlines():
+        fence = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence:
+            marker, suffix = fence.groups()
+            if open_fence is None:
+                open_fence = marker
+            elif marker.startswith(open_fence) and not suffix.strip():
+                open_fence = None
+            continue
+        if open_fence is not None:
+            continue
+        heading = re.match(r"^ {0,3}##[ 	]+(.+)$", line)
+        if heading:
+            text = re.sub(r"[ 	]+#+[ 	]*$", "", heading.group(1))
+            headings.append(" ".join(text.split()))
+
+    duplicates = [heading for heading, count in Counter(headings).items() if count > 1]
+    if duplicates:
+        raise RuntimeError("생성 리포트에 중복 섹션이 있습니다: " + ", ".join(duplicates))
+    known = set(REPORT_SECTION_ORDER)
+    if [heading for heading in headings if heading in known] != [
+        heading for heading in REPORT_SECTION_ORDER if heading in headings
+    ]:
+        raise RuntimeError("생성 리포트의 섹션 순서가 올바르지 않습니다.")
+    return headings
+
+
 def _validate_report_body(report_body: str) -> None:
     body = report_body.strip()
     if not body:
         raise RuntimeError("Codex agent report body is empty.")
 
-    required_headings = ("## 쉬운 요약", "## 주요 내용")
-    missing_headings = [heading for heading in required_headings if heading not in body]
+    headings = _validate_report_sections(body)
+    required_headings = ("쉬운 요약", "주요 내용")
+    missing_headings = [heading for heading in required_headings if heading not in headings]
     if missing_headings:
         raise RuntimeError("생성 리포트에 필수 섹션이 없습니다: " + ", ".join(missing_headings))
 

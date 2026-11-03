@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider as Provider } from '@tanstack/react-query';
+import { retryTransientApiError } from '@/lib/apiTiming';
 
 export default function QueryClientProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -9,6 +10,7 @@ export default function QueryClientProvider({ children }: { children: React.Reac
       new QueryClient({
         defaultOptions: {
           queries: {
+            retry: retryTransientApiError,
             staleTime: 5 * 60 * 1000,
             gcTime: 10 * 60 * 1000,
           },

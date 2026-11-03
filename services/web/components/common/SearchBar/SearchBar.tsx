@@ -33,7 +33,7 @@ export default function SearchBar({
       <FieldGroup>
         <Field data-invalid={Boolean(error)}>
           <FieldLabel htmlFor={id} className="sr-only">
-            법안·의원·정당 검색어
+            법안·의안번호·의원·정당 검색어
           </FieldLabel>
           <InputGroup>
             <InputGroupInput
@@ -48,7 +48,7 @@ export default function SearchBar({
               }}
               aria-invalid={Boolean(error)}
               aria-describedby={error ? `${id}-error` : undefined}
-              placeholder="법안, 의원, 정당명으로 검색"
+              placeholder="법안·의안번호·의원·정당 검색"
               autoComplete="off"
               enterKeyHint="search"
             />

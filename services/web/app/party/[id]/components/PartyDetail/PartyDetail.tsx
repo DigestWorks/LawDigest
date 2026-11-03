@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { SectionError } from '@/components/common/SectionState';
 import { Button } from '@/components/ui/button';
 import { Card } from '@heroui/card';
 import { Divider } from '@heroui/react';
@@ -18,11 +18,24 @@ function externalUrl(value: string | null | undefined) {
   return null;
 }
 
-export default async function PartyDetail({ partyId }: { partyId: number }) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const queryClient = useQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: party } = await useGetPartyDetail({ partyId, queryClient });
+export default function PartyDetail({ partyId }: { partyId: number }) {
+  const query = useGetPartyDetail(partyId);
+  const profile = query.data?.data;
+
+  if (!profile) {
+    return query.isPending ? (
+      <p role="status" className="p-5 text-sm text-muted-foreground">
+        정당 프로필을 불러오는 중…
+      </p>
+    ) : (
+      <SectionError
+        message="정당 프로필을 불러오지 못했습니다."
+        pending={query.isFetching}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
   const {
     party_name,
     party_img_url,
@@ -36,17 +49,17 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
     website_url,
     parliamentary_rank,
     followed,
-  } = party;
+  } = profile;
   const partySeats = proportional_congressman_count + district_congressman_count + unclassified_congressman_count;
   const seatRatio = total_congressman_count > 0 ? ((100 * partySeats) / total_congressman_count).toFixed(2) : null;
 
   const website = externalUrl(website_url);
-  const leadershipSource = externalUrl(party.leadership_source_url);
+  const leadershipSource = externalUrl(profile.leadership_source_url);
   const leaders = [
-    { role: '당대표', name: party.party_leader },
-    { role: '원내대표', name: party.parliamentary_leader },
-    { role: '사무총장', name: party.secretary_general },
-    { role: '정책위의장', name: party.policy_committee_chairman },
+    { role: '당대표', name: profile.party_leader },
+    { role: '원내대표', name: profile.parliamentary_leader },
+    { role: '사무총장', name: profile.secretary_general },
+    { role: '정책위의장', name: profile.policy_committee_chairman },
   ].filter(({ name }) => name?.trim());
 
   return (
@@ -55,14 +68,14 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
         <PartyLogo party_name={party_name} party_img_url={party_img_url} />
 
         <div className="flex flex-col items-center gap-1">
-          <h2 className="text-2xl font-semibold">{party_name}</h2>
+          <h1 className="text-2xl font-semibold">{party_name}</h1>
           {parliamentary_rank && <p className="text-sm text-muted-foreground">의석 기준 원내 {parliamentary_rank}위</p>}
         </div>
 
         <div className="text-sm">
           <p>
             의석수: {partySeats}석 / {total_congressman_count}석{' '}
-            {seatRatio !== null && <span className="text-gray-2 dark:text-gray-3">{seatRatio}%</span>}
+            {seatRatio !== null && <span className="text-gray-2 dark:text-muted-foreground">{seatRatio}%</span>}
           </p>
           <p>
             지역구 {district_congressman_count}석, 비례대표 {proportional_congressman_count}석
@@ -81,7 +94,7 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
         public_bill_count={public_bill_count}
       />
 
-      {party.leadership_verified_on && leadershipSource && leaders.length > 0 && (
+      {profile.leadership_verified_on && leadershipSource && leaders.length > 0 && (
         <section className="w-full space-y-3 border-t pt-5" aria-labelledby="party-leadership">
           <h3 id="party-leadership" className="font-semibold">
             지도부
@@ -99,7 +112,7 @@ export default async function PartyDetail({ partyId }: { partyId: number }) {
             href={leadershipSource}
             target="_blank"
             rel="noopener noreferrer">
-            공식 출처 · <time dateTime={party.leadership_verified_on}>{party.leadership_verified_on}</time> 확인
+            공식 출처 · <time dateTime={profile.leadership_verified_on}>{profile.leadership_verified_on}</time> 확인
           </a>
         </section>
       )}

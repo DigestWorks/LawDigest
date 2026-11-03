@@ -1,5 +1,6 @@
 'use client';
 
+import { Flag } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { Bar, BarChart, Cell, XAxis, YAxis } from 'recharts';
@@ -45,7 +46,7 @@ export default function StatsPartyPerformance() {
 
   if (rows.length === 0 && (performance.isLoading || fallback.isLoading)) {
     return (
-      <StatsCard title="정당별 발의·가결" icon="flag" delay={0.1}>
+      <StatsCard title="정당별 발의·가결" icon={Flag} delay={0.1}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
             <SkeletonBar key={i} className="h-[18px] w-full" />
@@ -72,7 +73,7 @@ export default function StatsPartyPerformance() {
   return (
     <StatsCard
       title="정당별 발의·가결"
-      icon="flag"
+      icon={Flag}
       subtitle={hasPerformance ? '진한 색 = 가결' : undefined}
       delay={0.1}>
       <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: rows.length * 34 + 8 }}>

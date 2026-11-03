@@ -49,3 +49,5 @@ flowchart TD
 ```
 
 주요 검증은 웹 ESLint/Vitest/TypeScript/Next build, backend Gradle test/bootJar, production 서버의 잘못된 URL HTTP 상태와 실제 화면이다. 운영 DB 쓰기·timer·머지·탈퇴는 실행별 승인 범위를 지킨다.
+
+운영에서 계정 없는 오류 요청의 Location을 읽어 재현한다. 허용된 콜백, 외부 호스트, 스킴·포트 차이, 사용자 정보가 포함된 주소를 회귀 검사한다.
