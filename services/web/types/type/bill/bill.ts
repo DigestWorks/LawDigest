@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 export interface BillResponse {
   bill_info_dto: {
     bill_id: string;
+    bill_number?: number;
     bill_name: string;
     propose_date: string;
     summary: string;
@@ -16,6 +17,7 @@ export interface BillResponse {
     proposers?: string | null;
     committee?: string | null;
     category?: string | null;
+    stage_dates?: { stage: string; date: string }[];
   };
   representative_proposer_dto_list: {
     representative_proposer_id: string;

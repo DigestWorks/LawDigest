@@ -48,6 +48,9 @@ public interface BillTimelineRepository extends JpaRepository<BillTimeline,Long>
             "ORDER BY bl.statusUpdateDate DESC")
     Slice<LocalDate> findTopProposeDates(Pageable pageable);
 
+    @Query("SELECT MAX(tl.statusUpdateDate) FROM BillTimeline tl")
+    LocalDate findLatestTimelineDate();
+
     LocalDate findTopByOrderByStatusUpdateDateDesc();
 
     @Query("SELECT bt.billResult " +

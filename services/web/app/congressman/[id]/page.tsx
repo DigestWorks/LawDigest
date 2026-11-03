@@ -1,5 +1,6 @@
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
 import { SubHeader } from '@/components';
+import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import { getMetadata } from '@/utils';
 import { Metadata } from 'next';
 import getQueryClient from '@/lib/getQueryClient';
@@ -30,6 +31,7 @@ export default async function Congressman({ params }: CongressmanPageProps) {
     <HydrationBoundary state={dehydrate(queryClient)}>
       <section className="flex flex-col gap-10">
         <SubHeader title="의원 프로필" />
+        <DataFreshnessNote className="mx-5" />
         <CongressmanContainer id={id} />
       </section>
     </HydrationBoundary>

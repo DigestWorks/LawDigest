@@ -20,10 +20,9 @@ import {
 } from '@heroui/react';
 import Link from 'next/link';
 import { BillProps } from '@/types';
-import { IconClock, IconExport, IconScrabSmall } from '@/public/svgs';
+import { IconExport, IconScrabSmall } from '@/public/svgs';
 import { usePatchBookmark } from '@/app/bill/[id]/apis';
 import {
-  getTimeRemaining,
   copyClipBoard,
   getPartyLogoSrc,
   getGovernmentAdministrationName,
@@ -37,7 +36,8 @@ import { ACCESS_TOKEN } from '@/constants';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import ProposerList from '@/app/bill/[id]/components/ProposerList/ProposerList';
-import GPTSummary from '../../GPTSummary';
+import { isoDateOnly, proposalDateLabel } from '@/lib/dataFreshness';
+import BillSource from './BillSource';
 import {
   getFeedSummaryMarkdown,
   getPartyAccentColor,
@@ -49,6 +49,7 @@ import { Button as ActionButton } from '@/components/ui/button';
 export default function Bill({
   bill_info_dto: {
     bill_id,
+    bill_number,
     bill_name,
     title,
     propose_date,
@@ -97,7 +98,8 @@ export default function Bill({
   const setSnackbar = useSetAtom(snackbarState);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const displayedSummary = gpt_summary && !detail ? getFeedSummaryMarkdown(gpt_summary) : gpt_summary || summary;
+  const aiSummary = gpt_summary?.trim() ? gpt_summary : '';
+  const displayedSummary = aiSummary && !detail ? getFeedSummaryMarkdown(aiSummary) : aiSummary || summary;
   const { summaryClassName } = getSummaryVisibilityClassNames({
     detail: Boolean(detail),
     expanded: toggleMore,
@@ -281,19 +283,39 @@ export default function Bill({
         <CardHeader
           className={`flex  flex-col items-start gap-2 p-0  ${!detail ? 'md:w-[270px] auto md:left-0 md:absolute' : ''}`}>
           {detail && (
-            <div className="flex items-center gap-1">
-              <IconClock />
-              <h5 className="text-sm tracking-tight text-gray-2">{getTimeRemaining(propose_date)}</h5>
-            </div>
+            <time className="text-sm text-muted-foreground" dateTime={isoDateOnly(propose_date) ?? undefined}>
+              {proposalDateLabel(propose_date)}
+            </time>
           )}
 
-          <h2 className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>{title}</h2>
+          <h2 className={`${detail ? 'text-[26px]' : 'text-xl'} font-semibold`}>{title?.trim() || bill_name}</h2>
 
-          <h3 className="text-sm text-gray-2 dark:text-gray-3">{bill_name}</h3>
+          {title?.trim() && title.trim() !== bill_name && (
+            <h3 className="text-sm text-muted-foreground">{bill_name}</h3>
+          )}
+
+          {detail && (Boolean(bill_number) || committee) && (
+            <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {Boolean(bill_number) && (
+                <div className="flex gap-1">
+                  <dt>의안번호</dt>
+                  <dd>{bill_number}</dd>
+                </div>
+              )}
+              {committee && (
+                <div className="flex gap-1">
+                  <dt>소관위원회</dt>
+                  <dd>{committee}</dd>
+                </div>
+              )}
+            </dl>
+          )}
 
           {!detail && (
             <div className="flex items-center w-full gap-3">
-              <h5 className="text-xs tracking-tight text-gray-3">{getTimeRemaining(propose_date)}</h5>
+              <time className="text-xs text-muted-foreground" dateTime={isoDateOnly(propose_date) ?? undefined}>
+                {proposalDateLabel(propose_date)}
+              </time>
               <Chip
                 className="text-xs bg-transparent text-gray-2 border-gray-1 dark:border-gray-3 dark:text-gray-3 border-1"
                 size="sm"
@@ -309,6 +331,7 @@ export default function Bill({
           <div className={!detail ? 'hidden md:block md:w-[270px]' : ''} />
           <div className={!detail ? 'md:w-[440px] lg:w-[490px]' : ''}>
             <CardBody className={`p-0 leading-normal whitespace-pre-wrap ${detail ? '' : 'text-sm md:text-base'}`}>
+              <BillSource billId={bill_id} generated={Boolean(aiSummary)} detail={detail} />
               <SafeBillSummaryHtml
                 className={summaryContentClassName}
                 style={summaryAccentStyle}
@@ -384,32 +407,6 @@ export default function Bill({
             )}
           </div>
         </section>
-
-        {detail && (
-          <div className="flex flex-col gap-[34px]">
-            <Divider className="bg-gray-0.5 dark:bg-dark-l md:hidden" />
-
-            <GPTSummary />
-
-            <div className="flex flex-col items-center gap-3">
-              <h5 className="text-xs font-semibold text-theme-alert">
-                AI 기반의 요약은 내용이 불완전할 수 있습니다. 꼭 원문을 확인해주세요 !
-              </h5>
-
-              <Link href={`https://likms.assembly.go.kr/bill/billDetail.do?billId=${bill_id}`}>
-                <Button
-                  size="lg"
-                  color="primary"
-                  radius="full"
-                  className="w-[242px] h-[56px] bg-primary-3 dark:bg-gray-0.5 dark:text-black">
-                  원문 확인하기
-                </Button>
-              </Link>
-            </div>
-
-            <Divider className="bg-gray-0.5 dark:bg-dark-l md:hidden" />
-          </div>
-        )}
       </Card>
 
       <div

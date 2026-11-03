@@ -1,5 +1,7 @@
 'use client';
 
+import DataFreshnessNote from '@/components/common/DataFreshnessNote';
+
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useIntersect } from '@/hooks';
 import { feedContent, feedStage } from '@/lib/feedState';
@@ -98,6 +100,7 @@ export default function Feed() {
     <section>
       <div className="mx-5 mt-5 mb-3">
         <h2 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h2>
+        <DataFreshnessNote className="mt-2" showPending />
       </div>
       <div className="relative flex items-center gap-[5px] mx-6 mb-3" role="group" aria-label="피드 종류">
         <div

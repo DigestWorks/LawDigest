@@ -19,7 +19,7 @@ handoff의 2차 묶음을 현재 코드에서 다시 찾아 재현하고, 확인
 | `app/mypage/**`, Bill·팔로우·알림·설정·탈퇴 컴포넌트와 관련 API | 개인화 정합·계정 경로·실패 복구 |
 | `app/{bill,congressman,party}/[id]/**`, 공개 경로 데이터 helper, 공통 API 응답 타입, `app/{error,not-found,loading}.tsx` | 데이터 존재 확인, 숫자 응답 코드, HTTP 404·오류·loading |
 | 피드·검색·타임라인·탐색의 loading·빈 상태 공용 요소 | 현재 화면을 유지하는 복구 동작 |
-| backend의 자료 기준 DTO·repository·service·controller, 통계 기간 처리 | 실제 수집 범위의 읽기 전용 계약 |
+| backend의 자료 기준 DTO·repository·service·controller, 법안 상세 DTO, 웹 통계 달력 처리 | 실제 수집 범위와 기록 날짜의 읽기 전용 계약 |
 | 웹 자료 기준·원문·AI 표시 공용 요소, Feed·Bill·Timeline·Explore·Profile | 출처·날짜·수집 지연 노출 |
 | 계정·서비스 소개·정책 문안, Footer·Login 링크 | 확정 정보에 따른 공개 문서와 진입점 |
 | 서비스별 관련 회귀·브라우저 검증 기록 | 원인과 실제 사용자 동작 확인 |

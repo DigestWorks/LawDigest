@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useIntersect } from '@/hooks';
 import { Spinner } from '@heroui/spinner';
 import { convertDateFormat } from '@/utils';
+import { isoDateOnly, koreanDateLabel } from '@/lib/dataFreshness';
 import { Divider } from '@heroui/react';
 import { TimelineResponseList } from '@/types';
 import PlenaryList from './PlenaryList';
@@ -42,10 +43,10 @@ export default function ListContainer() {
               <div className="relative">
                 <div className="w-[25px] h-[25px] bg-gray-1 dark:bg-gray-3 absolute rounded-full border-black border top-5 -left-[38px]" />
                 <h2 className="flex items-baseline gap-2">
-                  <span className="text-[42px]">
-                    {convertDateFormat(date)[0]}.{convertDateFormat(date)[1]}
-                  </span>
-                  <span className="text-[22px]">{convertDateFormat(date)[2]}</span>
+                  <time className="text-xl font-semibold md:text-3xl" dateTime={isoDateOnly(date) ?? undefined}>
+                    {koreanDateLabel(date) ?? '날짜 확인 중'}
+                  </time>
+                  <span className="text-sm text-muted-foreground">{convertDateFormat(date)[2]}</span>
                 </h2>
               </div>
               <div className="flex flex-col gap-5">

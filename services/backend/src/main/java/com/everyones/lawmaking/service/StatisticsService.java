@@ -3,6 +3,7 @@ package com.everyones.lawmaking.service;
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
 import com.everyones.lawmaking.common.dto.CategoryPartyCountDto;
 import com.everyones.lawmaking.common.dto.CommitteeCountDto;
+import com.everyones.lawmaking.common.dto.DataFreshnessDto;
 import com.everyones.lawmaking.common.dto.MonthlyTrendDetailDto;
 import com.everyones.lawmaking.common.dto.MonthlyTrendDto;
 import com.everyones.lawmaking.common.dto.PartyBillCountDto;
@@ -12,6 +13,7 @@ import com.everyones.lawmaking.common.dto.StatisticsOverviewDto;
 import com.everyones.lawmaking.common.dto.StatisticsStageDto;
 import com.everyones.lawmaking.global.constant.BillInfoConstant;
 import com.everyones.lawmaking.repository.StatisticsRepository;
+import com.everyones.lawmaking.repository.BillTimelineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,9 +27,21 @@ import java.util.List;
 public class StatisticsService {
 
     private final StatisticsRepository statisticsRepository;
+    private final BillTimelineRepository billTimelineRepository;
 
     private int currentAssembly() {
         return BillInfoConstant.getCurrentAssemblyNumber();
+    }
+
+    public DataFreshnessDto getFreshness() {
+        int assembly = currentAssembly();
+        var bills = statisticsRepository.findBillFreshness(assembly);
+        return new DataFreshnessDto(
+                assembly,
+                bills.latestProposalDate(),
+                billTimelineRepository.findLatestTimelineDate(),
+                bills.readyBillCount(),
+                bills.pendingSummaryCount() == null ? 0L : bills.pendingSummaryCount());
     }
 
     public StatisticsOverviewDto getOverview() {

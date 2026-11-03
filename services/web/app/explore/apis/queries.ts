@@ -68,8 +68,8 @@ export const useGetStatisticsByParty = () =>
 export const useGetStatisticsByCategory = () =>
   useQuery({ queryKey: ['/statistics/by-category'], queryFn: () => getStatisticsByCategory() });
 
-export const useGetStatisticsTrend = (months = 6) =>
-  useQuery({ queryKey: ['/statistics/trend', months], queryFn: () => getStatisticsTrend(months) });
+export const useGetStatisticsTrend = (months = 6, enabled = true) =>
+  useQuery({ queryKey: ['/statistics/trend', months], queryFn: () => getStatisticsTrend(months), enabled });
 
 // 신규 통계 API — 배포 전 백엔드에는 없을 수 있어 재시도 없이 실패시키고, 컴포넌트에서 폴백 처리한다.
 export const useGetStatisticsPartyPerformance = () =>
