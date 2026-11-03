@@ -70,13 +70,7 @@ class LifecycleStatusFetcher:
         end_bound = datetime.strptime(end_date, "%Y-%m-%d").date()
         client = self.fetcher._build_open_assembly_client()
         if client is None:
-            return {
-                "start_date": start_date,
-                "end_date": end_date,
-                "age": age,
-                "rows": [],
-                "review_rows": {},
-            }
+            raise RuntimeError("Open Assembly lifecycle API key is missing")
 
         assembly = f"제{age}대"
         receipts = client.fetch_rows("BILLRCP", {"ERACO": assembly}, page_size=1000, require_complete=True)
@@ -145,6 +139,7 @@ class LifecycleStatusFetcher:
             "start_date": start_date,
             "end_date": end_date,
             "age": age,
+            "source_checked": True,
             "rows": list(deduped.values()),
             "review_rows": review_rows,
         }
