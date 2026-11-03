@@ -59,6 +59,7 @@ export default function SearchModal() {
   return (
     <Dialog open={modal.show} onOpenChange={(open) => setModal({ show: open })}>
       <DialogContent
+        aria-modal="true"
         closeLabel="검색 닫기"
         onCloseAutoFocus={(event) => {
           if (trigger.current?.isConnected) {
