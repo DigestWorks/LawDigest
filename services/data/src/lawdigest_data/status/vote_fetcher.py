@@ -54,10 +54,14 @@ class VoteStatusFetcher:
             if any(value is not None and value != actual for value, actual in zip(published, totals)):
                 raise RuntimeError(f"Individual vote totals disagree with the published result for {bill_id}")
         else:
-            # Some official outcomes expose counts without publishing a roll call.
-            if any(value is None for value in published):
+            # The published total can determine an omitted count without a roll call.
+            total, *counts = published
+            if total is None:
                 raise RuntimeError(f"Incomplete vote totals without a roll call for {bill_id}")
-            totals = [int(value) for value in published]
+            remainder = total - sum(count for count in counts if count is not None)
+            if counts.count(None) > 1 and remainder != 0:
+                raise RuntimeError(f"Incomplete vote totals without a roll call for {bill_id}")
+            totals = [total, *(remainder if count is None else count for count in counts)]
 
         if totals[0] <= 0 or min(totals) < 0 or sum(totals[1:]) != totals[0]:
             raise RuntimeError(f"Invalid published vote totals for {bill_id}")
