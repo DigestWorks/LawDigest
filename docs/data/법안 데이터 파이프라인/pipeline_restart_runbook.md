@@ -212,6 +212,10 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 
 서버 timer 구성은 `deploy/pipeline/`에 있다. 작업별 등록과 개별 운영 실행에는 사용자 승인이 필요하다.
 
+2026-11-03 KST 기준 운영 서버에 `lawdigest-*` timer가 등록되어 있지 않다. 수집 복구 검증에 사용한 런타임은 `/home/ubuntu/project/Lawdigest/.worktrees/ingest-runtime`의 `8c27ac0`이며, Python은 저장소 루트 아래 `services/data/.venv/bin/python`을 사용했다. 확인한 기존 실행 로그는 `/tmp/lawdigest-pipeline/pipeline-runs.jsonl`이고, 아래 timer의 로그 위치는 등록 후 별도로 확인한다.
+
+승인된 수동 백필로 제22대 READY 법안 2,260건을 추가했다. 운영 DB의 제22대 READY는 총 20,242건, 최신 발의일은 2026-10-30, 수집 기준점은 2026-05-06이다. 백필분은 AI 요약과 분야 값이 비어 있다. [백필 검증 기록](https://github.com/DigestWorks/LawDigest/pull/157)
+
 | 작업 | KST 예정 시간 | 1회 실행 범위 |
 | --- | --- | --- |
 | 수집 | 01:10 | 제22대, 실행일 포함 최근 3일 |
