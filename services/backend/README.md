@@ -28,4 +28,13 @@ curl --fail 'http://127.0.0.1:8080/v1/bill/mainfeed?page=0&size=1'
 ./gradlew test bootJar
 ```
 
-운영 API는 배포 스크립트의 헬스체크와 전환 절차를 따릅니다. [운영 API 배포](../../deploy/PROD_BACKEND_DEPLOY.md)
+운영 API는 `api.lawdigest.kr`에서 서비스하며 컨테이너 이름은 `lawdigest-backend-test`입니다. 운영 배포에는 `deploy-prod-backend.sh`를 사용합니다. [운영 API 배포](../../deploy/PROD_BACKEND_DEPLOY.md)
+
+배포 뒤 공개 API의 헬스체크와 피드 응답을 확인합니다.
+
+```bash
+curl --fail https://api.lawdigest.kr/actuator/health
+curl --fail 'https://api.lawdigest.kr/v1/bill/mainfeed?page=0&size=1'
+```
+
+Google 인증은 운영 API가 Google에 전달하는 콜백 `https://api.lawdigest.kr/v1/login/oauth2/code/google`의 등록 여부와 실제 계정 로그인을 함께 확인합니다. [운영 로그인 이슈](https://github.com/DigestWorks/LawDigest/issues/156)

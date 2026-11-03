@@ -26,4 +26,4 @@ INTERNAL_API_ORIGIN=http://127.0.0.1:8080 npm run build
 INTERNAL_API_ORIGIN=http://127.0.0.1:8080 HOSTNAME=127.0.0.1 PORT=3000 npm start
 ```
 
-배포 대상과 스크립트는 도메인별 기준을 따릅니다. [웹 배포 환경](../../deploy/WEB_DEPLOY_ENVIRONMENTS.md)
+운영 도메인 `lawdigest.kr`과 `www.lawdigest.kr`에는 `main`의 프로덕션 빌드를 배포합니다. 배포 후 운영 서버의 `.runtime/prod-web/current`가 가리키는 릴리스와 공개 화면의 결과를 함께 확인합니다. 테스트·개발 도메인은 각각 지정된 배포 스크립트를 사용합니다. [웹 배포 환경](../../deploy/WEB_DEPLOY_ENVIRONMENTS.md)
