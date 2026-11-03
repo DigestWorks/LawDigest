@@ -1,9 +1,9 @@
 import { Metadata } from 'next';
 import { SubHeader } from '@/components';
-import getQueryClient from '@/lib/getQueryClient';
+import { getPublicBill } from '@/lib/publicDetail';
 import { getMetadata } from '@/utils';
 import { BillDetail } from './components';
-import { useGetBillDetail, usePatchViewCount } from './apis';
+import { usePatchViewCount } from './apis';
 
 type BillDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -11,9 +11,7 @@ type BillDetailPageProps = {
 
 export const generateMetadata = async ({ params }: BillDetailPageProps): Promise<Metadata> => {
   const { id } = await params;
-  const queryClient = getQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data } = await useGetBillDetail(id, queryClient);
+  const { data } = await getPublicBill(id);
 
   return getMetadata({
     title: data.bill_info_dto.title,
@@ -24,9 +22,7 @@ export const generateMetadata = async ({ params }: BillDetailPageProps): Promise
 
 export default async function BillDetailPage({ params }: BillDetailPageProps) {
   const { id } = await params;
-  const queryClient = getQueryClient();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data } = await useGetBillDetail(id, queryClient);
+  const { data } = await getPublicBill(id);
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const viewCount = await usePatchViewCount(id)
     .then((res) => res.data.view_count)

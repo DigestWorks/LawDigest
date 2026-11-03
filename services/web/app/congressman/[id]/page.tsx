@@ -3,8 +3,8 @@ import { SubHeader } from '@/components';
 import { getMetadata } from '@/utils';
 import { Metadata } from 'next';
 import getQueryClient from '@/lib/getQueryClient';
+import { getPublicCongressman } from '@/lib/publicDetail';
 import { CongressmanContainer } from './components';
-import { getCongressmanDetail } from './apis';
 
 type CongressmanPageProps = {
   params: Promise<{ id: string }>;
@@ -12,11 +12,7 @@ type CongressmanPageProps = {
 
 export const generateMetadata = async ({ params }: CongressmanPageProps): Promise<Metadata> => {
   const { id } = await params;
-  const queryClient = getQueryClient();
-  const { data } = await queryClient.fetchQuery({
-    queryKey: ['/congressman/detail', id],
-    queryFn: () => getCongressmanDetail(id),
-  });
+  const { data } = await getPublicCongressman(id);
 
   return getMetadata({
     title: `${data.congressman_name} 의원`,
@@ -28,6 +24,7 @@ export const generateMetadata = async ({ params }: CongressmanPageProps): Promis
 export default async function Congressman({ params }: CongressmanPageProps) {
   const { id } = await params;
   const queryClient = getQueryClient();
+  queryClient.setQueryData(['/congressman/detail', id], await getPublicCongressman(id));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
