@@ -51,3 +51,12 @@
 - 서버 `/tmp/lawdigest-w1-timeline-coverage/verified-missing-plenary-votes-v2.jsonl`의 SHA-256은 `54c6384d6f0f47cefccf278939d89132e99ff05cadbbfcae81e04565d4cf45fa`다. 타임라인 이벤트 추가와 표결 데이터 추가는 서로 다른 쓰기 범위다.
 
 본회의 후보 중 운영 법안 결과가 비어 있던 204건을 의안번호로 `ALLBILL` 상세에서 재조회했다. 204건 모두 제22대 의안 ID·번호·의결일과 결과가 본회의 목록과 일치했다. 수정가결 124건, 원안가결 67건, 철회 12건, 부결 1건이다. 서버 `/tmp/lawdigest-w1-timeline-coverage/official-detail-missing-outcomes-204.json`의 SHA-256은 `a60d7cdf9af84b4b4ed8bdf9cf56412a1610f1296613954da0bd81e354669ffb`다.
+
+### 본회의 표결·처리 결과 585개 법안의 운영 실행 범위
+
+표결 누락 573건과 빈 처리 결과 204건을 합쳐 고유 법안 585건을 동결했다. 192건은 두 작업에 모두 해당하며 12건은 철회 결과만 채운다. 앞서 반영한 본회의 161건과 겹치는 법안은 없다.
+
+- `Bill.bill_result`의 빈 값 204건을 채우고, `VoteRecord` 573건과 `VoteParty` 3,841행을 추가한다. 타임라인 이벤트 7,730행은 별도 실행 범위다.
+- 서버 `/tmp/lawdigest-w1-timeline-coverage/`의 실행 명세 `verified-plenary-recovery-585.json` SHA-256은 `9d8b6c624369507ac65377d9bff63d5f4daf3479e8eb33ee00079c1d7aca8358`이다. 실행 파일 `apply-verified-plenary-585.py` SHA-256은 `1e6b0b306ca627ca337912c0fbd6a6e55afb007ab30f26c5a4808ce2f700405b`다.
+- 운영 읽기 전용 검사에서 세 대상 테이블의 예상 반영 건수와 기존 상태를 확인했다. 격리 MySQL에서 기존 결과·정당별 표결 충돌 시 중단, 마지막 표결 저장 실패 시 전체 롤백, 성공 시 정확한 반영과 범위 밖 행 보존, 재실행 차단을 확인했다.
+- 승인 뒤 해시와 운영 상태를 다시 확인하고 `--execute`를 한 번 실행한다. 한 트랜잭션에서 세 테이블을 반영하고 커밋 후 읽기 전용으로 결과를 대조한다.
