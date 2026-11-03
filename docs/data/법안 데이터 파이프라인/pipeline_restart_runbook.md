@@ -212,7 +212,7 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 
 서버 timer 구성은 `deploy/pipeline/`에 있다. 작업별 등록과 개별 운영 실행에는 사용자 승인이 필요하다.
 
-2026-11-03 KST에 운영 서버에 `lawdigest-*` timer 4개를 설치했다. 전용 운영 런타임은 `/home/ubuntu/project/Lawdigest/.worktrees/pipeline-runtime-016de5f`의 `016de5f`이고, 저장소 루트 아래 `services/data/.venv/bin/python`을 사용한다. 수집·상태 동기화를 활성화해 11월 4일 01:10과 03:10 KST 첫 실행을 예약하고 11월 4일부터 10일까지 각 날짜의 일회용 승인을 등록했다. 승인 래퍼는 #166 머지 커밋 `80f8acb`에서 설치했다. AI 요약은 사용자 승인 뒤 전용 런타임 `0b03e79`에서 Codex CLI `gpt-6.1-terra`로 활성화했다. 11월 4~10일 05:10 KST에 미작성 공개 법안을 회당 최대 40건 처리한다. 분야 분류는 아래 분류 규칙 검토가 남아 있다. 예약 상태는 7일 연속 성공 기록에 포함하지 않는다.
+2026-11-03 KST에 운영 서버에 `lawdigest-*` timer 4개를 설치했다. 전용 운영 런타임은 `/home/ubuntu/project/Lawdigest/.worktrees/pipeline-runtime-016de5f`의 `016de5f`이고, 저장소 루트 아래 `services/data/.venv/bin/python`을 사용한다. 수집·상태 동기화를 활성화해 11월 4일 01:10과 03:10 KST 첫 실행을 예약하고 11월 4일부터 10일까지 각 날짜의 일회용 승인을 등록했다. 승인 래퍼는 #166 머지 커밋 `80f8acb`에서 설치했다. AI 요약은 사용자 승인 뒤 전용 런타임 `0b03e79`에서 Codex CLI `gpt-6.1-terra`로 활성화했다. 11월 4~10일 05:10 KST에 미작성 공개 법안을 회당 최대 40건 처리한다. 분야 분류는 11월 4일 KST에 전용 런타임 `142b75b`와 서비스 설정을 설치했다. 11월 4~10일 08:30 KST에 실행하도록 활성화했다. 등록 시 운영 모의 실행은 대상 0건이었다. 실행 이력은 분야 분류 서비스의 journald에서 확인한다. 예약 상태는 7일 연속 성공 기록에 포함하지 않는다.
 
 승인된 수동 백필로 제22대 READY 법안 2,260건을 추가했다. 운영 DB의 제22대 READY는 총 20,242건, 최신 발의일은 2026-10-30, 수집 기준점은 2026-05-06이다. 백필분은 AI 요약과 분야 값이 비어 있다. [백필 검증 기록](https://github.com/DigestWorks/LawDigest/pull/157)
 
