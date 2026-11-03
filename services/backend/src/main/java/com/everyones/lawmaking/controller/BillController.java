@@ -44,6 +44,7 @@ public class BillController {
     @Operation(summary = "메인피드 조회", description = "메인피드에 들어갈 데이터를 가져옵니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 페이지, 크기 또는 단계"),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류 (문제 지속시 BE팀 문의)",
@@ -70,10 +71,10 @@ public class BillController {
             @RequestParam(name = "assembly", required = false) String assembly,
             @RequestParam(name = "compact", defaultValue = "false") boolean compact
     ) {
-        var pageable = PageRequest.of(page, size);
-        if(StringUtils.hasText(stage) && !BillStageType.containsValue(stage)) {
-            throw new IllegalArgumentException(stage);
+        if (page < 0 || size < 1 || (StringUtils.hasText(stage) && !BillStageType.containsValue(stage))) {
+            throw new RequestParameterException();
         }
+        var pageable = PageRequest.of(page, size);
         var result = billFacade.getBillList(pageable, stage, assembly);
         var response = limitToRequestedSize(result, size);
         return BaseResponse.ok(compact ? BillCardDto.page(response) : response);

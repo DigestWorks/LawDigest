@@ -6,7 +6,7 @@ LLM 호출 없음. `unknown`(분류 불가)은 기록하지 않고 NULL로 남�
 사용:
   python -m scripts.backfill_bill_category --mode prod            # dry-run(집계만, 쓰기 없음)
   python -m scripts.backfill_bill_category --mode prod --execute  # 실제 UPDATE
-  옵션: --limit N (대상 제한), --batch-size N (executemany 묶음)
+  옵션: --age N (대수), --limit N (대상 제한), --batch-size N (executemany 묶음)
 
 설계·검증: output/tab-prototypes/FIELD_TAXONOMY.md (§4, §5).
 """
@@ -19,7 +19,7 @@ from lawdigest_ai.processor.category_classifier import classify_bill
 from lawdigest_ai.processor.category_taxonomy import CODE_TO_LABEL, UNKNOWN_CODE
 
 
-def run(*, mode: str, execute: bool, limit: int | None, batch_size: int) -> int:
+def run(*, mode: str, execute: bool, limit: int | None, batch_size: int, age: int | None = None) -> int:
     if "category" not in get_bill_table_columns(mode=mode):
         raise SystemExit("Bill.category 컬럼이 없습니다. 마이그레이션(20260630_add_bill_category)을 먼저 적용하세요.")
 
@@ -29,10 +29,15 @@ def run(*, mode: str, execute: bool, limit: int | None, batch_size: int) -> int:
             "SELECT bill_id, committee, bill_name, title "
             "FROM Bill WHERE category IS NULL"
         )
+        params: list[int] = []
+        if age is not None:
+            select_sql += " AND assembly_number = %s"
+            params.append(age)
         if limit:
-            select_sql += f" LIMIT {int(limit)}"
+            select_sql += " LIMIT %s"
+            params.append(limit)
         with conn.cursor() as cur:
-            cur.execute(select_sql)
+            cur.execute(select_sql, tuple(params))
             rows = cur.fetchall()
 
         dist: dict[str, int] = {}
@@ -78,10 +83,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Bill.category 백필 (무API)")
     parser.add_argument("--mode", default="test", choices=["test", "prod"])
     parser.add_argument("--execute", action="store_true", help="실제 UPDATE 수행(기본은 dry-run)")
+    parser.add_argument("--age", type=int, default=None, help="대상 국회 대수")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=1000)
     args = parser.parse_args()
-    run(mode=args.mode, execute=args.execute, limit=args.limit, batch_size=args.batch_size)
+    run(mode=args.mode, execute=args.execute, limit=args.limit, batch_size=args.batch_size, age=args.age)
 
 
 if __name__ == "__main__":
