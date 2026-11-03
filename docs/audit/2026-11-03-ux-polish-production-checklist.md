@@ -29,7 +29,7 @@
 
 운영 로그인 페이지에서 세 제공자 버튼을 직접 눌렀다. 인증 시작 API는 각 제공자로 HTTP 302 응답을 보내고 `https://api.lawdigest.kr/v1/login/oauth2/code/` 아래에 제공자 이름을 붙인 콜백을 전달했다.
 
-- Google은 `redirect_uri_mismatch`로 인증을 거절했다. 운영 OAuth 클라이언트의 승인된 콜백과 대조가 필요하다. [Google 오류 안내](https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors)
+- 운영 Google 로그인 버튼을 눌러 `400 redirect_uri_mismatch`를 재현했다. 시작 API는 프로젝트 번호 `264615857118`로 시작하는 클라이언트와 운영 API 콜백을 전달한다. 해당 프로젝트를 Google Cloud 콘솔에서 지정하자 현재 계정에 추가 액세스가 필요하다고 표시됐다. 프로젝트 관리자가 승인된 콜백을 확인해야 한다. [Google 오류 안내](https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors)
 - 네이버는 계정 입력 전 모두의입법 서비스 오류를 표시했다. 운영 앱의 서비스 URL·콜백 등록값·상태를 개발자센터에서 확인한다. [네이버 개발 가이드](https://developers.naver.com/docs/login/devguide/devguide.md)
 - 카카오 로그인 폼에서 계정·비밀번호 입력란을 확인했다. 서비스 복귀와 세션 검증은 실제 계정 인증이 필요하다.
 - 세 제공자의 운영 OAuth 시작 요청과 취소 응답 경로를 비인증 상태에서 대조했다. 취소 응답의 HTTP 302는 모두 운영 웹 콜백에 오류를 전달했다. Google 웹 콜백은 취소 안내 없이 로그인 화면으로 돌아갔다. 실제 제공자 인증과 취소는 별도 검증한다.
