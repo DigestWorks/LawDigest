@@ -263,6 +263,7 @@ def test_persist_bill_rows_passes_checkpoint_to_atomic_db_write():
     assert persisted == 1
     db.insert_bill_info.assert_called_once_with(
         rows,
+        refresh_search=True,
         checkpoint={
             "source_name": "bill_ingest",
             "assembly_number": 22,
