@@ -7,6 +7,8 @@
 - 디스크 부족으로 시작에 실패한 기존 Expresso MongoDB 컨테이너를 기존 설정과 데이터로 시작했고 healthy를 확인했다.
 - 오래된 개발 watchdog 40개와 그 자식 40개를 종료했다. PM2 데몬과 앱 12개 프로세스는 제외했다.
 - 빈 nginx·PM2 PID 파일은 실제 실행 프로세스 신원을 확인해 복구했다. nginx 설정 검사와 공식 reload, PM2 현재 앱 목록 저장을 통과했다.
+- Qdrant의 이미지에 없는 `wget` 헬스체크를 기존 bash의 HTTP readiness 검사로 바꿨다. 이미지 다운로드 없이 기존 `/var/lib/qdrant` 마운트를 유지해 해당 컨테이너만 재생성했고 `/readyz` 응답과 Docker healthy를 확인했다. 원본 Compose는 위 백업 디렉터리에 보관했다.
+- 이미 제거된 snap 마운트 6개의 과거 실패 기록을 정리했다.
 - 사용자 지시에 따라 papers 도메인의 nginx 활성 링크와 인증서 갱신 설정을 제거·백업하고 `papers-webdav.service`를 중지·비활성화했다. 별도 `research-webdav.service`, 연구 문서, 기존 인증서와 키는 보존했다.
 
 ## 정리 범위
