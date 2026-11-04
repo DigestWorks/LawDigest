@@ -1,6 +1,8 @@
 'use client';
 
 import { ChartNoAxesCombined } from 'lucide-react';
+import { useDataFreshness } from '@/components/common/DataFreshnessNote';
+import { koreanDateLabel } from '@/lib/dataFreshness';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from 'recharts';
@@ -31,6 +33,11 @@ const chartConfig = {
   passed: { label: '가결(발의월 기준)', color: '#96BCFA' },
 } satisfies ChartConfig;
 
+const fullMonthLabel = (month: string) => {
+  const [year, number] = month.split('-');
+  return `${year}년 ${Number(number)}월`;
+};
+
 /** 'YYYY-MM' → '7월' / 연도가 바뀌는 첫 달은 '25년 1월'. */
 const formatMonth = (month: string, index: number, all: string[]) => {
   const [year, m] = month.split('-');
@@ -46,6 +53,7 @@ const formatMonth = (month: string, index: number, all: string[]) => {
 export default function StatsTrendArea() {
   const [months, setMonths] = useState<number>(12);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const { data: freshness } = useDataFreshness();
   const calendarMonths = months || currentAssemblyMonths();
   const detail = useGetStatisticsTrendDetail(calendarMonths);
   // 신규 API 미배포 환경 폴백: 기존 /statistics/trend(발의 건수만)로 대체한다.
@@ -63,6 +71,12 @@ export default function StatsTrendArea() {
   const failed = detail.isError && fallback.isError;
   const hasPoints = points.some((point) => point.proposed !== null);
   const monthKeys = points.map((p) => p.month);
+  const firstMonth = monthKeys[0];
+  const lastMonth = monthKeys.at(-1);
+  const missingMonths = points.filter((point) => point.proposed === null).length;
+  const latestProposal = freshness?.latest_proposal_date;
+  const currentMonthHasData = points.at(-1)?.proposed != null;
+  const latestDate = latestProposal?.slice(0, 7) === lastMonth ? koreanDateLabel(latestProposal, false) : null;
 
   return (
     <StatsCard
@@ -151,9 +165,7 @@ export default function StatsTrendArea() {
                   indicator="dot"
                   labelFormatter={(_, payload) => {
                     const month = payload?.[0]?.payload?.month as string | undefined;
-                    if (!month) return '';
-                    const [year, m] = month.split('-');
-                    return `${year}년 ${Number(m)}월`;
+                    return month ? fullMonthLabel(month) : '';
                   }}
                 />
               }
@@ -186,10 +198,17 @@ export default function StatsTrendArea() {
           </ComposedChart>
         </ChartContainer>
       )}
-      {hasPoints && (
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          집계 자료가 없는 달은 비워 둡니다. 가결은 해당 월에 발의된 법안 중 현재까지 가결된 수입니다.
-        </p>
+      {hasPoints && firstMonth && lastMonth && (
+        <div className="mt-3 space-y-1 text-xs leading-5 text-muted-foreground">
+          <p>
+            조회 범위 {fullMonthLabel(firstMonth)}부터 {fullMonthLabel(lastMonth)}까지
+          </p>
+          {currentMonthHasData && (
+            <p>이번 달 집계는 진행 중입니다.{latestDate && ` 최신 수집 발의일은 ${latestDate}입니다.`}</p>
+          )}
+          {missingMonths > 0 && <p>집계 자료가 없는 달 {missingMonths}개는 차트에서 비워 둡니다.</p>}
+          <p>가결은 해당 월에 발의된 법안 중 현재까지 가결된 수입니다.</p>
+        </div>
       )}
     </StatsCard>
   );
