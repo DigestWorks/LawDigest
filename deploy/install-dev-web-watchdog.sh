@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUNTIME_ROOT="${RUNTIME_ROOT:-$REPO_ROOT/.runtime/dev-web}"
 WATCHDOG_LOG="${WATCHDOG_LOG:-$RUNTIME_ROOT/watchdog.log}"
 NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-CRON_LINE="* * * * * NVM_DIR=$NVM_DIR PATH=/usr/local/bin:/usr/bin:/bin cd $REPO_ROOT && ./deploy/ensure-dev-web-pm2.sh --quiet >> $WATCHDOG_LOG 2>&1"
+CRON_LINE="* * * * * cd $REPO_ROOT && RUNTIME_ROOT=$RUNTIME_ROOT NVM_DIR=$NVM_DIR PATH=/usr/local/bin:/usr/bin:/bin ./deploy/ensure-dev-web-pm2.sh --quiet >> $WATCHDOG_LOG 2>&1"
 TMP_CRON="$(mktemp)"
 
 trap 'rm -f "$TMP_CRON"' EXIT
