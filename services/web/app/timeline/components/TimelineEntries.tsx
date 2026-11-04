@@ -39,24 +39,28 @@ export function TimelineBillList({
 
   const remaining = bills.length - limit;
   return (
-    <section className="min-w-0 rounded-lg border bg-background p-4" aria-labelledby={headingId}>
-      <h3 id={headingId} className="mb-2 font-semibold">
-        {title} <span className="text-sm font-medium text-muted-foreground">{bills.length.toLocaleString()}건</span>
+    <section className="relative min-w-0" aria-labelledby={headingId}>
+      <h3
+        id={headingId}
+        className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[22px] font-light md:text-[26px]">
+        {title} <span className="text-xs font-medium text-muted-foreground">{bills.length.toLocaleString()}건</span>
       </h3>
-      <ul id={listId} ref={listRef} className="divide-y">
+      <ul id={listId} ref={listRef} className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {bills.slice(0, limit).map((bill) => {
           const vote = votes?.get(bill.bill_id);
           const approval = vote?.approval_vote_count;
           const total = vote?.total_vote_count;
           return (
-            <li key={bill.bill_id} className="min-w-0 py-2">
+            <li
+              key={bill.bill_id}
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-background p-4">
               <Link
                 href={`/bill/${encodeURIComponent(bill.bill_id)}`}
-                className="block break-words text-sm font-medium underline-offset-4 hover:underline focus-visible:underline">
+                className="block flex-1 break-words text-sm font-semibold leading-6 underline-offset-4 hover:underline focus-visible:underline">
                 {billHeadline(bill.bill_name, bill.bill_title)}
               </Link>
-              <p className="break-words text-xs text-muted-foreground">
-                {[bill.bill_proposers, bill.bill_result?.includes('가결 ') ? null : bill.bill_result]
+              <p className="break-words text-xs leading-5 text-muted-foreground">
+                {[bill.bill_proposers, bill.bill_result?.includes('가결 ') ? null : bill.bill_result || bill.bill_stage]
                   .filter(Boolean)
                   .join(' · ')}
                 {typeof approval === 'number' &&
@@ -72,11 +76,11 @@ export function TimelineBillList({
         })}
       </ul>
       {(remaining > 0 || limit > PREVIEW_SIZE) && (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {remaining > 0 && (
             <Button
               ref={moreButtonRef}
-              variant="outline"
+              variant="ghost"
               size="sm"
               aria-controls={listId}
               aria-label={`${title} 법안 ${Math.min(remaining, STEP_SIZE)}건 더 보기`}
@@ -125,8 +129,8 @@ export function PlenaryEntries({ entries }: { entries: TimelinePlenary[] }) {
     votes.set(bill.bill_id, entry);
   }
   return (
-    <div className="space-y-2">
-      <h3 className="text-lg font-semibold">본회의 심의 {votes.size.toLocaleString()}건</h3>
+    <div className="flex flex-col gap-5">
+      <h3 className="text-[26px] font-light">본회의 심의 {votes.size.toLocaleString()}건</h3>
       {['가결', '부결', '폐기', '철회', '결과 기록 없음', '결과 확인 필요'].map((group) => (
         <TimelineBillList key={group} title={group} bills={groups.get(group) ?? []} votes={votes} />
       ))}

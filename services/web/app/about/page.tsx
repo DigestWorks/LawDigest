@@ -13,17 +13,17 @@ export const metadata = getMetadata({
 export default function AboutPage() {
   return (
     <Layout nav logo notification>
-      <article className="mx-auto w-full max-w-3xl space-y-8 px-5 py-10 md:px-8">
-        <header className="space-y-3">
-          <h1 className="text-3xl font-bold tracking-tight">모두의입법 소개</h1>
+      <article className="mx-auto flex w-full max-w-[880px] flex-col gap-8 px-5 py-8">
+        <header className="flex flex-col gap-3">
+          <h1 className="text-[26px] font-semibold">모두의입법 소개</h1>
           <p className="max-w-prose text-base leading-7 text-muted-foreground">
             모두의입법에서 국회에 발의된 법안과 처리 경과를 살펴볼 수 있습니다. 법안을 검색하거나 분야별로 찾아보고,
             의원과 정당의 발의 활동을 확인할 수 있습니다.
           </p>
         </header>
 
-        <section aria-labelledby="data-source" className="space-y-3 rounded-xl border p-5">
-          <h2 id="data-source" className="text-lg font-semibold">
+        <section aria-labelledby="data-source" className="flex flex-col gap-3 border-y border-border py-6">
+          <h2 id="data-source" className="text-xl font-semibold">
             자료 출처와 수집 기준
           </h2>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -34,8 +34,8 @@ export default function AboutPage() {
           <DataFreshnessNote scope="timeline" showSource={false} />
         </section>
 
-        <section aria-labelledby="summary-guide" className="space-y-2">
-          <h2 id="summary-guide" className="text-lg font-semibold">
+        <section aria-labelledby="summary-guide" className="flex flex-col gap-2">
+          <h2 id="summary-guide" className="text-xl font-semibold">
             법안 요약과 원문
           </h2>
           <p className="max-w-prose text-sm leading-6 text-muted-foreground">

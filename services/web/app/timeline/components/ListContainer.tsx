@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { isoDateOnly, koreanDateLabel } from '@/lib/dataFreshness';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import ContentSkeleton from '@/components/common/ContentSkeleton';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { PlenaryEntries, TimelineBillList } from './TimelineEntries';
@@ -33,18 +34,22 @@ export default function ListContainer() {
 
   return (
     <section className="mx-auto w-full max-w-[1200px] px-5 py-6" aria-label="날짜별 입법 기록">
-      <div className="mb-5 flex flex-wrap gap-2" role="group" aria-label="입법 기록 단계">
+      <ToggleGroup
+        type="single"
+        variant="pill"
+        size="sm"
+        value={filter}
+        onValueChange={(value) => {
+          if (value) setFilter(value as Filter);
+        }}
+        className="mb-8 max-w-full justify-start gap-1 overflow-x-auto pb-2"
+        aria-label="입법 기록 단계">
         {FILTERS.map(([key, label]) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={filter === key ? 'default' : 'outline'}
-            aria-pressed={filter === key}
-            onClick={() => setFilter(key)}>
+          <ToggleGroupItem key={key} value={key} className="shrink-0">
             {label}
-          </Button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
       {query.isPending && <ContentSkeleton />}
       {query.isError && !query.data && (
         <SectionError
@@ -54,11 +59,30 @@ export default function ListContainer() {
         />
       )}
       {query.data && !visibleDates.length && <SectionEmpty>불러온 날짜에 이 단계의 기록이 없습니다.</SectionEmpty>}
-      <div className="space-y-8">
+      <div className="ml-3 flex flex-col">
         {visibleDates.map(({ date, plenary_list, promulgation_list, committee_audit_list, submitted_list }) => (
-          <article key={date} className="space-y-3 border-l pl-3 sm:pl-5">
-            <h2 className="text-lg font-semibold sm:text-2xl">
-              <time dateTime={isoDateOnly(date) ?? undefined}>{koreanDateLabel(date) ?? '날짜 확인 중'}</time>
+          <article key={date} className="relative flex flex-col gap-5 border-l-2 border-border pb-10 pl-6 md:pl-8">
+            <span
+              aria-hidden="true"
+              className="absolute -left-[10px] top-4 size-[18px] rounded-full border border-foreground bg-muted"
+            />
+            <h2 className="font-normal">
+              <time
+                className="flex items-baseline gap-2"
+                dateTime={isoDateOnly(date) ?? undefined}
+                aria-label={koreanDateLabel(date) ?? '날짜 확인 중'}>
+                <span className="text-[40px] leading-tight md:text-[42px]">
+                  {isoDateOnly(date)?.slice(5).replace('-', '.').replace(/^0/, '').replace('.0', '.') ?? '—'}
+                </span>
+                <span className="text-xl text-muted-foreground">
+                  {isoDateOnly(date)
+                    ? new Intl.DateTimeFormat('ko-KR', { weekday: 'short', timeZone: 'Asia/Seoul' }).format(
+                        new Date(`${isoDateOnly(date)}T12:00:00+09:00`),
+                      )
+                    : ''}
+                </span>
+                <span className="ml-1 text-xs text-muted-foreground">{isoDateOnly(date)?.slice(0, 4)}</span>
+              </time>
             </h2>
             {show('plenary') && plenary_list.length > 0 && <PlenaryEntries entries={plenary_list} />}
             {show('promulgation') && <TimelineBillList title="공포된 법안" bills={promulgation_list} />}

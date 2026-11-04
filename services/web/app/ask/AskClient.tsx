@@ -65,11 +65,11 @@ export default function AskClient() {
   let emptyTitle = available ? '궁금한 법안 내용을 물어보세요' : '질의응답을 잠시 사용할 수 없습니다';
   if (status.isPending) emptyTitle = '질문할 자료를 확인하고 있습니다';
   return (
-    <div className="mx-auto flex h-[calc(100dvh-64px)] min-h-[480px] max-w-3xl flex-col gap-4 px-4 pb-28 pt-5 text-foreground md:h-[calc(100dvh-98px)] md:pb-6">
+    <div className="mx-auto flex h-[calc(100dvh-64px)] min-h-[480px] max-w-[880px] flex-col gap-4 px-5 pb-28 pt-5 text-foreground md:h-[calc(100dvh-98px)] md:pb-6">
       <header className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold">법안에 질문하기</h1>
+            <h1 className="text-[26px] font-semibold">법안에 질문하기</h1>
             <p className="text-sm text-muted-foreground">
               AI가 국회 법안 원문을 찾아 설명합니다. 답변 아래 근거를 확인하세요.
             </p>
@@ -89,7 +89,7 @@ export default function AskClient() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ToggleGroup
             type="single"
-            variant="outline"
+            variant="pill"
             size="sm"
             value={String(assembly)}
             disabled={pending}
