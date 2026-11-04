@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import com.everyones.lawmaking.domain.entity.Bill;
+import com.everyones.lawmaking.domain.entity.VoteParty;
 import com.everyones.lawmaking.domain.entity.VoteRecord;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -79,8 +80,7 @@ public class TimelineFacade {
         var records = voteRecordService.getRecordsForBills(ids).stream()
                 .collect(Collectors.toMap(record -> record.getBill().getId(), Function.identity()));
         var parties = votePartyService.getPartyVotesForBills(ids).stream()
-                .collect(Collectors.groupingBy(vote -> vote.getBill().getId(),
-                        Collectors.mapping(PartyVoteDto::from, Collectors.toList())));
+                .collect(Collectors.groupingBy(vote -> vote.getBill().getId()));
         return bills.stream().map(bill -> plenaryForDate(
                 bill, history.get(bill.getId()), localDate,
                 records.get(bill.getId()), parties.getOrDefault(bill.getId(), List.of()))).toList();
@@ -88,7 +88,7 @@ public class TimelineFacade {
 
     private PlenaryDto plenaryForDate(
             Bill bill, List<PlenaryEvent> history, LocalDate date,
-            VoteRecord record, List<PartyVoteDto> partyVotes
+            VoteRecord record, List<VoteParty> partyVotes
     ) {
         var datedResults = history.stream().filter(event -> StringUtils.hasText(event.result())).toList();
         var results = datedResults.stream().filter(event -> date.equals(event.date()))
@@ -97,11 +97,17 @@ public class TimelineFacade {
         boolean legacyResult = datedResults.isEmpty() && singleEventDate;
         String result = results.size() == 1 ? results.get(0) : legacyResult ? bill.getBillResult() : null;
 
-        // Existing vote records are keyed by bill, so ambiguous dates cannot carry their totals.
-        boolean singleResultDate = datedResults.stream().allMatch(event -> date.equals(event.date()));
+        var decisionDate = record == null ? null : record.getDecisionDate();
+        boolean sameDecisionDate = decisionDate == null
+                ? datedResults.stream().allMatch(event -> date.equals(event.date()))
+                : date.equals(decisionDate);
         boolean matchesBillResult = !StringUtils.hasText(bill.getBillResult()) || Objects.equals(result, bill.getBillResult());
-        boolean showVotes = legacyResult || (results.size() == 1 && singleResultDate && matchesBillResult);
-        return PlenaryDto.of(bill, result, showVotes ? record : null, showVotes ? partyVotes : List.of());
+        boolean showVotes = sameDecisionDate && (legacyResult || (results.size() == 1 && matchesBillResult));
+        var matchingParties = showVotes ? partyVotes.stream()
+                .filter(vote -> vote.matchesDecisionDate(decisionDate))
+                .map(PartyVoteDto::from)
+                .toList() : List.<PartyVoteDto>of();
+        return PlenaryDto.of(bill, result, showVotes ? record : null, matchingParties);
     }
 
     public List<CommitteeAuditDto> getCommitteeBills(LocalDate proposeDate) {

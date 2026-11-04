@@ -41,9 +41,9 @@ def test_roll_call_confirms_omitted_zero_and_rejects_disagreeing_totals():
     client.fetch_rows.side_effect = [[summary], members]
     result = fetcher.fetch("2026-11-03", "2026-11-03", "22")
     assert result["vote_rows"] == [
-        {"BILL_ID": "plenary", "VOTE_TCNT": 2, "YES_TCNT": 2, "NO_TCNT": 0, "BLANK_TCNT": 0},
+        {"BILL_ID": "plenary", "DECISION_DATE": "2026-11-03", "VOTE_TCNT": 2, "YES_TCNT": 2, "NO_TCNT": 0, "BLANK_TCNT": 0},
     ]
-    assert result["vote_party_rows"] == [{"BILL_ID": "plenary", "POLY_NM": "정당", "YES_TCNT": 2}]
+    assert result["vote_party_rows"] == [{"BILL_ID": "plenary", "DECISION_DATE": "2026-11-03", "POLY_NM": "정당", "YES_TCNT": 2}]
 
     client.fetch_rows.side_effect = [[{**summary, "YES_TCNT": 1}], members]
     with pytest.raises(RuntimeError, match="vote totals disagree"):
@@ -76,7 +76,7 @@ def test_published_vote_totals_only_fill_uniquely_determined_counts(published, e
         return
 
     result = fetcher.fetch("2026-11-03", "2026-11-03", "22")
-    assert result["vote_rows"] == [{"BILL_ID": "plenary", **dict(zip(fetcher.TOTAL_FIELDS, expected))}]
+    assert result["vote_rows"] == [{"BILL_ID": "plenary", "DECISION_DATE": "2026-11-03", **dict(zip(fetcher.TOTAL_FIELDS, expected))}]
     assert result["vote_party_rows"] == []
 
 

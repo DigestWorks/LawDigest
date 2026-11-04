@@ -65,9 +65,10 @@ class VoteStatusFetcher:
 
         if totals[0] <= 0 or min(totals) < 0 or sum(totals[1:]) != totals[0]:
             raise RuntimeError(f"Invalid published vote totals for {bill_id}")
+        identity = {"BILL_ID": bill_id, "DECISION_DATE": day.isoformat()}
         return (
-            {"BILL_ID": bill_id, **dict(zip(self.TOTAL_FIELDS, totals))},
-            [{"BILL_ID": bill_id, "POLY_NM": name, "YES_TCNT": count} for name, count in sorted(parties.items())],
+            {**identity, **dict(zip(self.TOTAL_FIELDS, totals))},
+            [{**identity, "POLY_NM": name, "YES_TCNT": count} for name, count in sorted(parties.items())],
         )
 
     def fetch(self, start_date: str, end_date: str, age: str) -> dict[str, Any]:

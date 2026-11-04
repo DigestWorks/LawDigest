@@ -8,6 +8,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.util.Objects;
+
 @Entity
 @Data
 @Builder
@@ -33,6 +36,9 @@ public class VoteParty extends BaseEntity{
     @Column(name="votes_for_count")
     private Integer voteForCount;
 
+    @Column(name = "decision_date")
+    private LocalDate decisionDate;
+
     public static VoteParty of(Bill foundBill, Party foundParty, VotePartyRequest votePartyRequest){
         return VoteParty.builder()
                 .bill(foundBill)
@@ -42,7 +48,14 @@ public class VoteParty extends BaseEntity{
     }
 
     public void updateVotesForCount(VotePartyRequest votePartyRequest){
+        if (!Objects.equals(voteForCount, votePartyRequest.getVoteForCount())) {
+            decisionDate = null;
+        }
         this.setVoteForCount(votePartyRequest.getVoteForCount());
+    }
+
+    public boolean matchesDecisionDate(LocalDate date) {
+        return date == null || date.equals(decisionDate);
     }
 
 

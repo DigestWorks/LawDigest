@@ -1077,7 +1077,8 @@ class DatabaseManager:
                     'votes_for_count': item.get('votes_for_count', 0),
                     'votes_againt_count': item.get('votes_againt_count', 0),
                     'abstention_count': item.get('abstention_count', 0),
-                    'total_vote_count': item.get('total_vote_count', 0)
+                    'total_vote_count': item.get('total_vote_count', 0),
+                    'decision_date': item.get('decision_date'),
                 })
 
             if upsert_params:
@@ -1085,12 +1086,19 @@ class DatabaseManager:
                 upsert_query = """
                     INSERT INTO VoteRecord (
                         bill_id, votes_for_count, votes_againt_count, abstention_count, total_vote_count,
-                        created_date, modified_date
+                        decision_date, created_date, modified_date
                     ) VALUES (
                         %(bill_id)s, %(votes_for_count)s, %(votes_againt_count)s, %(abstention_count)s, %(total_vote_count)s,
-                        NOW(), NOW()
+                        %(decision_date)s, NOW(), NOW()
                     ) AS new
                     ON DUPLICATE KEY UPDATE
+                        decision_date = CASE
+                            WHEN new.decision_date IS NOT NULL THEN new.decision_date
+                            WHEN VoteRecord.total_vote_count = new.total_vote_count
+                              AND VoteRecord.votes_for_count = new.votes_for_count
+                              AND VoteRecord.votes_againt_count = new.votes_againt_count
+                              AND VoteRecord.abstention_count = new.abstention_count THEN VoteRecord.decision_date
+                            ELSE NULL END,
                         votes_for_count = new.votes_for_count,
                         votes_againt_count = new.votes_againt_count,
                         abstention_count = new.abstention_count,
@@ -1131,7 +1139,8 @@ class DatabaseManager:
                 upsert_params.append({
                     'bill_id': bill_id,
                     'party_id': party_id,
-                    'votes_for_count': item.get('votes_for_count', 0)
+                    'votes_for_count': item.get('votes_for_count', 0),
+                    'decision_date': item.get('decision_date'),
                 })
 
             if upsert_params:
@@ -1178,14 +1187,18 @@ class DatabaseManager:
                 # 실행
                 if insert_batch:
                     cursor.executemany("""
-                        INSERT INTO VoteParty (bill_id, party_id, votes_for_count, created_date, modified_date)
-                        VALUES (%(bill_id)s, %(party_id)s, %(votes_for_count)s, NOW(), NOW())
+                        INSERT INTO VoteParty (bill_id, party_id, votes_for_count, decision_date, created_date, modified_date)
+                        VALUES (%(bill_id)s, %(party_id)s, %(votes_for_count)s, %(decision_date)s, NOW(), NOW())
                     """, insert_batch)
                     
                 if update_batch:
                     cursor.executemany("""
                         UPDATE VoteParty 
-                        SET votes_for_count = %(votes_for_count)s, modified_date = NOW()
+                        SET decision_date = CASE
+                                WHEN %(decision_date)s IS NOT NULL THEN %(decision_date)s
+                                WHEN votes_for_count = %(votes_for_count)s THEN decision_date
+                                ELSE NULL END,
+                            votes_for_count = %(votes_for_count)s, modified_date = NOW()
                         WHERE vote_party_id = %(vote_party_id)s
                     """, update_batch)
     
