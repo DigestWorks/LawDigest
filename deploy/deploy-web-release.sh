@@ -175,13 +175,17 @@ if [ ! -d "$TARGET_WEB_DIR/.next/server/app" ] && [ ! -d "$TARGET_WEB_DIR/.next/
 fi
 
 echo "▶ release 디렉터리 생성"
-mkdir -p "$RELEASE_DIR/services"
+mkdir "$RELEASE_DIR"
 
 echo "▶ 산출물 복사"
-cp -a "$TARGET_WEB_DIR" "$RELEASE_DIR/services/"
-if [ -d "$TARGET_WEB_DIR/.next" ]; then
-  rm -rf "$RELEASE_DIR/services/web/.next"
-  cp -a "$TARGET_WEB_DIR/.next" "$RELEASE_DIR/services/web/.next"
+if ! {
+  mkdir -p "$RELEASE_DIR/services/web" &&
+    tar -C "$TARGET_WEB_DIR" --exclude='./.next/cache/webpack' -cf - . |
+    tar -C "$RELEASE_DIR/services/web" -xpf -
+}; then
+  echo "✗ 웹 release 파일을 복사하지 못했습니다." >&2
+  rm -rf -- "$RELEASE_DIR"
+  exit 1
 fi
 
 PREVIOUS_RELEASE=""
