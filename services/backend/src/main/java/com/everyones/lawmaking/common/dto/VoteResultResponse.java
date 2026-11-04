@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.common.dto;
 
+import com.everyones.lawmaking.common.dto.projection.PlenaryEvent;
 import com.everyones.lawmaking.domain.entity.VoteRecord;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -19,6 +20,10 @@ public class VoteResultResponse {
     private Integer approvalCount;
     private Integer totalVoteCount;
     private List<PartyVoteDto> partyVoteList;
+
+    public static VoteResultResponse fromEvent(PlenaryEvent event) {
+        return new VoteResultResponse(event.approvalCount(), event.totalVoteCount(), List.of());
+    }
 
     public static VoteResultResponse of(VoteRecord voteRecord, List<PartyVoteDto> partyVoteList) {
         var voteResultBuilder = VoteResultResponse.builder()

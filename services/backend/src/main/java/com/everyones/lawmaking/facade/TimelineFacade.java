@@ -4,6 +4,7 @@ import com.everyones.lawmaking.common.dto.BillOutlineDto;
 import com.everyones.lawmaking.common.dto.CommitteeAuditDto;
 import com.everyones.lawmaking.common.dto.PartyVoteDto;
 import com.everyones.lawmaking.common.dto.PlenaryDto;
+import com.everyones.lawmaking.common.dto.VoteResultResponse;
 import com.everyones.lawmaking.common.dto.projection.PlenaryEvent;
 import com.everyones.lawmaking.common.dto.response.BillTimelinePaginationResponse;
 import com.everyones.lawmaking.common.dto.response.BillTimelineResponse;
@@ -97,17 +98,23 @@ public class TimelineFacade {
         boolean legacyResult = datedResults.isEmpty() && singleEventDate;
         String result = results.size() == 1 ? results.get(0) : legacyResult ? bill.getBillResult() : null;
 
+        var eventVote = PlenaryEvent.verifiedVoteOn(history, date, result);
+        if (eventVote != null) {
+            return PlenaryDto.of(bill, result, VoteResultResponse.fromEvent(eventVote));
+        }
+
         var decisionDate = record == null ? null : record.getDecisionDate();
         boolean sameDecisionDate = decisionDate == null
                 ? datedResults.stream().allMatch(event -> date.equals(event.date()))
                 : date.equals(decisionDate);
         boolean matchesBillResult = !StringUtils.hasText(bill.getBillResult()) || Objects.equals(result, bill.getBillResult());
-        boolean showVotes = sameDecisionDate && (legacyResult || (results.size() == 1 && matchesBillResult));
+        boolean showVotes = sameDecisionDate && (legacyResult || (results.size() == 1
+                && (decisionDate != null || matchesBillResult)));
         var matchingParties = showVotes ? partyVotes.stream()
                 .filter(vote -> vote.matchesDecisionDate(decisionDate))
                 .map(PartyVoteDto::from)
                 .toList() : List.<PartyVoteDto>of();
-        return PlenaryDto.of(bill, result, showVotes ? record : null, matchingParties);
+        return PlenaryDto.of(bill, result, VoteResultResponse.of(showVotes ? record : null, matchingParties));
     }
 
     public List<CommitteeAuditDto> getCommitteeBills(LocalDate proposeDate) {

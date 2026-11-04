@@ -39,6 +39,12 @@ public class BillTimeline extends BaseEntity{
     @Column(name = "status_update_date")
     private LocalDate statusUpdateDate;
 
+    @Column(name = "approval_vote_count")
+    private Integer approvalVoteCount;
+
+    @Column(name = "total_vote_count")
+    private Integer totalVoteCount;
+
     public static BillTimeline of (Bill foundBill, BillStageDfRequest billStageDfRequest){
         var stageChangeDate = billStageDfRequest.getStatusUpdateDate();
         return BillTimeline.builder()
