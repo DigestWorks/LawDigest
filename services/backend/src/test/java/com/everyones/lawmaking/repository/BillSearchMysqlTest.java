@@ -90,7 +90,7 @@ class BillSearchMysqlTest {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """);
         jdbc.update("DELETE FROM BillSearchDocument");
-        timelines.deleteAll();
+        jdbc.update("DELETE FROM BillTimeline");
         jdbc.update("DELETE FROM RepresentativeProposer");
         jdbc.update("DELETE FROM BillLike");
         jdbc.update("DELETE FROM VoteParty");
@@ -627,6 +627,40 @@ class BillSearchMysqlTest {
             assertThat(bill.getVoteResultResponse().getTotalVoteCount()).isEqualTo(300);
             assertThat(bill.getVoteResultResponse().getApprovalCount()).isEqualTo(198);
         });
+    }
+
+    @Test
+    void invalidatedTimelineRowsStayStoredButDoNotAppearOnPublicSurfaces() {
+        jdbc.update("UPDATE Bill SET bill_result='원안가결', stage='본회의 심의' WHERE bill_id='exact'");
+        jdbc.update("""
+                INSERT INTO BillTimeline (bill_id,bill_timeline_stage,bill_timeline_committee,status_update_date,
+                    bill_result,approval_vote_count,total_vote_count,invalidated_at)
+                VALUES ('exact','본회의 심의',NULL,'2026-01-28','원안가결',90,100,NULL),
+                       ('exact','본회의 심의',NULL,'2026-01-29','부결',60,200,'2026-11-04'),
+                       ('body','위원회 심사','국회운영위원회','2026-01-29',NULL,NULL,NULL,'2026-11-04')
+                """);
+        var verifiedDate = LocalDate.of(2026, 1, 28);
+        var invalidatedDate = verifiedDate.plusDays(1);
+        var billService = new BillService(repository, statistics, activity);
+        var recordService = new VoteRecordService(voteRecords);
+        var partyService = new VotePartyService(voteParties);
+        var timeline = new TimelineFacade(new BillTimelineService(timelines), billService, partyService, recordService);
+        var detail = new BillFacade(billService, mock(LikeService.class), recordService, partyService);
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            assertThat(timeline.getPlenaryBills(invalidatedDate)).isEmpty();
+            assertThat(timeline.getCommitteeBills(invalidatedDate)).isEmpty();
+            assertThat(timeline.getPlenaryBills(verifiedDate)).singleElement()
+                    .satisfies(item -> assertThat(item.getApprovalVoteCount()).isEqualTo(90));
+            assertThat(timelines.findTopProposeDates(PageRequest.of(0, 10)).getContent()).doesNotContain(invalidatedDate);
+            assertThat(timelines.findLatestTimelineDate()).isEqualTo(verifiedDate);
+            var bill = detail.getBillByBillId("exact", false);
+            assertThat(((BillDetailInfo) bill.getBillInfoDto()).getStageDates()).singleElement()
+                    .satisfies(event -> assertThat(event.date()).isEqualTo(verifiedDate));
+            assertThat(bill.getVoteResultResponse().getApprovalCount()).isEqualTo(90);
+        });
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM BillTimeline WHERE invalidated_at IS NOT NULL", Integer.class))
+                .isEqualTo(2);
     }
 
     private void insert(String id, int number, String name, String date, String searchText) {

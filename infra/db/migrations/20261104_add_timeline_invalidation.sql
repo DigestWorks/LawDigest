@@ -1,0 +1,3 @@
+ALTER TABLE BillTimeline
+    ADD COLUMN invalidated_at DATETIME NULL,
+    ALGORITHM=INSTANT;

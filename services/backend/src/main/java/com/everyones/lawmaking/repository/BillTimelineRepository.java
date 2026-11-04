@@ -27,6 +27,7 @@ public interface BillTimelineRepository extends JpaRepository<BillTimeline,Long>
     @Query(value = "SELECT bill_timeline_committee AS committee, GROUP_CONCAT(bill_id) AS billIds " +
             "FROM BillTimeline " +
             "WHERE bill_timeline_stage = '위원회 심사' and status_update_date = :proposeDate " +
+            "AND invalidated_at IS NULL " +
             "GROUP BY bill_timeline_committee " +
             "HAVING COUNT(DISTINCT bill_id) >= 1",
             nativeQuery = true)
