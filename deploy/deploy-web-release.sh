@@ -137,6 +137,9 @@ echo "  domain: $NEXT_PUBLIC_DOMAIN"
 
 mkdir -p "$RELEASES_DIR"
 
+echo "▶ 이전 웹 릴리스 정리"
+python3 "$SCRIPT_DIR/web_release_storage.py" prune "$RUNTIME_ROOT" --keep "${WEB_RELEASES_TO_KEEP:-6}"
+
 echo "▶ 의존성 설치"
 cd "$TARGET_WEB_DIR"
 npm ci
@@ -173,6 +176,9 @@ if [ ! -d "$TARGET_WEB_DIR/.next/server/app" ] && [ ! -d "$TARGET_WEB_DIR/.next/
   echo "✗ .next/server/app 또는 .next/server/pages가 모두 없습니다: $TARGET_WEB_DIR/.next/server"
   exit 1
 fi
+
+echo "▶ release 복사 공간 확인"
+python3 "$SCRIPT_DIR/web_release_storage.py" check-space "$RUNTIME_ROOT" --source "$TARGET_WEB_DIR"
 
 echo "▶ release 디렉터리 생성"
 mkdir "$RELEASE_DIR"
@@ -238,6 +244,10 @@ if [ -x "$SCRIPT_DIR/ensure-dev-web-pm2.sh" ] && [ "$PM2_NAME" != "lawdigest-web
 fi
 
 pm2 save
+
+if ! python3 "$SCRIPT_DIR/web_release_storage.py" prune "$RUNTIME_ROOT" --keep "${WEB_RELEASES_TO_KEEP:-6}"; then
+  echo "⚠ 새 릴리스는 정상이며 이전 산출물 정리는 다음 배포에서 다시 시도합니다." >&2
+fi
 
 echo "✓ 배포 완료"
 echo "  domain: $NEXT_PUBLIC_DOMAIN"
