@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getCookie } from 'cookies-next';
 import { SectionEmpty, SectionLoading } from '@/components/common/SectionState';
 import { ACCESS_TOKEN } from '@/constants';
+import { loginHref } from '@/lib/loginNavigation';
 import { NotificationList } from './components';
 
 export default function Notification() {
@@ -26,7 +27,7 @@ export default function Notification() {
         <div className="p-5">
           <SectionEmpty>
             알림을 보려면{' '}
-            <Link href="/login" className="font-medium underline underline-offset-4">
+            <Link href={loginHref('/notification')} className="font-medium underline underline-offset-4">
               로그인
             </Link>
             해 주세요.

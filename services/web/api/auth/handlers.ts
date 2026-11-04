@@ -2,6 +2,7 @@
 
 import { deleteCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
+import { loginHref } from '@/lib/loginNavigation';
 
 export const handleFailReissueToken = () => {
   if (typeof window === 'undefined') return;
@@ -11,6 +12,6 @@ export const handleFailReissueToken = () => {
     deleteCookie(ACCESS_TOKEN, { path: '/', domain: '.lawdigest.kr' });
   }
   if (window.location.pathname !== '/login') {
-    window.location.replace('/login');
+    window.location.replace(loginHref(window.location.pathname + window.location.search + window.location.hash));
   }
 };

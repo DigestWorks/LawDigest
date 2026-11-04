@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { getCookie } from 'cookies-next';
 import { useIntersect } from '@/hooks';
 import { ACCESS_TOKEN } from '@/constants';
+import { loginHref } from '@/lib/loginNavigation';
 import { useGetFollowingBill } from '@/app/following/apis';
 import { BillList } from '@/components/Bill';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,9 @@ export default function FollowingFeed({ scrollKey }: { scrollKey: string }) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <p>팔로잉 피드를 보려면 로그인이 필요해요.</p>
-        <Button onClick={() => router.push('/login')}>로그인하기</Button>
+        <Button onClick={() => router.push(loginHref(scrollKey ? `/?${scrollKey}` : '/?tab=following'))}>
+          로그인하기
+        </Button>
       </div>
     );
   return (

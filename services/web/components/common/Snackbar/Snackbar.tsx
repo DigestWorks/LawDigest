@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { loginHref } from '@/lib/loginNavigation';
 import { useAtomValue } from 'jotai';
 import { useResetAtom } from 'jotai/utils';
 import { Transition } from '@headlessui/react';
@@ -11,6 +13,12 @@ import { IconCancel } from '@/public/svgs';
 
 export default function Snackbar() {
   const snackbar = useAtomValue(snackbarState);
+  const pathname = usePathname();
+  const [loginUrl, setLoginUrl] = useState('/login');
+
+  useEffect(() => {
+    setLoginUrl(loginHref(window.location.pathname + window.location.search + window.location.hash));
+  }, [pathname, snackbar.show]);
   const resetSnackbar = useResetAtom(snackbarState);
 
   // eslint-disable-next-line consistent-return
@@ -49,7 +57,7 @@ export default function Snackbar() {
           <div className="flex items-center px-4 py-3">
             <p className="flex-1 w-0 text-sm font-semibold text-white lg:text-base">{snackbar.message}</p>
             {snackbar.message === '로그인이 필요한 서비스입니다.' && (
-              <Link href="/login" className="mr-2">
+              <Link href={loginUrl} className="mr-2">
                 <p className="text-xs font-medium text-white underline lg:text-sm ">로그인 하기</p>
               </Link>
             )}
