@@ -36,7 +36,9 @@ public class BillFacade {
         var billDto = billService.getBillWithDetail(billId, currentOnly);
         var userId = AuthenticationUtil.getUserId();
         var voteRecord = voteRecordService.getVoteRecordByBillId(billId);
+        var decisionDate = voteRecord == null ? null : voteRecord.getDecisionDate();
         var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
+                .filter(vote -> vote.matchesDecisionDate(decisionDate))
                 .map(PartyVoteDto::from)
                 .toList();
         var voteResultResponse = VoteResultResponse.of(voteRecord, votePartyList);

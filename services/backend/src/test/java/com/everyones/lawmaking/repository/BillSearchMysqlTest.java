@@ -555,6 +555,41 @@ class BillSearchMysqlTest {
         verify(partyService, never()).getVotePartyListWithPartyByBillId(anyString());
     }
 
+    @Test
+    void explicitDecisionDateSeparatesVotesFromRepeatedPlenaryResults() {
+        var oldParty = parties.saveAndFlush(Party.builder().name("이전 정당").build());
+        var votingParty = parties.saveAndFlush(Party.builder().name("표결 정당").build());
+        jdbc.update("UPDATE Bill SET bill_result='원안가결' WHERE bill_id='exact'");
+        jdbc.update("""
+                INSERT INTO VoteRecord (bill_id,total_vote_count,votes_for_count,votes_againt_count,abstention_count,decision_date)
+                VALUES ('exact',100,80,15,5,'2026-01-29')
+                """);
+        jdbc.update("""
+                INSERT INTO VoteParty (bill_id,party_id,votes_for_count,decision_date)
+                VALUES ('exact',?,70,'2026-01-28'), ('exact',?,80,'2026-01-29')
+                """, oldParty.getId(), votingParty.getId());
+        jdbc.update("""
+                INSERT INTO BillTimeline (bill_id,bill_timeline_stage,status_update_date,bill_result)
+                VALUES ('exact','본회의 심의','2026-01-28','원안가결'),
+                       ('exact','본회의 심의','2026-01-29','원안가결')
+                """);
+        var facade = new TimelineFacade(new BillTimelineService(timelines),
+                new BillService(repository, statistics, activity), new VotePartyService(voteParties),
+                new VoteRecordService(voteRecords));
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            assertThat(facade.getPlenaryBills(LocalDate.of(2026, 1, 28))).singleElement().satisfies(item -> {
+                assertThat(item.getTotalVoteCount()).isNull();
+                assertThat(item.getPartyVoteList()).isEmpty();
+            });
+            assertThat(facade.getPlenaryBills(LocalDate.of(2026, 1, 29))).singleElement().satisfies(item -> {
+                assertThat(item.getTotalVoteCount()).isEqualTo(100);
+                assertThat(item.getPartyVoteList()).singleElement().satisfies(vote ->
+                        assertThat(vote.getPartyApprovalCount()).isEqualTo(80));
+            });
+        });
+    }
+
     private void insert(String id, int number, String name, String date, String searchText) {
         repository.saveAndFlush(Bill.builder().id(id).billNumber(number).assemblyNumber(22)
                 .billName(name).title(name).proposeDate(LocalDate.parse(date)).ingestStatus(IngestStatusType.READY).build());

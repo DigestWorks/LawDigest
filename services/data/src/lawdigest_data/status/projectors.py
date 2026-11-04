@@ -199,6 +199,7 @@ class BillVoteProjector:
             vote_rows.append(
                 {
                     "bill_id": bill_id,
+                    "decision_date": row.get("DECISION_DATE"),
                     "votes_for_count": self._safe_int(row.get("YES_TCNT") if row.get("YES_TCNT") is not None else row.get("voteForCount")),
                     "votes_againt_count": self._safe_int(row.get("NO_TCNT") if row.get("NO_TCNT") is not None else row.get("voteAgainstCount")),
                     "abstention_count": self._safe_int(row.get("BLANK_TCNT") if row.get("BLANK_TCNT") is not None else row.get("abstentionCount")),
@@ -216,6 +217,7 @@ class BillVoteProjector:
                 {
                     "bill_id": bill_id,
                     "party_name": party_name,
+                    "decision_date": row.get("DECISION_DATE"),
                     "votes_for_count": self._safe_int(row.get("YES_TCNT") if row.get("YES_TCNT") is not None else row.get("voteForCount") if row.get("voteForCount") is not None else row.get("votes_for_count")),
                 }
             )

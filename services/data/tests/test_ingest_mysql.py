@@ -236,3 +236,26 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
     checkpoint = manager.get_ingest_checkpoint("congressman_roster", 22)
     assert checkpoint["last_reference_date"] is not None
     assert json.loads(checkpoint["metadata_json"]) == {"member_count": 1}
+
+
+
+def test_vote_date_survives_identical_legacy_retry_and_clears_for_changed_totals(manager):
+    with manager.connection.cursor() as cursor:
+        cursor.execute("INSERT INTO Bill (bill_id) VALUES ('dated-bill')")
+        cursor.execute("""
+            CREATE TEMPORARY TABLE VoteRecord (
+                bill_id VARCHAR(100) PRIMARY KEY, total_vote_count INT, votes_for_count INT,
+                votes_againt_count INT, abstention_count INT, decision_date DATE,
+                created_date DATETIME, modified_date DATETIME
+            ) ENGINE=InnoDB
+        """)
+    vote = {"bill_id": "dated-bill", "total_vote_count": 12, "votes_for_count": 10, "votes_againt_count": 2}
+    manager.insert_vote_record([{**vote, "decision_date": "2026-11-03"}])
+    manager.insert_vote_record([vote])
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT decision_date FROM VoteRecord")
+        assert cursor.fetchone()["decision_date"].isoformat() == "2026-11-03"
+    manager.insert_vote_record([{**vote, "total_vote_count": 13, "votes_for_count": 11}])
+    with manager.connection.cursor() as cursor:
+        cursor.execute("SELECT decision_date, votes_for_count FROM VoteRecord")
+        assert cursor.fetchone() == {"decision_date": None, "votes_for_count": 11}
