@@ -44,3 +44,20 @@ Docker 빌드 캐시는 7일 이상 사용되지 않은 항목을 대상으로 1
 - [nginx 프로세스 제어](https://nginx.org/en/docs/control.html)
 - [PM2 시작 및 앱 목록 저장](https://pm2.keymetrics.io/docs/usage/startup/)
 - [Docker JSON 로그 회전과 외부 수정 주의](https://docs.docker.com/engine/logging/drivers/json-file/)
+
+## 추가 승인 후 복구
+
+- nginx PID 3033302와 PM2 PID 677983을 유지해 정상 systemd 유닛으로 편입했다. 임시 시작 override는 제거했다. PM2 앱 6개 재시작 없이 nginx reload가 성공했고 실패 유닛은 0개다.
+- 옛 .net 도메인 4개의 갱신 설정을 백업의 `retired-renewal/`로 옮겼다. 실제 certbot renew 명령이 오류 없이 완료됐다.
+- 과거 Docker 로그는 API 읽기가 실패해 원본을 수정하지 않고 읽기 전용 압축 스냅샷으로 보관했다. CouchDB 약 3.12GB는 168MB, MongoDB 약 11.44GB는 831MB다.
+- 두 DB 컨테이너에 파일당 50MB, 최대 3개, 회전 로그 압축을 적용했다. 이미지·계정·데이터 볼륨을 유지해 해당 컨테이너만 재생성했고 모두 healthy다.
+- CouchDB가 참조하던 Compose 파일이 없어 실제 실행 설정으로 `/etc/obsidian-stack/compose.json`을 복원했다. root 전용 파일이며 앞으로 이 경로를 운영 원본으로 사용한다. orphan으로 표시된 다른 컨테이너는 제거하지 않았다.
+- MongoDB의 원본 Compose 변경은 Expresso-Organization/expresso#162로 전달했다.
+- 와일드카드 인증 훅은 TXT 값을 사람이 등록할 때까지 기다리는 구조다. staging 시도는 ACME 접속 ConnectionReset으로 종료됐다. 사용자는 DNS 자동화를 승인했고, 호스팅케이알 직접 로그인 대기 중이다. DNS 자동 갱신 성공으로 처리하지 않는다.
+- research-webdav는 현재 연결 0개, localhost 수신이며 papers 종료 후 공개 nginx 경로가 없다. 종료 요청은 자동 승인 검토가 papers 범위 초과로 거절해 실행하지 않았다. 서비스와 연구 문서는 유지했다.
+
+## 옛 프로젝트 캐시 정리
+
+실행 프로세스, Docker 마운트, nginx, 설치된 systemd 서비스와 cron의 참조 경로를 보호했다. 그 밖의 `open-knowledge/node_modules` 약 2.6GiB와 `data_job/node_modules` 약 94MiB만 제거했다. 두 경로는 Git 추적과 실행 참조가 없고 심볼릭 링크가 아니며 재설치용 잠금 파일이 있다.
+
+소스·Git 이력·잠금 파일·DB·연구 자료를 보존했다. 최종 디스크 사용률은 최초 92%에서 81%, 가용 공간은 약 17GiB에서 38GiB로 개선됐다.
