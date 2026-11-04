@@ -32,7 +32,9 @@ jobs:
           persist-credentials: false
 
       - name: Verify deployment policy
-        run: ./deploy/verify-deploy-policy.sh
+        run: |
+          ./deploy/verify-deploy-policy.sh
+          python3 -m unittest discover -s deploy -p test_web_release_storage.py -q
 
       - name: Detect changed services
         id: detect
@@ -52,7 +54,7 @@ jobs:
 
           while IFS= read -r path; do
             case "$path" in
-              services/web/*|deploy/deploy-prod-web.sh|deploy/deploy-web-release.sh|deploy/ensure-dev-web-pm2.sh)
+              services/web/*|deploy/deploy-prod-web.sh|deploy/deploy-web-release.sh|deploy/web_release_storage.py|deploy/ensure-dev-web-pm2.sh)
                 deploy_web=true
                 ;;
               services/backend/*|deploy/deploy-prod-backend.sh|deploy/deploy-test-backend.sh)
