@@ -74,6 +74,12 @@ class OAuth2AuthenticationFailureHandlerTest {
     }
 
     @Test
+    void preservesTheEncodedReturnAddressWhenAddingTheFailure() throws Exception {
+        var target = "https://lawdigest.kr/login/googleLogin?returnTo=%2F%3Ftab%3Dfollowing";
+        assertThat(fail(target).getRedirectedUrl()).isEqualTo(target + "&error=access_denied");
+    }
+
+    @Test
     void usesDefaultPathWithoutRedirectCookie() throws Exception {
         assertThat(fail(null).getRedirectedUrl()).isEqualTo("/v1/login?error=access_denied");
     }
