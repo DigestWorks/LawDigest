@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
+import { loginHref } from '@/lib/loginNavigation';
 import { SectionLoading } from '@/components/common/SectionState';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
@@ -21,7 +22,7 @@ export default function MyPage() {
       return;
     }
     setSnackbar({ show: true, type: 'ERROR', message: '로그인이 필요한 서비스입니다.', duration: 3000 });
-    router.push('/login');
+    router.replace(loginHref(window.location.pathname + window.location.search + window.location.hash));
   }, [router, setSnackbar]);
 
   if (!sessionReady) {
