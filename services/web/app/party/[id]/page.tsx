@@ -37,7 +37,7 @@ export default async function Party({ params }: PartyPageProps) {
     <HydrationBoundary state={dehydrate(queryClient)}>
       <section className="flex flex-col gap-10">
         <SubHeader title="정당 프로필" />
-        <DataFreshnessNote className="mx-5" />
+        <DataFreshnessNote className="mx-5" showRoster />
         <PartyContainer id={id} />
       </section>
     </HydrationBoundary>

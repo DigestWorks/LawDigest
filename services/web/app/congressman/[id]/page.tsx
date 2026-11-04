@@ -31,7 +31,7 @@ export default async function Congressman({ params }: CongressmanPageProps) {
     <HydrationBoundary state={dehydrate(queryClient)}>
       <section className="flex flex-col gap-10">
         <SubHeader title="의원 프로필" />
-        <DataFreshnessNote className="mx-5" />
+        <DataFreshnessNote className="mx-5" showRoster />
         <CongressmanContainer id={id} />
       </section>
     </HydrationBoundary>

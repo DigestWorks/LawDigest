@@ -3,6 +3,8 @@ import os
 import json
 import pymysql
 import contextlib 
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import re
 from typing import List, Tuple, Dict, Any, Optional, Generator, Set
 
@@ -920,8 +922,8 @@ class DatabaseManager:
             for item in lawmaker_data:
                 item_party_id = party_map.get(item.get('party_name'))
                 if item_party_id is None:
-                    # Party creation failed or missing name, skip or handle error?
-                    # _ensure_parties should have created it.
+                    if full_snapshot:
+                        raise ValueError("전체 의원 명부의 정당을 저장하지 못했습니다.")
                     continue
                 
                 # Prepare params dict including party_id
@@ -947,6 +949,14 @@ class DatabaseManager:
 
             if upsert_params:
                 cursor.executemany(upsert_query, upsert_params)
+            if full_snapshot:
+                self._upsert_ingest_checkpoint_cursor(
+                    cursor,
+                    source_name="congressman_roster",
+                    assembly_number=max(item["assembly_number"] for item in upsert_params),
+                    last_reference_date=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(),
+                    metadata={"member_count": len(upsert_params)},
+                )
 
     def _ensure_parties(self, cursor: pymysql.cursors.Cursor, party_names: Set[str]) -> Dict[str, int]:
         """

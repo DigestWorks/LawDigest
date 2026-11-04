@@ -15,6 +15,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
 import java.util.List;
 
 @Repository
@@ -31,6 +32,12 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
               AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY
             """)
     BillFreshnessStatsDto findBillFreshness(@Param("assembly") int assembly);
+
+    @Query(value = """
+            SELECT last_reference_date FROM IngestCheckpoint
+            WHERE source_name = 'congressman_roster' AND assembly_number = :assembly
+            """, nativeQuery = true)
+    Date findRosterSyncDate(@Param("assembly") int assembly);
 
     @Query("SELECT new com.everyones.lawmaking.common.dto.StatisticsOverviewDto(" +
             "COUNT(b), " +

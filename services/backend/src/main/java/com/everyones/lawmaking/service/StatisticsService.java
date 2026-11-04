@@ -41,10 +41,12 @@ public class StatisticsService {
     public DataFreshnessDto getFreshness() {
         int assembly = currentAssembly();
         var bills = statisticsRepository.findBillFreshness(assembly);
+        var rosterSyncDate = statisticsRepository.findRosterSyncDate(assembly);
         return new DataFreshnessDto(
                 assembly,
                 bills.latestProposalDate(),
                 billTimelineRepository.findLatestTimelineDate(),
+                rosterSyncDate == null ? null : rosterSyncDate.toLocalDate(),
                 bills.readyBillCount(),
                 bills.pendingSummaryCount() == null ? 0L : bills.pendingSummaryCount());
     }
