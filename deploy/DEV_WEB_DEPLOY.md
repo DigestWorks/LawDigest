@@ -80,3 +80,11 @@ tail -n 20 /home/ubuntu/project/Lawdigest/.runtime/dev-web/watchdog.log
 - 현재 서비스 대상은 `.runtime/dev-web/current` 심링크가 가리키는 worktree다.
 - dev용 worktree를 지우기 전에 다른 ref로 재배포하거나 심링크를 옮겨야 한다.
 - PM2의 `dump.pm2`는 다른 프로젝트 배포에서 덮어써질 수 있으므로, dev 웹은 watchdog cron으로 복구 경로를 하나 더 유지한다.
+
+## watchdog 실행 제한
+
+watchdog는 같은 런타임에서 한 번만 실행되도록 `watchdog.lock`을 사용한다.
+PM2 응답이 멈추면 자식 프로세스를 포함해 45초 후 종료하고, 종료에 응답하지 않으면 5초 뒤 강제 종료한다.
+이미 정상 실행 중이면 `pm2 save`를 반복하지 않는다. 복구로 앱을 새로 시작했을 때 저장한다.
+cron의 Node/PM2 경로 설정은 복구 스크립트에 직접 전달한다.
+watchdog만 수정한 경우 운영 웹을 다시 빌드하거나 배포하지 않는다.

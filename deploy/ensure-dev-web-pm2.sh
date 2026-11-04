@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# Bound the full process group, including a stalled PM2 CLI or parser.
+if [ "${LAWDIGEST_DEV_WATCHDOG_BOUNDED:-}" != "1" ]; then
+  exec timeout --kill-after=5s 45s env LAWDIGEST_DEV_WATCHDOG_BOUNDED=1 bash "$0" "$@"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUNTIME_ROOT="${RUNTIME_ROOT:-$REPO_ROOT/.runtime/dev-web}"
@@ -21,6 +26,10 @@ QUIET=0
 if [ "${1:-}" = "--quiet" ]; then
   QUIET=1
 fi
+
+mkdir -p "$RUNTIME_ROOT"
+exec 9>"$RUNTIME_ROOT/watchdog.lock"
+flock -n 9 || exit 0
 
 log() {
   if [ "$QUIET" -eq 0 ]; then
@@ -112,7 +121,6 @@ if [ -n "$CURRENT_STATE" ]; then
     && [ "$CURRENT_PUBLIC_DOMAIN" = "$NEXT_PUBLIC_DOMAIN" ] \
     && [ "$CURRENT_DEV_WEB_COMMIT" = "$DEV_WEB_COMMIT" ]; then
     log "✓ PM2 개발 서버가 이미 정상 상태입니다"
-    "$PM2_BIN" save >/dev/null
     exit 0
   fi
 fi
