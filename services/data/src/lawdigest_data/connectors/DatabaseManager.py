@@ -203,7 +203,7 @@ class DatabaseManager:
             str or None: 가장 최근 처리 날짜 (YYYY-MM-DD), 없거나 에러 시 None
         """
         try:
-            query = "SELECT MAX(status_update_date) AS latest_date FROM BillTimeline"
+            query = "SELECT MAX(status_update_date) AS latest_date FROM BillTimeline WHERE invalidated_at IS NULL"
             result = self.execute_query(query, fetch_one=True)
             return result["latest_date"] if result else None
         except Exception as e:
@@ -743,7 +743,7 @@ class DatabaseManager:
             timeline_check_query = f"""
                 SELECT bill_id, bill_timeline_stage, status_update_date 
                 FROM BillTimeline 
-                WHERE (bill_id, bill_timeline_stage, status_update_date) IN ({format_strings})
+                WHERE invalidated_at IS NULL AND (bill_id, bill_timeline_stage, status_update_date) IN ({format_strings})
             """
             
             # 튜플 리스트를 flat하게 펴서 파라미터로 전달
@@ -1028,24 +1028,13 @@ class DatabaseManager:
                     update_params
                 )
 
-                # 2. BillTimeline 테이블 업데이트
-                # '본회의 심의' 단계이면서 아직 결과가 없는(NULL) 타임라인만 업데이트
+                # '본회의 심의' 중 결과가 비어 있는 유효한 이력만 갱신한다.
                 cursor.executemany(
                     """
-                    UPDATE BillTimeline 
+                    UPDATE BillTimeline
                     SET bill_result = %s, modified_date = NOW()
-                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의' AND bill_result IS NULL
-                    """,
-                    update_params
-                )
-    
-                # 2. BillTimeline 테이블 업데이트
-                # '본회의 심의' 단계이면서 아직 결과가 없는(NULL) 타임라인만 업데이트
-                cursor.executemany(
-                    """
-                    UPDATE BillTimeline 
-                    SET bill_result = %s, modified_date = NOW()
-                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의' AND bill_result IS NULL
+                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의'
+                        AND bill_result IS NULL AND invalidated_at IS NULL
                     """,
                     update_params
                 )
