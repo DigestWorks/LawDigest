@@ -14,8 +14,27 @@ it('서버가 확인한 스크랩만 상세와 목록 캐시에 반영한다', a
   const detailKey = billDetailQueryOptions(billId, true).queryKey;
   const savedList = ['/user/bookmarking/bill'];
   const followingList = ['/following-tab/bill'];
-  const publicBill = { data: { is_book_mark: false, bill_info_dto: { bill_like_count: 9 } } };
-  const privateBill = { data: { is_book_mark: true, bill_info_dto: { bill_like_count: 9 } } };
+  const publicBill = {
+    code: 200,
+    message: '정상 응답',
+    data: {
+      is_book_mark: false,
+      bill_info_dto: {
+        bill_id: billId,
+        bill_name: '검증 법안',
+        propose_date: '2026-11-04',
+        summary: '',
+        gpt_summary: '',
+        view_count: 0,
+        bill_like_count: 9,
+        bill_stage: '접수',
+        title: '검증 법안',
+      },
+      representative_proposer_dto_list: [],
+      public_proposer_dto_list: [],
+    },
+  };
+  const privateBill = { ...publicBill, data: { ...publicBill.data, is_book_mark: true } };
   client.setQueryData(publicKey, publicBill);
   client.setQueryData(detailKey, privateBill);
   client.setQueryData(savedList, []);

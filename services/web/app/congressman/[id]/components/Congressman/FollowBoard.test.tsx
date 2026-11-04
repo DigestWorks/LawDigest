@@ -54,7 +54,7 @@ it.each(cases)('$subject 팔로우 실패는 상태를 유지하고 성공한 �
   const client = new QueryClient();
   client.setQueryData(item.detailKey, { data: { [item.statusField]: false, follow_count: 9 } });
   client.setQueryData(item.savedKey, []);
-  item.extraKeys.forEach((key) => client.setQueryData(key, []));
+  for (const key of item.extraKeys) client.setQueryData(key, []);
   item.patch.mockReset().mockRejectedValueOnce(new Error('503')).mockResolvedValueOnce(item.response);
 
   render(
@@ -63,9 +63,9 @@ it.each(cases)('$subject 팔로우 실패는 상태를 유지하고 성공한 �
     </QueryClientProvider>,
   );
 
-  const button = screen.getByRole('button', { name: item.actionName, exact: true });
+  const button = screen.getByRole('button', { name: item.actionName });
   await user.click(button);
-  expect(screen.getByRole('button', { name: item.actionName, exact: true })).toBeVisible();
+  expect(screen.getByRole('button', { name: item.actionName })).toBeVisible();
   expect(screen.getByText('9')).toBeVisible();
   await waitFor(() => expect(store.get(snackbarState).type).toBe('ERROR'));
   expect(client.getQueryState(item.savedKey)?.isInvalidated).toBe(false);
