@@ -37,6 +37,17 @@ class ReleaseStorageTest(unittest.TestCase):
         self.assertTrue(outside.exists())
         self.assertTrue(external_link.is_symlink())
 
+    def test_previous_healthy_release_survives_many_newer_failed_releases(self):
+        folders = [self.releases / f"2026110{index}000000-abcdef0" for index in range(1, 10)]
+        for path in folders:
+            path.mkdir()
+        (self.runtime / "current").symlink_to(folders[-1])
+        (self.runtime / "previous").symlink_to(folders[0])
+        with patch.object(storage.subprocess, "check_output", return_value="[]"):
+            self.assertEqual(storage.prune_releases(self.runtime, 6), 2)
+        self.assertTrue(folders[0].exists())
+        self.assertTrue(folders[-1].exists())
+
     def test_unreadable_process_state_does_not_remove_releases(self):
         releases = [self.releases / f"2026110{index}000000-abcdef0" for index in range(1, 5)]
         for release in releases:
