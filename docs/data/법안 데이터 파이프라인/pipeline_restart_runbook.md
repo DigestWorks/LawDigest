@@ -218,6 +218,8 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 
 11월 4일 03:16:35 KST에 저장된 현역 의원 299명의 전체 명부에 대해 `congressman_roster` 체크포인트를 등록했다. 11월 5~11일 상태 동기화는 `7deeeea` 런타임에서 전체 명부와 기준일을 한 트랜잭션으로 저장한다. 부분 갱신은 이 기준일을 변경하지 않는다. 의원·정당 프로필의 동기화일과 최신 발의일은 별도 표시한다. [명부 기준일 변경](https://github.com/DigestWorks/LawDigest/pull/209)
 
+11월 4일 운영 `VoteRecord`와 `VoteParty`에 nullable `decision_date`를 추가하고 공식 원자료가 일치하는 합계 4건과 정당별 찬성 25행에 날짜를 기록했다. 11월 5~11일 상태 동기화의 고정 런타임을 `eb72291`로 바꿨다. 공식 의결일을 함께 저장하며, 공개 타임라인은 확인된 날짜에서만 표결을 연결한다. [표결 의결일 변경](https://github.com/DigestWorks/LawDigest/pull/215)
+
 승인된 수동 백필로 제22대 READY 법안 2,260건을 추가했다. 운영 DB의 제22대 READY는 총 20,242건, 최신 발의일은 2026-10-30, 수집 기준점은 2026-05-06이다. 백필분은 AI 요약과 분야 값이 비어 있다. [백필 검증 기록](https://github.com/DigestWorks/LawDigest/pull/157)
 
 | 작업 | KST 예정 시간 | 1회 실행 범위 |
