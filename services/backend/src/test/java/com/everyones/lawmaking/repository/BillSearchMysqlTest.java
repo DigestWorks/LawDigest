@@ -13,7 +13,9 @@ import com.everyones.lawmaking.service.PartyService;
 import com.everyones.lawmaking.service.BillTimelineService;
 import com.everyones.lawmaking.service.VotePartyService;
 import com.everyones.lawmaking.service.VoteRecordService;
+import com.everyones.lawmaking.facade.BillFacade;
 import com.everyones.lawmaking.facade.TimelineFacade;
+import com.everyones.lawmaking.service.LikeService;
 import java.util.List;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -587,6 +589,43 @@ class BillSearchMysqlTest {
                 assertThat(item.getPartyVoteList()).singleElement().satisfies(vote ->
                         assertThat(vote.getPartyApprovalCount()).isEqualTo(80));
             });
+        });
+    }
+
+    @Test
+    void finalReconsiderationKeepsTheOriginalVoteAndShowsFinalTotalsInDetail() {
+        jdbc.update("UPDATE Bill SET bill_result='부결', stage='본회의 심의' WHERE bill_id='exact'");
+        jdbc.update("""
+                INSERT INTO VoteRecord (bill_id,total_vote_count,votes_for_count,votes_againt_count,abstention_count,decision_date)
+                VALUES ('exact',191,191,0,0,'2024-11-14')
+                """);
+        jdbc.update("""
+                INSERT INTO BillTimeline (bill_id,bill_timeline_stage,status_update_date,bill_result,approval_vote_count,total_vote_count)
+                VALUES ('exact','본회의 심의','2024-11-14','수정가결',NULL,NULL),
+                       ('exact','본회의 심의','2024-12-07','부결',198,300)
+                """);
+        var billService = new BillService(repository, statistics, activity);
+        var recordService = new VoteRecordService(voteRecords);
+        var partyService = new VotePartyService(voteParties);
+        var timeline = new TimelineFacade(new BillTimelineService(timelines), billService, partyService, recordService);
+        var detail = new BillFacade(billService, mock(LikeService.class), recordService, partyService);
+
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            assertThat(timeline.getPlenaryBills(LocalDate.of(2024, 11, 14))).singleElement().satisfies(item -> {
+                assertThat(item.getBillInfo().getBillResult()).isEqualTo("수정가결");
+                assertThat(item.getTotalVoteCount()).isEqualTo(191);
+                assertThat(item.getApprovalVoteCount()).isEqualTo(191);
+            });
+            assertThat(timeline.getPlenaryBills(LocalDate.of(2024, 12, 7))).singleElement().satisfies(item -> {
+                assertThat(item.getBillInfo().getBillResult()).isEqualTo("부결");
+                assertThat(item.getTotalVoteCount()).isEqualTo(300);
+                assertThat(item.getApprovalVoteCount()).isEqualTo(198);
+                assertThat(item.getPartyVoteList()).isEmpty();
+            });
+            var bill = detail.getBillByBillId("exact", false);
+            assertThat(bill.getBillInfoDto().getBillResult()).isEqualTo("부결");
+            assertThat(bill.getVoteResultResponse().getTotalVoteCount()).isEqualTo(300);
+            assertThat(bill.getVoteResultResponse().getApprovalCount()).isEqualTo(198);
         });
     }
 

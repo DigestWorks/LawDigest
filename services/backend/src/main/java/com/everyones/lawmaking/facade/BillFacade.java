@@ -1,5 +1,6 @@
 package com.everyones.lawmaking.facade;
 
+import com.everyones.lawmaking.common.dto.BillDetailInfo;
 import com.everyones.lawmaking.common.dto.CategoryCountDto;
 import com.everyones.lawmaking.common.dto.TrendingKeywordDto;
 import com.everyones.lawmaking.common.dto.PartyVoteDto;
@@ -37,12 +38,17 @@ public class BillFacade {
         var userId = AuthenticationUtil.getUserId();
         var voteRecord = voteRecordService.getVoteRecordByBillId(billId);
         var decisionDate = voteRecord == null ? null : voteRecord.getDecisionDate();
-        var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
-                .filter(vote -> vote.matchesDecisionDate(decisionDate))
-                .map(PartyVoteDto::from)
-                .toList();
-        var voteResultResponse = VoteResultResponse.of(voteRecord, votePartyList);
-        billDto.setVoteResultResponse(voteResultResponse);
+        var finalVote = billDto.getBillInfoDto() instanceof BillDetailInfo detail
+                ? detail.getFinalPlenaryVote() : null;
+        if (finalVote != null && (decisionDate == null || !decisionDate.isAfter(finalVote.date()))) {
+            billDto.setVoteResultResponse(VoteResultResponse.fromEvent(finalVote));
+        } else {
+            var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
+                    .filter(vote -> vote.matchesDecisionDate(decisionDate))
+                    .map(PartyVoteDto::from)
+                    .toList();
+            billDto.setVoteResultResponse(VoteResultResponse.of(voteRecord, votePartyList));
+        }
         if (userId.isEmpty()) {
             return billDto;
         }

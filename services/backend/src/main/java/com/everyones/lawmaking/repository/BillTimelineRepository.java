@@ -45,7 +45,7 @@ public interface BillTimelineRepository extends JpaRepository<BillTimeline,Long>
 
     @Query("""
             select new com.everyones.lawmaking.common.dto.projection.PlenaryEvent(
-                event.bill.id, event.statusUpdateDate, event.billResult)
+                event.bill.id, event.statusUpdateDate, event.billResult, event.approvalVoteCount, event.totalVoteCount)
             from BillTimeline event
             where event.billTimelineStage = '본회의 심의' and event.bill.id in (
                 select sameDay.bill.id from BillTimeline sameDay
