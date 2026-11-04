@@ -208,7 +208,16 @@ class BillSearchMysqlTest {
     }
 
     @Test
-    void freshnessIncludesUnsummarizedReadyBillsAndKeepsTimelineDateSeparate() {
+    void freshnessIncludesUnsummarizedReadyBillsAndKeepsSourceDatesSeparate() throws Exception {
+        jdbc.execute(Files.readString(Path.of("../../infra/db/migrations/20260416_add_ingest_checkpoint.sql")));
+        jdbc.update("DELETE FROM IngestCheckpoint");
+        assertThat(statistics.findRosterSyncDate(22)).isNull();
+        jdbc.update("""
+                INSERT INTO IngestCheckpoint (source_name, assembly_number, last_reference_date)
+                VALUES ('congressman_roster', 22, '2026-11-04'),
+                       ('congressman_roster', 21, '2026-11-05'),
+                       ('bill_ingest', 22, '2026-11-06')
+                """);
         repository.saveAndFlush(Bill.builder().id("raw-new").billNumber(10).assemblyNumber(22)
                 .billName("원문만 수집된 법안").summary("제안 이유와 주요 내용").gptSummary("   ")
                 .proposeDate(LocalDate.of(2026, 11, 3)).ingestStatus(IngestStatusType.READY).build());
@@ -226,6 +235,7 @@ class BillSearchMysqlTest {
         assertThat(result.assemblyNumber()).isEqualTo(22);
         assertThat(result.latestProposalDate()).isEqualTo(LocalDate.of(2026, 11, 3));
         assertThat(result.latestTimelineDate()).isEqualTo(LocalDate.of(2026, 3, 27));
+        assertThat(result.rosterSyncDate()).isEqualTo(LocalDate.of(2026, 11, 4));
         assertThat(result.readyBillCount()).isEqualTo(4);
         assertThat(result.pendingSummaryCount()).isEqualTo(3);
 

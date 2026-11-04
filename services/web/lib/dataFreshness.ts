@@ -2,6 +2,7 @@ export type DataFreshness = {
   assembly_number: number;
   latest_proposal_date: string | null;
   latest_timeline_date: string | null;
+  roster_sync_date: string | null;
   ready_bill_count: number;
   pending_summary_count: number;
 };
@@ -62,6 +63,7 @@ export async function getDataFreshness(signal?: AbortSignal): Promise<DataFreshn
     assembly_number: data.assembly_number,
     latest_proposal_date: typeof data.latest_proposal_date === 'string' ? isoDateOnly(data.latest_proposal_date) : null,
     latest_timeline_date: typeof data.latest_timeline_date === 'string' ? isoDateOnly(data.latest_timeline_date) : null,
+    roster_sync_date: typeof data.roster_sync_date === 'string' ? isoDateOnly(data.roster_sync_date) : null,
     ready_bill_count: data.ready_bill_count,
     pending_summary_count: data.pending_summary_count,
   };

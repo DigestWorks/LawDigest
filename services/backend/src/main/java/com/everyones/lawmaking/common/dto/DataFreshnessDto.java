@@ -11,6 +11,7 @@ public record DataFreshnessDto(
         int assemblyNumber,
         @JsonFormat(pattern = "yyyy-MM-dd") LocalDate latestProposalDate,
         @JsonFormat(pattern = "yyyy-MM-dd") LocalDate latestTimelineDate,
+        @JsonFormat(pattern = "yyyy-MM-dd") LocalDate rosterSyncDate,
         long readyBillCount,
         long pendingSummaryCount
 ) {

@@ -18,17 +18,20 @@ export default function DataFreshnessNote({
   scope = 'proposal',
   showPending = false,
   showSource = true,
+  showRoster = false,
   className,
 }: {
   scope?: 'proposal' | 'timeline';
   showPending?: boolean;
   showSource?: boolean;
+  showRoster?: boolean;
   className?: string;
 }) {
   const { data, isPending } = useDataFreshness();
   const isTimeline = scope === 'timeline';
   const date = isTimeline ? data?.latest_timeline_date : data?.latest_proposal_date;
   const elapsedDays = daysSinceDataDate(date);
+  const rosterDate = koreanDateLabel(data?.roster_sync_date);
   const label = isTimeline ? '타임라인 최신 기록' : `${data?.assembly_number ?? 22}대 수집 법안의 최신 발의일`;
   let dateText = '기준일을 확인할 수 없습니다.';
   if (date) dateText = `${label} ${koreanDateLabel(date)}`;
@@ -42,6 +45,20 @@ export default function DataFreshnessNote({
           : ''}
       </p>
       {elapsedDays !== null && elapsedDays > 2 && <p>이후 자료는 아직 반영되지 않았습니다.</p>}
+      {showRoster && !isPending && (
+        <p>
+          {data?.assembly_number ?? 22}대 의원 명부 동기화 {rosterDate ?? '기준일 확인 불가'}
+          {' · '}
+          <a
+            className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground"
+            href="https://open.assembly.go.kr/"
+            target="_blank"
+            rel="noopener noreferrer">
+            열린국회정보 <ExternalLink aria-hidden="true" className="size-3" />
+            <span className="sr-only">새 창</span>
+          </a>
+        </p>
+      )}
       {showSource && (
         <p>
           <a

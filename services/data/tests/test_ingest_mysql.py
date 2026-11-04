@@ -225,6 +225,7 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
         rows = cursor.fetchall()
     assert {r["congressman_id"] for r in rows if r["state"]} == {"old", "new"}
     assert all(r["assembly_number"] == 22 for r in rows)
+    assert manager.get_ingest_checkpoint("congressman_roster", 22) is None
     manager.update_lawmaker_info(
         [{"congressman_id": "new", "name": "추가", "party_name": "정당"}],
         full_snapshot=True,
@@ -232,3 +233,6 @@ def test_partial_lawmaker_upsert_keeps_other_members_active_and_saves_assembly(m
     with manager.connection.cursor() as cursor:
         cursor.execute("SELECT congressman_id, elect_sort FROM Congressman WHERE state=1")
         assert cursor.fetchall() == [{"congressman_id": "new", "elect_sort": "비례대표"}]
+    checkpoint = manager.get_ingest_checkpoint("congressman_roster", 22)
+    assert checkpoint["last_reference_date"] is not None
+    assert json.loads(checkpoint["metadata_json"]) == {"member_count": 1}
