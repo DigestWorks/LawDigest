@@ -25,9 +25,9 @@ def prune_releases(runtime: Path, keep: int) -> int:
         reverse=True,
     )
     protected = set(folders[:keep])
-    current = runtime / "current"
-    if current.is_symlink():
-        protected.add(current.resolve())
+    for link in (runtime / "current", runtime / "previous"):
+        if link.is_symlink():
+            protected.add(link.resolve())
     processes = json.loads(subprocess.check_output(["pm2", "jlist"], text=True))
     for process in processes:
         cwd = process.get("pm2_env", {}).get("pm_cwd")

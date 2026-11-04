@@ -245,6 +245,11 @@ fi
 
 pm2 save
 
+if [ -n "$PREVIOUS_RELEASE" ] && [ "$PREVIOUS_RELEASE" != "$RELEASE_DIR" ]; then
+  ln -sfn "$PREVIOUS_RELEASE" "$RUNTIME_ROOT/.previous.tmp"
+  mv -Tf "$RUNTIME_ROOT/.previous.tmp" "$RUNTIME_ROOT/previous"
+fi
+
 if ! python3 "$SCRIPT_DIR/web_release_storage.py" prune "$RUNTIME_ROOT" --keep "${WEB_RELEASES_TO_KEEP:-6}"; then
   echo "⚠ 새 릴리스는 정상이며 이전 산출물 정리는 다음 배포에서 다시 시도합니다." >&2
 fi

@@ -31,5 +31,6 @@ WEB_PORT=3010 PM2_NAME=lawdigest-web-prod ./deploy/deploy-prod-web.sh /home/ubun
 - 릴리스에는 실행 산출물을 한 번 복사한다. Webpack 빌드 캐시는 제외한다. 복사에 실패하면 해당 배포가 만든 미완성 디렉터리를 정리한다.
 - 상세 런타임 구조는 공통 release/symlink 방식으로 [deploy-web-release.sh](./deploy-web-release.sh)를 따른다.
 
-- 의존성 설치 전에 최근 6개와 current·PM2 실행 릴리스를 보존하고 이전 빌드 산출물을 정리한다. 보관 개수는 WEB_RELEASES_TO_KEEP으로 설정하며 최소 2개다.
+- 의존성 설치 전에 최근 6개와 current·previous·PM2 실행 릴리스를 보존하고 이전 빌드 산출물을 정리한다. 보관 개수는 WEB_RELEASES_TO_KEEP으로 설정하며 최소 2개다.
 - 복사 전 webpack 캐시를 제외한 예상 용량과 512MiB 여유를 확인한다. 공간이 부족하거나 PM2 정보를 읽지 못하면 배포를 중단한다.
+- 성공한 배포는 previous 링크에 직전 정상 릴리스를 기록한다. 이후 실패한 산출물이 누적돼도 롤백본을 보존한다.
