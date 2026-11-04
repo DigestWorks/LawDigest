@@ -22,7 +22,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<Lo
       <Logo width={222} height={37} />
       {params.error && (
         <Alert>
-          <AlertDescription>
+          <AlertDescription className="break-keep">
             {params.error === 'cancelled'
               ? '로그인을 취소했습니다. 아래에서 다시 시작할 수 있습니다.'
               : '로그인을 완료하지 못했습니다. 아래에서 다시 시도해 주세요.'}
