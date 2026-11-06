@@ -61,7 +61,7 @@ export default function Header({
         )}
 
         <NavbarContent justify="center" className="hidden mx-auto md:block">
-          <ul className="flex justify-between md:min-w-[430px] w-full gap-2 px-10 lg:gap-20">
+          <ul className="flex justify-between md:min-w-[430px] w-full gap-0 px-0 lg:gap-6 xl:gap-20 xl:px-10">
             {navItems.map(({ label, href }) => {
               const isActive = pathname === '/' ? pathname?.endsWith(href) : href !== '/' && pathname?.startsWith(href);
 
@@ -71,7 +71,7 @@ export default function Header({
                     <IconNavBorder />
                   </div>
                   <Link
-                    className={`${isActive ? 'text-black dark:text-white font-semibold bg-transparent' : 'text-gray-2'} flex flex-col items-center justify-center text-sm lg:text-base font-medium lg:px-5 lg:py-3 bg-white lg:dark:bg-dark-pb dark:bg-dark-b w-[110px] h-[60px] leading-[60px]`}
+                    className={`${isActive ? 'text-black dark:text-white font-semibold bg-transparent' : 'text-gray-2'} flex flex-col items-center justify-center text-sm lg:text-base font-medium lg:px-5 lg:py-3 bg-white lg:dark:bg-dark-pb dark:bg-dark-b w-[100px] lg:w-[110px] h-[60px] leading-[60px]`}
                     href={href}>
                     {label}
                   </Link>
@@ -101,8 +101,8 @@ export default function Header({
               <SettingButton />
             </NavbarItem>
           )}
-          {notification && (
-            <NavbarItem>
+          {(notification || search) && (
+            <NavbarItem className={notification ? '' : 'hidden md:list-item'}>
               <NotificationButton />
             </NavbarItem>
           )}

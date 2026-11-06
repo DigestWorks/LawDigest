@@ -18,7 +18,7 @@
   z-index: 40;
   pointer-events: none;
   --mobile-nav-group-gap: 0.625rem;
-  --mobile-nav-shell: rgba(255, 255, 255, 0.72);
+  --mobile-nav-shell: rgba(255, 255, 255, 0.92);
   --mobile-nav-shell-opaque: #fafafa;
   --mobile-nav-shell-border: rgba(0, 0, 0, 0.10);
   --mobile-nav-shell-shadow: 0 4px 24px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
@@ -43,7 +43,7 @@
 }
 
 .dark .mobile-floating-nav-wrapper {
-  --mobile-nav-shell: rgba(30, 30, 30, 0.9);
+  --mobile-nav-shell: rgba(30, 30, 30, 0.94);
   --mobile-nav-shell-opaque: #1e1e1e;
   --mobile-nav-shell-border: #494949;
   --mobile-nav-shell-shadow: 0 4px 24px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -130,6 +130,12 @@
 
 .mobile-floating-nav.is-nav-transitioning .mobile-floating-nav__indicator {
   transition: opacity 0.2s ease;
+}
+
+/* 다섯 주 메뉴 밖의 화면에서는 현재 위치를 표시하지 않는다 */
+.mobile-floating-nav.has-no-active:not(.is-dragging) .mobile-floating-nav__indicator,
+.mobile-floating-nav.has-no-active:not(.is-dragging) .mobile-floating-nav__active-overlay {
+  opacity: 0;
 }
 
 /* ── 활성 아이콘 오버레이 ── */
