@@ -395,3 +395,28 @@ Airflow 파일을 완전히 삭제하기 전까지는 과거 DAG의 파라미터
 - 운영 DB 연결을 차단한 CLI에서 11월 1~3일은 상태 후보 67건, 의원 299명, 표결 없음으로 `success`를 기록했다.
 - 9월 3일의 같은 CLI는 국회 표결 17건과 정당별 찬성 113행을 대조하고 `success`를 기록했다. 두 실행 모두 운영 쓰기는 0건이었다.
 - 관련 회귀 검사 38건, Ruff, sdist·wheel 빌드를 통과했다. 운영 timer의 7일 연속 성공은 등록 후 실행 기록으로 검증한다.
+
+## 수동 보조 작업
+
+아래 작업의 운영 실행과 정기 작업 등록에는 실행별 사용자 승인이 필요하다.
+
+### 법안 주제 태그
+
+`ai-summary`는 운영 실행 뒤 요약이 있고 태그가 없는 최근 14일 법안에 태그를 붙인다. 태그 단계가 실패해도 요약 실행은 실패로 처리하지 않고, `tagging_status`에 결과를 남긴다.
+
+수동 백필은 저장 없이 결과를 먼저 확인한 뒤 실행한다.
+
+```bash
+cd services/ai
+python -m scripts.backfill_bill_summary_tags --mode prod --limit 10
+python -m scripts.backfill_bill_summary_tags --mode prod --execute
+```
+
+### 의원 사진
+
+사진은 수집 파이프라인에 포함되지 않는다. 새 의원이 등록되면 버킷의 `congressman/{대수}/{의원코드}.jpg`와 대조해 누락분을 올린다. 업로드는 덮어쓰지 않는다.
+
+```bash
+python services/data/scripts/db/sync_congressman_photos.py
+python services/data/scripts/db/sync_congressman_photos.py --execute
+```

@@ -225,7 +225,7 @@ DB 반영 시 `_build_db_summary_payload`가 Markdown을 가공한다.
 - 구조화 출력의 `title`가 제목형 계약과 정확한 법안명 suffix를 만족하는지 검증한다.
 - 검증된 `title`로 기존 값을 교체한다.
 - 구조화 출력 이전의 레거시 Markdown만 기존 값 유지·첫 불릿 fallback 변환을 사용한다.
-- `summary_tags`는 기존 값을 유지한다.
+- `summary_tags`는 기존 값을 유지한다. 리포트 프롬프트는 태그를 만들지 않고, `bill_tags.run_bill_tagging`이 별도 프롬프트로 채운다.
 
 ## 11. 테스트 기준
 
