@@ -30,6 +30,11 @@ it('넘김 버튼으로 다음 법안을 보여 주고 처음으로 돌아간다
   expect(screen.getByText('법안 1')).toBeInTheDocument();
 });
 
+it('한 페이지뿐이면 넘김 버튼을 숨긴다', () => {
+  render(<BillSection title="법안 접수" countLabel="접수된 법안" bills={[bill(1)]} />);
+  expect(screen.queryByRole('button', { name: '법안 접수 다음 목록' })).not.toBeInTheDocument();
+});
+
 it('전체 보기 모달은 모든 법안의 상세 링크를 연다', async () => {
   const user = userEvent.setup();
   render(<BillSection title="법안 공포" countLabel="공포한 법안" bills={[bill(1), bill(2), bill(3)]} />);
