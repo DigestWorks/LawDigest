@@ -49,6 +49,19 @@ html {
     'Segoe UI Emoji',
     'Segoe UI Symbol',
     sans-serif;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 .더불어민주당 {
@@ -418,4 +431,10 @@ html {
 .lawdigest-summary-collapsed {
   max-height: 18rem;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3.5rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3.5rem), transparent);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 18rem;
+  mask-size: 100% 18rem;
 }

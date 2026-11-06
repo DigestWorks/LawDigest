@@ -1,6 +1,5 @@
 import Bill from '@/components/Bill/BillList/Bill/Bill';
 import { Divider } from '@heroui/react';
-import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import { BillResponse } from '@/types';
 import { getChairmanProposerInfo, isGovernmentBill } from '@/utils';
 import { SectionContainer } from '../SectionContainer';
@@ -64,11 +63,10 @@ export default function BillDetail({ data }: { data: BillResponse }) {
               billStage={data.bill_info_dto.bill_stage}
             />
           </SectionContainer>
-          <DataFreshnessNote />
         </section>
       </Bill>
 
-      <div className="md:w-[calc(100%-340px)] lg:w-[calc(100%-530px)] border-r-[1px] md:dark:border-dark-l px-4 pt-[34px]">
+      <div className="md:w-[calc(100%-340px)] lg:w-[calc(100%-530px)] md:border-r md:dark:border-dark-l px-5 pt-[34px]">
         <SectionContainer>
           <AnotherBillList {...data} />
         </SectionContainer>

@@ -184,7 +184,7 @@ function Nav() {
         <nav
           ref={registerNavRef}
           aria-label="모바일 주 메뉴"
-          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}`}
+          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}${activeIndex < 0 ? ' has-no-active' : ''}`}
           onPointerDown={isSearchOpen ? undefined : handlePointerDown}
           onPointerMove={isSearchOpen ? undefined : handlePointerMove}
           onPointerUp={isSearchOpen ? undefined : handlePointerUp}

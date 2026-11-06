@@ -32,6 +32,7 @@ import {
 } from '@/utils';
 import Image from 'next/image';
 import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
+import ThemedPartyLogo from '@/components/common/ThemedPartyLogo';
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
 import { useSetAtom } from 'jotai';
@@ -285,12 +286,12 @@ export default function Bill({
           if (representative_proposer_dto_list[0].party_image_url === null) e.preventDefault();
         }}>
         {representative_proposer_dto_list[0].party_image_url !== null ? (
-          <Image
-            src={getPartyLogoSrc(representative_proposer_dto_list[0].party_image_url, isDark) as string}
+          <ThemedPartyLogo
+            imageUrl={representative_proposer_dto_list[0].party_image_url}
             width={100}
             height={45}
             alt={`${representative_proposer_dto_list[0].party_name} 이미지`}
-            className="w-[100px] h-[40px] object-contain"
+            className="w-[88px] h-8 object-contain object-right"
           />
         ) : (
           <PartyLogoReplacement partyName={representative_proposer_dto_list[0].party_name} circle={false} />
@@ -320,15 +321,11 @@ export default function Bill({
 
       <Popover placement="bottom" showArrow shouldCloseOnScroll={false} onOpenChange={setProposersOpen}>
         <PopoverTrigger>
-          <Button aria-label={`발의자 명단 보기 (${proposerCount}인)`} className="p-0 m-0 bg-transparent h-min">
+          <Button
+            aria-label={`발의자 명단 보기 (${proposerCount}인)`}
+            className="p-0 m-0 min-w-0 justify-start bg-transparent h-min">
             <Tooltip showArrow content="발의자 명단 보기">
-              <span className="text-xs text-muted-foreground">
-                {isRepresentativeSolo
-                  ? `${representative_proposer_dto_list[0].representative_proposer_name} 의원 등 ${proposerCount}인`
-                  : `${representative_proposer_dto_list
-                      .map(({ representative_proposer_name }) => representative_proposer_name)
-                      .join('·')} 의원 등 ${proposerCount}인`}
-              </span>
+              <span className="text-xs text-muted-foreground">발의자 {proposerCount}인</span>
             </Tooltip>
           </Button>
         </PopoverTrigger>
@@ -390,7 +387,7 @@ export default function Bill({
   }
 
   return (
-    <section className={`flex flex-col  ${detail ? 'md:flex-row items-start' : 'md:mx-5'}`}>
+    <section className={`flex flex-col  ${detail ? 'items-start md:flex-row md:items-stretch' : 'md:mx-5'}`}>
       <Card
         key={bill_id}
         className="flex flex-col gap-5 px-5 pt-6 dark:bg-dark-b dark:lg:bg-dark-pb"
@@ -470,7 +467,7 @@ export default function Bill({
               {!detail && (displayedSummary || loadOriginalSummary) && (
                 <ActionButton
                   variant="ghost"
-                  className="self-start"
+                  className="-ml-4 self-start"
                   type="button"
                   onClick={onClickToggleMore}
                   aria-expanded={toggleMore}
@@ -568,9 +565,9 @@ export default function Bill({
         <div className="pt-4 pb-6">
           <Card
             style={isGovernmentProposer || isChairmanProposer ? undefined : { borderColor: partyAccent }}
-            className={`flex flex-row h-[78px] mx-5 border-1.5 items-center justify-between px-[18px] dark:bg-gray-4 md:w-[410px] lg:max-w-full lg:w-[490px] md:float-right ${detail ? 'md:w-[300px] lg:float-left' : ''} ${proposerCardBorderClassName}`}
+            className={`flex flex-row h-[78px] mx-5 border-1.5 items-center justify-between px-[18px] dark:bg-gray-4 lg:max-w-full md:float-right ${detail ? 'md:w-[300px] lg:w-[490px] lg:float-left' : 'md:w-[410px] lg:w-[460px] lg:mr-6'} ${proposerCardBorderClassName}`}
             radius="sm"
-            shadow="sm">
+            shadow="none">
             <div className="flex items-center gap-2">
               {!isGovernmentProposer && isRepresentativeSolo && (
                 <Link
@@ -585,8 +582,14 @@ export default function Bill({
                   }}>
                   <Avatar
                     radius="full"
+                    showFallback
                     name={representative_proposer_dto_list[0].representative_proposer_name}
-                    src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${representative_proposer_dto_list[0].represent_proposer_img_url}`}
+                    getInitials={(name) => name.slice(0, 1)}
+                    src={
+                      representative_proposer_dto_list[0].represent_proposer_img_url
+                        ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${representative_proposer_dto_list[0].represent_proposer_img_url}`
+                        : undefined
+                    }
                     className="border dark:border-dark-l"
                   />
                 </Link>

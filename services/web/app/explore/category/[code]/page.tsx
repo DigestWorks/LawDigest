@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import getMetadata from '@/utils/getMetadata';
 import CategoryBills from '../../components/CategoryBills';
@@ -28,13 +27,10 @@ export default async function CategoryPage({ params }: Props) {
       <Button asChild variant="outline">
         <Link href="/explore">전체 분야</Link>
       </Button>
-      <header className="space-y-2">
-        <h1 id="category-heading" className="flex items-center gap-2 text-2xl font-bold">
-          <Icon aria-hidden="true" className="size-6 shrink-0" style={{ color }} />
-          {label} 분야 법안
-        </h1>
-        <DataFreshnessNote />
-      </header>
+      <h1 id="category-heading" className="flex items-center gap-2 text-2xl font-bold">
+        <Icon aria-hidden="true" className="size-6 shrink-0" style={{ color }} />
+        {label} 분야 법안
+      </h1>
       <CategoryBills category={code} />
     </section>
   );

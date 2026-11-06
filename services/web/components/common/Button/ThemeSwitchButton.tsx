@@ -31,7 +31,7 @@ export default function ThemeSwitchButton() {
       type="button"
       variant="ghost"
       size="icon"
-      className="[&_svg]:size-6"
+      className="text-muted-foreground [&_svg]:size-6"
       onClick={onClick}
       aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}>
       {isDark ? <IconDarkMode /> : <IconLightMode />}

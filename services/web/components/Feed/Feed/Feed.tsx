@@ -1,6 +1,5 @@
 'use client';
 
-import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import ContentSkeleton from '@/components/common/ContentSkeleton';
 import { SectionError } from '@/components/common/SectionState';
 
@@ -14,6 +13,7 @@ import { FEED_TAB } from '@/constants';
 import { NotificationTopThree } from '@/app/notification/components';
 import { useGetBillByStage, useGetBillPopular } from './apis';
 import StageDropdown from '../StageDropdown';
+import FeedFilterDropdown from '../FeedFilterDropdown';
 import FeedTab from '../FeedTab';
 import FollowingFeed from './FollowingFeed';
 import ReportFeed from './ReportFeed';
@@ -154,7 +154,6 @@ export default function Feed() {
     <section>
       <div className="mx-5 mt-5 mb-3">
         <h1 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h1>
-        <DataFreshnessNote className="mt-2" showPending />
       </div>
       <div className="relative flex items-center gap-[5px] mx-6 mb-3" role="group" aria-label="피드 종류">
         <div
@@ -186,20 +185,7 @@ export default function Feed() {
       {contentType === 'bill' && (
         <>
           <NotificationTopThree />
-          <div className="mx-5 mt-3 flex flex-wrap gap-2" role="group" aria-label="국회 대수">
-            {ASSEMBLY_FILTERS.map(({ label, value }) => (
-              <Button
-                key={value}
-                type="button"
-                variant={assembly === value ? 'default' : 'outline'}
-                size="sm"
-                aria-pressed={assembly === value}
-                onClick={() => update('assembly', value === '22' ? '' : value)}>
-                {label}
-              </Button>
-            ))}
-          </div>
-          <section className="flex items-center justify-between mx-5 mt-2">
+          <section className="flex flex-wrap items-center justify-between gap-2 mx-5 mt-2">
             {assembly === '22' ? (
               <FeedTab
                 type={feedType}
@@ -208,12 +194,20 @@ export default function Feed() {
             ) : (
               <span className="text-sm font-medium text-muted-foreground">최신순</span>
             )}
-            {isLatest && (
-              <StageDropdown
-                type={stage || '전체'}
-                clickHandler={(value) => update('stage', value === '전체' ? '' : value)}
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <FeedFilterDropdown
+                label="국회 대수"
+                options={ASSEMBLY_FILTERS}
+                value={assembly}
+                onChange={(value) => update('assembly', value === '22' ? '' : value)}
               />
-            )}
+              {isLatest && (
+                <StageDropdown
+                  type={stage || '전체'}
+                  clickHandler={(value) => update('stage', value === '전체' ? '' : value)}
+                />
+              )}
+            </div>
           </section>
           {!isLatest && (
             <p className="mx-5 mt-3 text-sm text-muted-foreground">제22대 · 최근 7일 조회수와 스크랩 수 합계</p>

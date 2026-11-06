@@ -7,7 +7,7 @@ const linkClass =
 export default function SiteFooter() {
   return (
     <footer className="mt-auto border-t bg-background px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-4 text-sm text-muted-foreground md:pb-4">
-      <nav aria-label="서비스 정보" className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5">
+      <nav aria-label="서비스 정보" className="mx-auto flex max-w-5xl xl:max-w-[1224px] flex-wrap items-center gap-x-5">
         <Link href="/about" className={linkClass}>
           서비스 소개
         </Link>
