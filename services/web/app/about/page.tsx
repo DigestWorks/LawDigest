@@ -44,7 +44,7 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="self-start">
           <Link href="/?tab=bill">법안 둘러보기</Link>
         </Button>
       </article>

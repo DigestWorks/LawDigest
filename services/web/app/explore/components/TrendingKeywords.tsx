@@ -1,7 +1,7 @@
 'use client';
 
 import { Flame } from 'lucide-react';
-import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
 import { useGetTrendingKeywords } from '../apis';
@@ -30,7 +30,7 @@ export default function TrendingKeywords() {
       />
     );
   }
-  if (keywords.length === 0) return <SectionEmpty>집계된 인기 키워드가 없습니다.</SectionEmpty>;
+  if (keywords.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3">

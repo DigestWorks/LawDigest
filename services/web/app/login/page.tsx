@@ -19,7 +19,9 @@ export default async function Login({ searchParams }: { searchParams: Promise<Lo
   return (
     <section className="mx-auto mt-24 flex w-[90%] max-w-[430px] flex-col items-center gap-6 sm:mt-48">
       <h1 className="sr-only">로그인</h1>
-      <Logo width={222} height={37} />
+      <div className="mb-4">
+        <Logo width={222} height={37} />
+      </div>
       {params.error && (
         <Alert>
           <AlertDescription className="break-keep">

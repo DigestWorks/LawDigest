@@ -14,7 +14,7 @@ export default function FeedTab({
   const values = siteConfig.feedTabs;
 
   return (
-    <section className="">
+    <section className="-ml-1">
       <Tabs
         fullWidth
         aria-label="Options"

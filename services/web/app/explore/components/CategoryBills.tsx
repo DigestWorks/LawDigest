@@ -27,7 +27,7 @@ export default function CategoryBills({ category }: { category: string }) {
       role="region"
       aria-label="분야 법안 목록"
       tabIndex={-1}
-      className="rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+      className="-mx-5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
       {bills.length === 0 ? (
         <SectionEmpty>이 분야에 등록된 법안이 없습니다.</SectionEmpty>
       ) : (

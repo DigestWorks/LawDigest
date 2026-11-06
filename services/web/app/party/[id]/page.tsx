@@ -1,6 +1,5 @@
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
 import { SubHeader } from '@/components';
-import DataFreshnessNote from '@/components/common/DataFreshnessNote';
 import getQueryClient from '@/lib/getQueryClient';
 import { getPublicParty } from '@/lib/publicDetail';
 import { getMetadata } from '@/utils';
@@ -37,7 +36,6 @@ export default async function Party({ params }: PartyPageProps) {
     <HydrationBoundary state={dehydrate(queryClient)}>
       <section className="flex flex-col gap-10">
         <SubHeader title="정당 프로필" />
-        <DataFreshnessNote className="mx-5" showRoster />
         <PartyContainer id={id} />
       </section>
     </HydrationBoundary>
