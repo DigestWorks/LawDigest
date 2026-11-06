@@ -32,7 +32,7 @@ export default function ProcessResult({
   const result = billResultLabel(bill_result) || stageStatus(billStage).terminal;
   if (!result)
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {billStage === '공포' || billStage === '정부이송'
           ? '처리 결과 기록을 확인하고 있습니다.'
           : '아직 본회의 처리 결과가 없습니다.'}

@@ -14,7 +14,7 @@ export default function ProgressStage({
   const { index: current, terminal, label } = stageStatus(billStage, billResult);
   if (current < 0)
     return (
-      <div className="flex flex-col gap-2 text-center">
+      <div className="flex flex-col gap-2">
         <p className="font-semibold">{terminal || label || '단계 정보 확인 중'}</p>
         <p className="text-sm text-muted-foreground">
           {terminal ? '이 법안의 처리가 종료되었습니다.' : '현재 단계 기록을 확인하고 있습니다.'}
@@ -22,7 +22,7 @@ export default function ProgressStage({
       </div>
     );
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-start gap-4">
       {terminal && <p className="font-semibold">{terminal} · 처리 종료</p>}
       <ol aria-label={terminal ? '종료 전 기록된 진행 단계' : '법안 심사 진행 단계'}>
         {progressStages.map((stage, index) => {
@@ -43,10 +43,11 @@ export default function ProgressStage({
               key={stage}
               aria-current={!terminal && index === current ? 'step' : undefined}
               className={`text-sm font-medium ${text}`}>
-              <div className="flex items-center gap-5">
-                <span aria-hidden="true">{marker}</span>
-                <span>STEP {String(index + 1).padStart(2, '0')}</span>
-                <span className="flex flex-col gap-1">
+              <div className="flex items-start gap-4">
+                <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
+                  {marker}
+                </span>
+                <span className="flex min-h-6 flex-col justify-center gap-1">
                   {stageLabel}
                   {dateLabel && (
                     <time className="text-xs text-muted-foreground" dateTime={isoDateOnly(recordedDate) ?? undefined}>
@@ -56,7 +57,7 @@ export default function ProgressStage({
                 </span>
               </div>
               {index < progressStages.length - 1 && (
-                <span aria-hidden="true">
+                <span aria-hidden="true" className="flex w-6 justify-center">
                   <IconKebab isPassed={index < current} />
                 </span>
               )}

@@ -11,13 +11,13 @@ export default function PartyCongressmanItem({
     <Link href={`/congressman/${congressman_id}`} className="flex flex-col items-center gap-2">
       <Avatar
         size="lg"
+        showFallback
+        name={congressman_name}
+        getInitials={(name) => name.slice(0, 1)}
         className="border-2 dark:border-dark-l"
-        src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${congressman_image_url}`}
+        src={congressman_image_url ? `${process.env.NEXT_PUBLIC_IMAGE_URL}${congressman_image_url}` : undefined}
       />
-      <div className="flex flex-col items-center">
-        <p className="text-sm text-gray-3 dark:text-gray-2">의원</p>
-        <p className="font-medium">{congressman_name}</p>
-      </div>
+      <p className="font-medium">{congressman_name}</p>
     </Link>
   );
 }
