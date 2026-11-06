@@ -21,11 +21,17 @@ date: 2026-11-06
 - `Bill`/`BillDetail`: 세로 구분선을 잇고 관련 법안 영역의 좌우 여백을 `px-5`로 맞춘다.
 - `AnotherBill`: `koreanDateLabel`로 날짜를 표시한다.
 - `lib/proposerText.ts`(신규): `AnotherBill`의 표기 정규화를 옮겨 타임라인과 공유한다.
-- `TimelineBillList`: `nested` 속성을 추가해 `h4`, `text-lg`로 표시한다. `CommitteeEntries`(신규)는 `PlenaryEntries`와 같은 구조다. 더 보기 버튼은 `-ml-4`.
+- 타임라인: `48c52a4`의 `TimelineBoard`, `ListContainer`, 네 목록의 화면을 복구한다. 네 파일의 중복은 `TimelineEntries.tsx`의 `BillSection`, `CommitteeSection`, `PlenarySection`으로 합친다. API 계약은 그대로이고 `party_info`, `party_vote_list` 타입만 되살린다. #242의 타임라인 기준을 대체한다.
 - `TrendingKeywords`: 빈 목록이면 `null`. 코드 주석의 의도와 일치시킨다.
 - 분야 화면: `CategoryBills` 목록에 `-mx-5`, `md:mx-0`을 적용해 `Bill`의 여백과 겹치지 않게 한다.
 - `SiteFooter`, `about`, `login`: 왼쪽 선, `self-start`, 로고 간격을 맞춘다.
 - `PartyLogo`, `PartyCongressmanItem`: 그림자와 중복 `의원` 라벨 제거, 사진 없는 경우 `showFallback`.
+
+- `DataFreshnessNote`: `app/about`에서만 쓴다. `useDataFreshness`는 `StatsTrendArea`에서 계속 쓴다.
+- `FeedFilterDropdown`(신규): `StageDropdown`과 대수 선택이 공유하는 pill 드롭다운. URL의 `assembly`, `stage` 계약은 유지한다.
+
+- `ThemedPartyLogo`(신규): 라이트·다크 로고를 함께 렌더링하고 CSS로 전환한다. 수화 때 `src`가 갱신되지 않아 서버 렌더링 화면의 다크 로고가 어둡게 남는 문제를 고친다. `PartyProfileLogo`, `ProposerList`, `Bill`, `AnotherBill`이 공유한다.
+- `Header`: md 구간 메뉴 좌우 여백을 줄여 820px의 가로 넘침을 없앤다.
 
 # 설계
 
@@ -37,7 +43,7 @@ flowchart LR
   B["Bill 발의자 카드 (바뀜)"] --> F["피드, 분야, 검색, 프로필 목록 (재사용)"]
   B --> D["BillDetail (바뀜)"]
   L["lib/proposerText (바뀜)"] --> A["AnotherBill (바뀜)"]
-  L --> T["TimelineEntries (바뀜)"]
+  L --> T["TimelineEntries 복구 (바뀜)"]
   S["getPartyColor, DataFreshnessNote (재사용)"] --> B
 ```
 
