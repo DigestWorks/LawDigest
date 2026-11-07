@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -13,6 +14,18 @@ from ..bills.DataFetcher import DataFetcher
 from ..bills.DataProcessor import DataProcessor
 from ..connectors.DatabaseManager import DatabaseManager
 from ..bills.constants import ProposerKindType
+
+# 원문 요약의 소제목 줄. 예: "대안의 제안이유", "2. 제안이유 및 주요 내용", "■ 주요내용"
+_SECTION = r"(?:대안의\s*)?(?:제안\s*이유|주요\s*내용)"
+SUMMARY_HEADING_PATTERN = re.compile(
+    r"^[■□○●◦·*\-\s]*(?:\d+\s*[.)]|[가-하]\s*[.)])?\s*[\[<(【〈]?\s*"
+    rf"{_SECTION}(?:\s*(?:및|과|와|,|ㆍ|·)\s*{_SECTION})?"
+    r"\s*[\]>)】〉]?\s*[:：]?$"
+)
+
+
+def is_summary_heading(line: Optional[str]) -> bool:
+    return bool(SUMMARY_HEADING_PATTERN.match(" ".join(str(line or "").split())))
 
 
 class WorkFlowManager:
@@ -91,11 +104,10 @@ class WorkFlowManager:
         if existing_title:
             return existing_title
 
-        ignored_lines = {"제안이유", "주요내용", "제안이유 및 주요내용"}
         if summary:
             for raw_line in summary.splitlines():
                 line = " ".join(str(raw_line).split())
-                if not line or line in ignored_lines:
+                if not line or is_summary_heading(line):
                     continue
                 return cls._shorten_text(line)
 
