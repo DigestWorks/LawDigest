@@ -4,7 +4,7 @@ umask 077
 
 job=${1:-}
 case "$job" in
-  bill-ingest|bill-status-sync|ai-summary|bill-category-backfill) ;;
+  bill-ingest|bill-status-sync|ai-summary|bill-category-backfill|bill-search-rebuild) ;;
   *) printf 'Unknown pipeline job: %s\n' "$job" >&2; exit 64 ;;
 esac
 
@@ -64,6 +64,9 @@ case "$job" in
   ai-summary)
     exec "${runtime[@]}" ai-summary --mode prod --read-mode prod --target pending --report-mode summary \
       --concurrency 1 --batch-session-size 5 --limit 40 --output-dir "$STATE_DIRECTORY/reports"
+    ;;
+  bill-search-rebuild)
+    exec "${runtime[@]}" bill-search-rebuild --mode prod --limit 1000
     ;;
   bill-category-backfill)
     cd services/ai

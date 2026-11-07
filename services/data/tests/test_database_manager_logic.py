@@ -441,6 +441,34 @@ class TestDatabaseManagerLogic(unittest.TestCase):
 
         self.assertNotIn("summary_tags", self.cursor.execute.call_args.args[0])
 
+    def test_refresh_search_documents_commits_each_batch(self):
+        self.db_manager._refresh_bill_search_documents_cursor = MagicMock(side_effect=lambda cursor, ids: len(ids))
+        transactions = []
+        original = self.db_manager.transaction
+
+        def counting_transaction():
+            transactions.append(1)
+            return original()
+
+        self.db_manager.transaction = counting_transaction
+
+        rebuilt = self.db_manager.refresh_bill_search_documents([f"B{i}" for i in range(401)] + ["B0"])
+
+        self.assertEqual(rebuilt, 401)
+        self.assertEqual(len(transactions), 3)
+        sizes = [len(call.args[1]) for call in self.db_manager._refresh_bill_search_documents_cursor.call_args_list]
+        self.assertEqual(sizes, [200, 200, 1])
+
+    def test_search_document_candidates_process_newest_changes_first(self):
+        self.cursor.fetchall.return_value = []
+        self.db_manager.transaction = MagicMock()
+        self.db_manager.transaction.return_value.__enter__.return_value = self.cursor
+
+        self.db_manager.fetch_bill_search_document_candidates(limit=10)
+
+        query = self.cursor.execute.call_args.args[0]
+        self.assertIn("COALESCE(b.modified_date, b.created_date) DESC, b.bill_id DESC", query)
+
 
 if __name__ == '__main__':
     unittest.main()

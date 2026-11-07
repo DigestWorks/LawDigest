@@ -228,6 +228,7 @@ PYTHONPATH=services/data/src:services/ai/src python -m lawdigest_data.runtime.cl
 | 상태 동기화 | 03:10 | 공식 의원 명부와 제22대 최근 3일의 단계·표결 |
 | AI 요약 | 05:10 | 미작성 요약 최대 40건, Codex 동시 실행 1개 |
 | 분야 분류 | 08:30 | 제22대 공개 법안의 빈 분야 값에 소관위원회와 검토된 법률명 규칙을 적용 |
+| 검색 문서 갱신 | 09:00 | `modified_date`가 문서 기준 시각보다 새로운 법안을 최신순으로 최대 1,000건 |
 
 1. 승인된 수집·상태 동기화 런타임을 먼저 검증한다. 과거 백필은 각 기간과 쓰기 범위를 따로 승인한다. AI 요약의 Codex CLI와 인증, 분야 분류의 DB 컬럼은 각각 실행 전에 확인한다.
 2. 등록 승인을 받은 뒤 체크아웃에서 `sudo ./deploy/pipeline/install-pipeline-timers.sh --install`로 유닛과 래퍼를 복사한다. 서버 관리자가 `/etc/lawdigest-pipeline/runtime.env`를 소유자 root, 모드 0600으로 준비한다. `LAWDIGEST_PIPELINE_ROOT`에는 배포한 체크아웃, `LAWDIGEST_PIPELINE_PYTHON`에는 해당 실행 환경의 Python 절대 경로를 지정한다. 기존 API·DB 환경은 필요한 항목을 비공개 파일로 옮긴다. Codex 경로가 기본 PATH 밖에 있으면 이 파일에서 PATH를 지정한다.
@@ -399,6 +400,12 @@ Airflow 파일을 완전히 삭제하기 전까지는 과거 DAG의 파라미터
 ## 수동 보조 작업
 
 아래 작업의 운영 실행과 정기 작업 등록에는 실행별 사용자 승인이 필요하다.
+
+### 법안 검색 문서
+
+검색은 `BillSearchDocument.search_text`만 읽는다. 수집은 저장과 같은 트랜잭션에서, `ai-summary`는 태그를 저장한 법안만 문서를 갱신한다. 그 밖의 변경은 09:00 `bill-search-rebuild`가 반영한다. 단계·표결 변경으로도 `modified_date`가 바뀌므로 내용이 같은 문서도 대상이 된다. 최근 평시 변경량은 하루 100~230건이다.
+
+`Bill`을 직접 고치는 SQL이나 스크립트는 `modified_date`를 함께 바꾸거나, 끝난 뒤 해당 법안을 `--bill-ids-file`로 갱신한다. 2026-11-07 조회 기준 내용이 다른 문서 1,861건 중 618건은 시각이 같아 대상에 잡히지 않았다. 과거분은 전체 ID 파일로 1회 재생성한다.
 
 ### 법안 주제 태그
 

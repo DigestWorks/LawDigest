@@ -8,6 +8,7 @@ units=(
   lawdigest-bill-status-sync.timer
   lawdigest-ai-summary.timer
   lawdigest-bill-category-backfill.timer
+  lawdigest-bill-search-rebuild.timer
 )
 
 if [[ ${1:-} != --install || $# -ne 1 || $EUID -ne 0 ]]; then
