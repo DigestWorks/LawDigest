@@ -418,6 +418,29 @@ class TestDatabaseManagerLogic(unittest.TestCase):
         self.assertIn("INSERT INTO BillTimeline", query)
         self.assertEqual(params, [("BILL1", None, "접수", "2026-11-03", None)])
 
+    def test_refresh_search_documents_reads_summary_tags(self):
+        self.db_manager._bill_table_has_column = MagicMock(return_value=True)
+        self.cursor.fetchall.return_value = [
+            {"bill_id": "B1", "bill_name": "법안", "summary": "원문", "summary_tags": '["쉬운우리말"]'}
+        ]
+        self.db_manager._upsert_bill_search_documents_cursor = MagicMock(return_value=1)
+
+        rebuilt = self.db_manager._refresh_bill_search_documents_cursor(self.cursor, ["B1"])
+
+        self.assertEqual(rebuilt, 1)
+        self.assertIn("summary_tags", self.cursor.execute.call_args.args[0])
+        documents = self.db_manager._upsert_bill_search_documents_cursor.call_args.args[1]
+        self.assertIn("쉬운우리말", documents[0]["search_text"])
+
+    def test_refresh_search_documents_supports_schema_without_tags(self):
+        self.db_manager._bill_table_has_column = MagicMock(return_value=False)
+        self.cursor.fetchall.return_value = []
+        self.db_manager._upsert_bill_search_documents_cursor = MagicMock(return_value=0)
+
+        self.db_manager._refresh_bill_search_documents_cursor(self.cursor, ["B1"])
+
+        self.assertNotIn("summary_tags", self.cursor.execute.call_args.args[0])
+
 
 if __name__ == '__main__':
     unittest.main()

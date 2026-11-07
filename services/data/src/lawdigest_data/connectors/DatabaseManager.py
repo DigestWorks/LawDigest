@@ -569,11 +569,12 @@ class DatabaseManager:
     def _refresh_bill_search_documents_cursor(self, cursor, bill_ids: List[str]) -> int:
         unique_ids = sorted(set(bill_ids))
         rebuilt = 0
+        tags_column = "summary_tags, " if self._bill_table_has_column(cursor, "summary_tags") else ""
         for offset in range(0, len(unique_ids), 200):
             batch = unique_ids[offset:offset + 200]
             placeholders = ",".join(["%s"] * len(batch))
             cursor.execute(
-                "SELECT bill_id, bill_name, title, gpt_summary, summary, "
+                f"SELECT bill_id, bill_name, title, gpt_summary, summary, {tags_column}"
                 "COALESCE(modified_date, created_date) AS source_modified_date "
                 f"FROM Bill WHERE bill_id IN ({placeholders}) AND ingest_status = 'READY' "
                 "AND summary IS NOT NULL AND TRIM(summary) <> '' ORDER BY bill_id FOR UPDATE",

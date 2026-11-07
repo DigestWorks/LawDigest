@@ -402,7 +402,7 @@ Airflow 파일을 완전히 삭제하기 전까지는 과거 DAG의 파라미터
 
 ### 법안 주제 태그
 
-`ai-summary`는 운영 실행 뒤 요약이 있고 태그가 없는 최근 14일 법안에 태그를 붙인다. 태그 단계가 실패해도 요약 실행은 실패로 처리하지 않고, `tagging_status`에 결과를 남긴다.
+`ai-summary`는 운영 실행 뒤 요약이 있고 태그가 없는 최근 14일 법안에 태그를 붙인다. 태그를 저장한 법안의 검색 문서는 같은 단계에서 갱신한다. 태그나 검색 문서 갱신이 실패해도 요약 실행은 실패로 처리하지 않고, `tagging_status`와 `search_status`에 결과를 남긴다.
 
 수동 백필은 저장 없이 결과를 먼저 확인한 뒤 실행한다.
 
@@ -410,6 +410,12 @@ Airflow 파일을 완전히 삭제하기 전까지는 과거 DAG의 파라미터
 cd services/ai
 python -m scripts.backfill_bill_summary_tags --mode prod --limit 10
 python -m scripts.backfill_bill_summary_tags --mode prod --execute
+```
+
+수동 백필은 검색 문서를 갱신하지 않는다. 저장 전에 대상 ID를 파일로 남기고, 백필 뒤 그 법안만 갱신한다.
+
+```bash
+python -m lawdigest_data.runtime.cli bill-search-rebuild --mode prod --bill-ids-file <ID 파일>
 ```
 
 ### 의원 사진

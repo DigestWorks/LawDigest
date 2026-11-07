@@ -1,3 +1,5 @@
+import pytest
+
 from lawdigest_data.bills.search_document import build_bill_search_document
 
 
@@ -27,3 +29,22 @@ def test_build_bill_search_document_combines_weighted_search_text():
 
 def test_build_bill_search_document_returns_none_without_bill_id():
     assert build_bill_search_document({"summary": "원문 요약"}) is None
+
+
+@pytest.mark.parametrize(
+    "tags",
+    ['["쉬운우리말", "법률접근성"]', ["쉬운우리말", "법률접근성"]],
+)
+def test_build_bill_search_document_makes_tags_searchable(tags):
+    document = build_bill_search_document({"bill_id": "BILL-1", "summary_tags": tags})
+
+    assert document["search_text"].count("쉬운우리말 법률접근성") == 2
+
+
+@pytest.mark.parametrize("tags", [None, "", "태그 아님", "{}", 3])
+def test_build_bill_search_document_ignores_invalid_tags(tags):
+    document = build_bill_search_document(
+        {"bill_id": "BILL-1", "bill_name": "데이터 법안", "summary_tags": tags}
+    )
+
+    assert document["search_text"] == "\n".join(["데이터 법안"] * 3)
