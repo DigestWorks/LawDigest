@@ -26,7 +26,16 @@ def _tag_recent_bills() -> Dict[str, Any]:
         result = run_bill_tagging(mode="prod", execute=True)
     except Exception as exc:
         return {"status": "success", "tagging_status": "failed", "error": str(exc)[:500]}
-    return {**result, "status": "success", "tagging_status": result["status"]}
+    outcome = {**result, "status": "success", "tagging_status": result["status"]}
+    bill_ids = list(result.get("tags_by_bill") or [])
+    if not bill_ids:
+        return outcome
+    # 방금 쓴 요약과 태그가 검색되도록 저장한 법안의 문서를 바로 갱신한다.
+    try:
+        search = _build_workflow_manager("prod").refresh_bill_search_documents(bill_ids)
+    except Exception as exc:
+        return {**outcome, "search_status": "failed", "search_error": str(exc)[:500]}
+    return {**outcome, "search_status": "success", "search_rebuilt": search["rebuilt"]}
 
 
 def _build_usage_meter_snapshot(
@@ -297,8 +306,9 @@ class PipelineRuntime:
         *,
         mode: str = "dry_run",
         limit: int = 500,
+        bill_ids: List[str] | None = None,
     ) -> Dict[str, Any]:
-        params = {"mode": mode, "limit": limit}
+        params = {"mode": mode, "limit": limit, "bill_id_count": len(bill_ids or [])}
 
         def execute(run_id: str) -> List[Dict[str, Any]]:
             manager = _build_workflow_manager(mode)
@@ -307,7 +317,9 @@ class PipelineRuntime:
                 run_id,
                 steps,
                 "rebuild_bill_search_documents",
-                manager.rebuild_bill_search_documents(limit=limit),
+                manager.refresh_bill_search_documents(bill_ids)
+                if bill_ids
+                else manager.rebuild_bill_search_documents(limit=limit),
             )
             return steps
 

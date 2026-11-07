@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Sequence
 
 from lawdigest_data.runtime.pipeline import DEFAULT_LOG_DIR, PipelineRuntime
@@ -67,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     search_rebuild = subparsers.add_parser("bill-search-rebuild", help="법안 검색 문서 비동기 재빌드")
     search_rebuild.add_argument("--mode", default="dry_run", choices=["dry_run", "test", "prod", "test_db"])
     search_rebuild.add_argument("--limit", type=int, default=500)
+    search_rebuild.add_argument("--bill-ids-file", help="지정한 법안만 갱신할 때 쓰는 공백 구분 ID 파일")
 
     legal_term_sync = subparsers.add_parser("legal-term-dictionary-sync", help="법제처 법령용어 사전 로컬 동기화")
     legal_term_sync.add_argument("--mode", default="dry_run", choices=["dry_run", "test", "prod"])
@@ -148,9 +150,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             age=args.age,
         )
     elif args.command == "bill-search-rebuild":
+        options = {}
+        if args.bill_ids_file:
+            options["bill_ids"] = Path(args.bill_ids_file).read_text(encoding="utf-8").split()
+            if not options["bill_ids"]:
+                parser.error("--bill-ids-file에 법안 ID가 없습니다.")
         result = runtime.run_bill_search_rebuild(
             mode=args.mode,
             limit=args.limit,
+            **options,
         )
     elif args.command == "legal-term-dictionary-sync":
         result = runtime.run_legal_term_dictionary_sync(

@@ -445,6 +445,17 @@ class WorkFlowManager:
             "rebuilt": rebuilt,
         }
 
+    def refresh_bill_search_documents(self, bill_ids: List[str]) -> Dict[str, Any]:
+        if self.mode == "dry_run":
+            return {"mode": self.mode, "candidates": len(bill_ids), "rebuilt": 0}
+
+        db = self._build_db_manager(self.mode)
+        return {
+            "mode": self.mode,
+            "candidates": len(bill_ids),
+            "rebuilt": db.refresh_bill_search_documents(bill_ids),
+        }
+
     def verify_bill_proposer_integrity(self, limit: int = 100) -> Dict[str, Any]:
         """READY 의원 법안의 대표·공동 발의자 관계 무결성을 읽기 전용으로 점검합니다."""
         if self.mode == "dry_run":

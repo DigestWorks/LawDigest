@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Iterable, List, Optional
 
 
@@ -8,6 +9,17 @@ def _coerce_text(value: object) -> str:
         return ""
     text = str(value).strip()
     return " ".join(text.split())
+
+
+def _coerce_tags(value: object) -> str:
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return ""
+    if not isinstance(value, list):
+        return ""
+    return " ".join(tag for tag in map(_coerce_text, value) if tag)
 
 
 def build_bill_search_document(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -19,12 +31,15 @@ def build_bill_search_document(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     title = _coerce_text(row.get("title"))
     gpt_summary = _coerce_text(row.get("gpt_summary"))
     raw_summary = _coerce_text(row.get("summary"))
+    tags = _coerce_tags(row.get("summary_tags"))
     search_parts = [
         bill_name,
         bill_name,
         bill_name,
         title,
         title,
+        tags,
+        tags,
         gpt_summary,
         raw_summary,
     ]

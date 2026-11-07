@@ -435,6 +435,47 @@ def test_bill_search_rebuild_delegates_to_search_document_service(tmp_path):
     assert result["status"] == "success"
 
 
+def test_bill_search_rebuild_refreshes_only_given_bills(tmp_path):
+    from lawdigest_data.runtime.pipeline import PipelineRuntime
+
+    manager = MagicMock()
+    manager.refresh_bill_search_documents.return_value = {"rebuilt": 2}
+
+    with patch("lawdigest_data.runtime.pipeline._build_workflow_manager", return_value=manager):
+        result = PipelineRuntime(log_dir=tmp_path).run_bill_search_rebuild(
+            mode="prod", bill_ids=["B1", "B2"]
+        )
+
+    manager.refresh_bill_search_documents.assert_called_once_with(["B1", "B2"])
+    manager.rebuild_bill_search_documents.assert_not_called()
+    assert result["status"] == "success"
+
+
+def test_cli_passes_bill_ids_file_to_search_rebuild(tmp_path):
+    from lawdigest_data.runtime.cli import main
+
+    ids = tmp_path / "ids.txt"
+    ids.write_text("B1\nB2\n", encoding="utf-8")
+    with patch("lawdigest_data.runtime.cli.PipelineRuntime") as Runtime:
+        Runtime.return_value.run_bill_search_rebuild.return_value = {"status": "success"}
+        exit_code = main([
+            "--log-dir",
+            str(tmp_path),
+            "bill-search-rebuild",
+            "--mode",
+            "prod",
+            "--bill-ids-file",
+            str(ids),
+        ])
+
+    assert exit_code == 0
+    Runtime.return_value.run_bill_search_rebuild.assert_called_once_with(
+        mode="prod",
+        limit=500,
+        bill_ids=["B1", "B2"],
+    )
+
+
 def test_cli_dispatches_bill_ingest(tmp_path):
     from lawdigest_data.runtime.cli import main
 
@@ -926,6 +967,53 @@ def test_prod_ai_summary_runs_tag_step_after_reports(tmp_path):
     assert result["status"] == "success"
     assert result["steps"][-1]["step"] == "generate_bill_summary_tags"
     assert result["steps"][-1]["result"]["updated_count"] == 3
+
+
+def _run_prod_summary_with_tags(tmp_path, manager, tagged):
+    from lawdigest_data.runtime.pipeline import PipelineRuntime
+
+    with (
+        patch(
+            "lawdigest_ai.processor.agentic_bill_report.run_agentic_bill_reports",
+            return_value={"stats": {"target_count": 1, "success_count": 1}},
+        ),
+        patch(
+            "lawdigest_ai.processor.bill_tags.run_bill_tagging",
+            return_value={"status": "success", "tags_by_bill": tagged},
+        ),
+        patch("lawdigest_data.runtime.pipeline._build_workflow_manager", return_value=manager),
+    ):
+        return PipelineRuntime(log_dir=tmp_path).run_ai_summary(mode="prod", limit=1, read_mode="prod")
+
+
+def test_tag_step_refreshes_search_documents_of_tagged_bills(tmp_path):
+    manager = MagicMock()
+    manager.refresh_bill_search_documents.return_value = {"rebuilt": 2}
+
+    result = _run_prod_summary_with_tags(tmp_path, manager, {"B1": ["병역"], "B2": ["군복무"]})
+
+    manager.refresh_bill_search_documents.assert_called_once_with(["B1", "B2"])
+    assert result["steps"][-1]["result"]["search_status"] == "success"
+    assert result["steps"][-1]["result"]["search_rebuilt"] == 2
+
+
+def test_search_refresh_failure_does_not_fail_ai_summary(tmp_path):
+    manager = MagicMock()
+    manager.refresh_bill_search_documents.side_effect = RuntimeError("db down")
+
+    result = _run_prod_summary_with_tags(tmp_path, manager, {"B1": ["병역"]})
+
+    assert result["status"] == "success"
+    assert result["steps"][-1]["result"]["search_status"] == "failed"
+    assert result["steps"][-1]["result"]["search_error"] == "db down"
+
+
+def test_tag_step_skips_search_refresh_without_tagged_bills(tmp_path):
+    manager = MagicMock()
+
+    _run_prod_summary_with_tags(tmp_path, manager, {})
+
+    manager.refresh_bill_search_documents.assert_not_called()
 
 
 def test_tag_step_failure_does_not_fail_ai_summary(tmp_path):
