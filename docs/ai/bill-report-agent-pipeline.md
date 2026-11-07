@@ -261,7 +261,7 @@ manifest에는 다음 정보가 들어간다.
 - 에이전트가 생성한 `title`가 `[핵심 변경]을/를 위한 [정확한 법안명]` 제목형 계약을 만족하는지 검증한다.
 - 원문 `summary`의 첫 문장처럼 완결된 설명문이거나 정확한 법안명으로 끝나지 않는 결과는 실패 처리한다.
 - 검증된 새 `title`로 기존 값을 교체한다. 구조화 출력 이전의 레거시 Markdown만 기존 fallback 변환을 사용한다.
-- `summary_tags`는 기존 값을 유지한다.
+- `summary_tags`는 기존 값을 유지한다. 태그는 리포트 생성 뒤 `bill_tags.run_bill_tagging`이 별도로 채운다.
 - 최종적으로 `update_bill_summary`가 `title`, `gpt_summary`, `summary_tags`를 업데이트한다.
 
 현재 심사 단계, 처리 결과, 투표 결과, 조회수, 스크랩 수는 AI 텍스트에 고정하지 않는다. 프론트와 API가 최신 데이터로 별도 표시한다.

@@ -905,3 +905,58 @@ def test_cli_dispatches_bill_agent_report_inspection(tmp_path):
         five_hour_usage_after=None,
         inspection=True,
     )
+
+
+def test_prod_ai_summary_runs_tag_step_after_reports(tmp_path):
+    from lawdigest_data.runtime.pipeline import PipelineRuntime
+
+    with (
+        patch(
+            "lawdigest_ai.processor.agentic_bill_report.run_agentic_bill_reports",
+            return_value={"stats": {"target_count": 1, "success_count": 1}},
+        ),
+        patch(
+            "lawdigest_ai.processor.bill_tags.run_bill_tagging",
+            return_value={"status": "success", "updated_count": 3},
+        ) as tagging,
+    ):
+        result = PipelineRuntime(log_dir=tmp_path).run_ai_summary(mode="prod", limit=1, read_mode="prod")
+
+    tagging.assert_called_once_with(mode="prod", execute=True)
+    assert result["status"] == "success"
+    assert result["steps"][-1]["step"] == "generate_bill_summary_tags"
+    assert result["steps"][-1]["result"]["updated_count"] == 3
+
+
+def test_tag_step_failure_does_not_fail_ai_summary(tmp_path):
+    from lawdigest_data.runtime.pipeline import PipelineRuntime
+
+    with (
+        patch(
+            "lawdigest_ai.processor.agentic_bill_report.run_agentic_bill_reports",
+            return_value={"stats": {"target_count": 1, "success_count": 1}},
+        ),
+        patch(
+            "lawdigest_ai.processor.bill_tags.run_bill_tagging",
+            return_value={"status": "failed", "error": "usage limit"},
+        ),
+    ):
+        result = PipelineRuntime(log_dir=tmp_path).run_ai_summary(mode="prod", limit=1, read_mode="prod")
+
+    assert result["status"] == "success"
+    assert result["steps"][-1]["result"]["tagging_status"] == "failed"
+
+
+def test_dry_run_ai_summary_skips_tag_step(tmp_path):
+    from lawdigest_data.runtime.pipeline import PipelineRuntime
+
+    with (
+        patch(
+            "lawdigest_ai.processor.agentic_bill_report.run_agentic_bill_reports",
+            return_value={"stats": {"success_count": 1}},
+        ),
+        patch("lawdigest_ai.processor.bill_tags.run_bill_tagging") as tagging,
+    ):
+        PipelineRuntime(log_dir=tmp_path).run_ai_summary(mode="dry_run", limit=1, read_mode="prod")
+
+    tagging.assert_not_called()

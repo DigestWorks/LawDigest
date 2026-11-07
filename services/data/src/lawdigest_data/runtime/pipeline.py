@@ -18,6 +18,17 @@ def _build_workflow_manager(mode: str):
     return WorkFlowManager(mode)
 
 
+def _tag_recent_bills() -> Dict[str, Any]:
+    """요약은 이미 저장됐으므로 태그 실패가 실행 결과를 실패로 바꾸지 않게 한다."""
+    try:
+        from lawdigest_ai.processor.bill_tags import run_bill_tagging
+
+        result = run_bill_tagging(mode="prod", execute=True)
+    except Exception as exc:
+        return {"status": "success", "tagging_status": "failed", "error": str(exc)[:500]}
+    return {**result, "status": "success", "tagging_status": result["status"]}
+
+
 def _build_usage_meter_snapshot(
     *,
     weekly_usage_before: float | None,
@@ -715,6 +726,8 @@ class PipelineRuntime:
             stats = report.get("stats", {})
             if stats.get("target_count", 0) > 0 and stats.get("success_count", 0) == 0:
                 raise RuntimeError("모든 법안 리포트 생성에 실패했습니다.")
+            if mode == "prod":
+                self._record_step(run_id, steps, "generate_bill_summary_tags", _tag_recent_bills())
             return steps
 
         return self._run(command, params, execute)
