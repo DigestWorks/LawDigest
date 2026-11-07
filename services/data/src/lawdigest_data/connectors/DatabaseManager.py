@@ -520,7 +520,7 @@ class DatabaseManager:
                       )
                   )
               )
-            ORDER BY COALESCE(b.modified_date, b.created_date) ASC, b.bill_id ASC
+            ORDER BY COALESCE(b.modified_date, b.created_date) DESC, b.bill_id DESC
             LIMIT %s
         """
         with self.transaction() as cursor:
@@ -563,8 +563,13 @@ class DatabaseManager:
     def refresh_bill_search_documents(self, bill_ids: List[str]) -> int:
         if not bill_ids:
             return 0
-        with self.transaction() as cursor:
-            return self._refresh_bill_search_documents_cursor(cursor, bill_ids)
+        unique_ids = sorted(set(bill_ids))
+        rebuilt = 0
+        # 대량 갱신이 Bill 행 잠금을 오래 잡지 않도록 묶음마다 커밋한다.
+        for offset in range(0, len(unique_ids), 200):
+            with self.transaction() as cursor:
+                rebuilt += self._refresh_bill_search_documents_cursor(cursor, unique_ids[offset:offset + 200])
+        return rebuilt
 
     def _refresh_bill_search_documents_cursor(self, cursor, bill_ids: List[str]) -> int:
         unique_ids = sorted(set(bill_ids))
