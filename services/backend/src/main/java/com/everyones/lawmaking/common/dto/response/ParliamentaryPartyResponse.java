@@ -21,4 +21,5 @@ public class ParliamentaryPartyResponse {
         this.partyImageUrl = partyImageUrl;
         this.congressmanCount = congressmanCount;
     }
+
 }

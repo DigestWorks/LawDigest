@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
+@Where(clause = "invalidated_at IS NULL")
 @Data
 @Builder
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -38,6 +41,15 @@ public class BillTimeline extends BaseEntity{
 
     @Column(name = "status_update_date")
     private LocalDate statusUpdateDate;
+
+    @Column(name = "approval_vote_count")
+    private Integer approvalVoteCount;
+
+    @Column(name = "total_vote_count")
+    private Integer totalVoteCount;
+
+    @Column(name = "invalidated_at")
+    private LocalDateTime invalidatedAt;
 
     public static BillTimeline of (Bill foundBill, BillStageDfRequest billStageDfRequest){
         var stageChangeDate = billStageDfRequest.getStatusUpdateDate();

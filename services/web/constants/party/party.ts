@@ -24,81 +24,50 @@ export const PARTY_NAME_KO = {
   조국혁신당: '조국혁신당',
 } as const;
 
-export const PARTY_POSITION = {
-  더불어민주당: '원내 1당',
-  국민의힘: '원내 2당',
-  더불어민주연합: '원내 3당',
-  국민의미래: '원내 4당',
-  녹새정의당: '원내 5당',
-  새로운미래: '원내 6당',
-  개혁신당: '원내 7당',
-  자유통일당: '원내 8당',
-  진보당: '원내 8당',
-  조국혁신당: '원내 8당',
-} as const;
-
-export const PARTY_LEADER = {
-  더불어민주당: '이재명',
-  국민의힘: '한동훈',
-  더불어민주연합: '윤영덕/백승아',
-  국민의미래: '조혜정',
-  녹새정의당: '김준우/김찬휘',
-  새로운미래: '이낙연/김종민',
-  개혁신당: '이준석',
-  자유통일당: '장경동',
-  진보당: '윤희숙',
-  조국혁신당: '조국',
-} as const;
-
-export const PARTY_FLOOR_LEADER = {
-  더불어민주당: '홍익표',
-  국민의힘: '윤재욱',
-  더불어민주연합: '윤영덕',
-  국민의미래: '',
-  녹새정의당: '심상정',
-  새로운미래: '김종민',
-  개혁신당: '양향자',
-  자유통일당: '황보승희',
-  진보당: '강성희',
-  조국혁신당: '황운하',
-} as const;
-
-export const PARTY_SECRETARY_GENERAL = {
-  더불어민주당: '조정식',
-  국민의힘: '장동혁',
-  더불어민주연합: '정을호',
-  국민의미래: '정우창',
-  녹새정의당: '정재민/정유현',
-  새로운미래: '이훈',
-  개혁신당: '김철근',
-  자유통일당: '이동호',
-  진보당: '송영주',
-  조국혁신당: '황현선',
-} as const;
-
-export const PARTY_POLISY_COMMITTEE_CHAIRMAN = {
-  더불어민주당: '이개호',
-  국민의힘: '유의동',
-  더불어민주연합: '',
-  국민의미래: '',
-  녹새정의당: '김종민/진주',
-  새로운미래: '김만흠',
-  개혁신당: '김용남',
-  자유통일당: '유재일',
-  진보당: '정태흥',
-  조국혁신당: '서왕진',
-} as const;
-
 export const PARTY_COLOR = {
   더불어민주당: '#152484',
   국민의힘: '#E61E2B',
   더불어민주연합: '#152484',
   국민의미래: '#E4002B',
+  정의당: '#FFED00',
+  기본소득당: '#00D2C3',
+  시대전환: '#5B157F',
   녹새정의당: '#007C36',
+  녹색정의당: '#007C36',
   새로운미래: '#45BABD',
   개혁신당: '#FF7210',
   자유통일당: '#0958A7',
   진보당: '#D6001C',
   조국혁신당: '#0073CF',
+  한국의희망: '#004B83',
+  사회민주당: '#F58400',
   무소속: '#797C85',
 } as const;
+
+export const UNKNOWN_PARTY_COLOR = '#797C85';
+
+const PARTY_COLOR_ENTRIES = Object.entries(PARTY_COLOR);
+const PARTY_COLOR_BY_NAME_LENGTH = [...PARTY_COLOR_ENTRIES].sort(([a], [b]) => b.length - a.length);
+
+const PARTY_COLOR_ALIAS: Record<string, keyof typeof PARTY_COLOR> = {
+  민주: '더불어민주당',
+  국힘: '국민의힘',
+};
+
+export function getPartyColor(partyName: string | null | undefined): string {
+  if (!partyName) {
+    return UNKNOWN_PARTY_COLOR;
+  }
+
+  const trimmedPartyName = partyName.trim();
+  if (!trimmedPartyName) {
+    return UNKNOWN_PARTY_COLOR;
+  }
+
+  const normalizedPartyName = PARTY_COLOR_ALIAS[trimmedPartyName] ?? trimmedPartyName;
+  const matched =
+    PARTY_COLOR_BY_NAME_LENGTH.find(([key]) => normalizedPartyName.includes(key)) ??
+    PARTY_COLOR_ENTRIES.find(([key]) => key.includes(normalizedPartyName));
+
+  return matched?.[1] ?? UNKNOWN_PARTY_COLOR;
+}

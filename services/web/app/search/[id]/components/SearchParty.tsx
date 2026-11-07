@@ -1,36 +1,33 @@
-'use client';
-
-import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { SearchCongressmanPartyProps } from '@/types';
-import { EnterButton, PartyLogoReplacement } from '@/components';
 import Image from 'next/image';
+import { ChevronRight } from 'lucide-react';
+import { PartySearchProps } from '@/types';
+import PartyLogoReplacement from '@/components/common/PartyLogoReplacement/PartyLogoReplacement';
+import getPartyLogoSrc from '@/utils/getPartyLogoSrc';
 
-export default function SearchParty({ party_id, party_name, party_image_url }: SearchCongressmanPartyProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
+export default function SearchParty({ party_id, party_name, party_image_url }: PartySearchProps) {
+  const light = getPartyLogoSrc(party_image_url, false);
+  const dark = getPartyLogoSrc(party_image_url, true);
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-6">
-        {party_image_url !== null ? (
-          <div
-            className={`flex justify-center items-center w-[54px] h-[54px] border overflow-hidden rounded-full ${party_name}`}>
-            <Image
-              src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${isDark ? party_image_url.replace('wide', 'dark') : party_image_url}`}
-              width={40}
-              height={16}
-              alt={`${party_name} 로고 이미지`}
-            />
-          </div>
-        ) : (
-          <PartyLogoReplacement partyName={party_name} circle />
-        )}
-        <p className="text-lg font-semibold">{party_name}</p>
-      </div>
-      <Link href={`/party/${party_id}`}>
-        <EnterButton />
-      </Link>
-    </div>
+    <Link
+      href={`/party/${party_id}`}
+      className="flex min-w-0 items-center gap-3 rounded-lg p-3 hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+      {light && dark ? (
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border p-1">
+          <Image src={light} width={40} height={24} alt={`${party_name} 로고`} className="object-contain dark:hidden" />
+          <Image
+            src={dark}
+            width={40}
+            height={24}
+            alt={`${party_name} 로고`}
+            className="hidden object-contain dark:block"
+          />
+        </div>
+      ) : (
+        <PartyLogoReplacement partyName={party_name} circle />
+      )}
+      <p className="min-w-0 flex-1 truncate font-semibold">{party_name}</p>
+      <ChevronRight className="size-5 shrink-0" aria-hidden="true" />
+    </Link>
   );
 }

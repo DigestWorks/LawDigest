@@ -1,11 +1,18 @@
-import { IconSearch } from '@/public/svgs';
-import Link from 'next/link';
+'use client';
+import { useSetAtom } from 'jotai';
+import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { searchModalState } from '@/store';
 
-export default function SearchButton({ onClick }: { onClick: () => void }) {
+export default function SearchButton() {
+  const open = useSetAtom(searchModalState);
   return (
-    // eslint-disable-next-line jsx-a11y/anchor-is-valid
-    <Link href="#" onClick={onClick}>
-      <IconSearch />
-    </Link>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="검색 열기"
+      onClick={(event) => open({ show: true, trigger: event.currentTarget })}>
+      <Search />
+    </Button>
   );
 }

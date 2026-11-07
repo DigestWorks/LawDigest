@@ -1,0 +1,247 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+
+
+def _mock_connection(rows):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = rows
+    return conn
+
+
+def test_gemini_repair_pipeline_saves_json_in_dry_run(tmp_path, capsys):
+    from lawdigest_ai.processor.gemini_repair_pipeline import run_gemini_repair_pipeline
+
+    rows = [{
+        "bill_id": "B001",
+        "bill_name": "개인정보 보호법 일부개정법률안",
+        "summary": "원문 요약",
+        "proposers": "홍길동",
+        "proposer_kind": "의원발의",
+        "title": None,
+        "gpt_summary": None,
+        "propose_date": "2026-04-16",
+        "stage": "위원회",
+    }]
+    result_rows = [{
+        **rows[0],
+        "title": "개인정보 처리 투명성 강화",
+        "gpt_summary": "1. 처리방침 고지 의무를 강화한다.",
+        "summary_tags": json.dumps(["개인정보보호", "투명성강화", "정보주체권리", "설명요구권", "제재기준정비"], ensure_ascii=False),
+    }]
+    output_path = tmp_path / "gemini-repair.json"
+
+    with patch("lawdigest_ai.processor.gemini_repair_pipeline.get_db_connection", return_value=_mock_connection(rows)), \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.update_bill_summary") as mock_update, \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.build_cli_summarizer") as mock_build:
+        MockSummarizer = mock_build
+        MockSummarizer.return_value.failed_bills = []
+        MockSummarizer.return_value.usage_by_bill_id = {
+            "B001": {"input_tokens": 100, "output_tokens": 20}
+        }
+        MockSummarizer.return_value.AI_structured_summarize.return_value = pd.DataFrame(result_rows)
+
+        report = run_gemini_repair_pipeline(
+            mode="dry_run",
+            limit=10,
+            batch_size=5,
+            output_path=str(output_path),
+        )
+
+    saved = json.loads(Path(output_path).read_text(encoding="utf-8"))
+    stdout = capsys.readouterr().out
+    assert report["stats"]["success_count"] == 1
+    assert saved["items"][0]["ai_title"] == "개인정보 처리 투명성 강화"
+    assert saved["stats"]["db_upserted_count"] == 0
+    assert saved["stats"]["token_usage_available_count"] == 1
+    assert saved["stats"]["usage_totals"] == {"input_tokens": 100, "output_tokens": 20}
+    assert "[cli-summary-repair] loaded targets=1, batches=1" in stdout
+    assert "[cli-summary-repair] batch 1/1 start" in stdout
+    assert "processed=1/1, success=1, failure=0" in stdout
+    assert "input_tokens=100, output_tokens=20" in stdout
+    assert "[cli-summary-repair] db upsert skipped dry_run" in stdout
+    assert f"[cli-summary-repair] wrote output={output_path}" in stdout
+    mock_update.assert_not_called()
+
+
+def test_gemini_repair_pipeline_upserts_successful_items():
+    from lawdigest_ai.processor.gemini_repair_pipeline import run_gemini_repair_pipeline
+
+    rows = [{
+        "bill_id": "B002",
+        "bill_name": "플랫폼 공정화법안",
+        "summary": "원문 요약",
+        "proposers": "김철수",
+        "proposer_kind": "의원발의",
+        "title": "",
+        "gpt_summary": None,
+        "propose_date": "2026-04-16",
+        "stage": "본회의",
+    }]
+    result_rows = [{
+        **rows[0],
+        "title": "플랫폼 거래 투명성 강화",
+        "gpt_summary": "1. 계약조건 공개 의무를 확대한다.",
+        "summary_tags": json.dumps(["플랫폼규제", "거래투명성", "공정거래", "계약공개", "사업자책임"], ensure_ascii=False),
+    }]
+
+    with patch("lawdigest_ai.processor.gemini_repair_pipeline.get_db_connection", return_value=_mock_connection(rows)), \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.update_bill_summary") as mock_update, \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.build_cli_summarizer") as mock_build:
+        MockSummarizer = mock_build
+        MockSummarizer.return_value.failed_bills = []
+        MockSummarizer.return_value.AI_structured_summarize.return_value = pd.DataFrame(result_rows)
+
+        report = run_gemini_repair_pipeline(
+            mode="test",
+            limit=10,
+            batch_size=5,
+            output_path="/tmp/test-gemini-repair.json",
+        )
+
+    assert report["stats"]["db_upserted_count"] == 1
+    mock_update.assert_called_once()
+
+
+def test_gemini_repair_pipeline_upserts_each_success_before_later_failure(tmp_path):
+    from lawdigest_ai.processor.gemini_repair_pipeline import run_gemini_repair_pipeline
+
+    rows = [
+        {
+            "bill_id": "B010",
+            "bill_name": "성공 법안",
+            "summary": "원문 요약",
+            "proposers": "김철수",
+            "proposer_kind": "의원발의",
+            "title": None,
+            "gpt_summary": None,
+            "propose_date": "2026-04-16",
+            "stage": "본회의",
+        },
+        {
+            "bill_id": "B011",
+            "bill_name": "실패 법안",
+            "summary": "원문 요약",
+            "proposers": "박영희",
+            "proposer_kind": "의원발의",
+            "title": None,
+            "gpt_summary": None,
+            "propose_date": "2026-04-16",
+            "stage": "위원회",
+        },
+    ]
+    first_result = pd.DataFrame([
+        {
+            **rows[0],
+            "title": "첫 번째 요약",
+            "gpt_summary": "1. 첫 번째 법안을 요약한다.",
+            "summary_tags": json.dumps(["요약", "즉시저장", "법안", "테스트", "성공"], ensure_ascii=False),
+        }
+    ])
+    second_result = pd.DataFrame([rows[1]])
+    output_path = tmp_path / "partial-upsert.json"
+
+    with patch("lawdigest_ai.processor.gemini_repair_pipeline.get_db_connection", return_value=_mock_connection(rows)), \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.update_bill_summary") as mock_update, \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.build_cli_summarizer") as mock_build:
+        mock_build.return_value.failed_bills = []
+        mock_build.return_value.usage_by_bill_id = {}
+        mock_build.return_value.AI_structured_summarize.side_effect = [
+            first_result,
+            second_result,
+        ]
+
+        with pytest.raises(RuntimeError):
+            run_gemini_repair_pipeline(
+                mode="test",
+                limit=2,
+                batch_size=1,
+                output_path=str(output_path),
+                stop_on_error=True,
+            )
+
+    saved = json.loads(Path(output_path).read_text(encoding="utf-8"))
+    assert saved["stats"]["success_count"] == 1
+    assert saved["stats"]["failure_count"] == 1
+    assert saved["stats"]["db_upserted_count"] == 1
+    mock_update.assert_called_once()
+
+
+def test_gemini_repair_pipeline_raises_when_all_items_fail(tmp_path):
+    from lawdigest_ai.processor.gemini_repair_pipeline import run_gemini_repair_pipeline
+
+    rows = [{
+        "bill_id": "B003",
+        "bill_name": "실패 법안",
+        "summary": "원문 요약",
+        "proposers": "박영희",
+        "proposer_kind": "의원발의",
+        "title": None,
+        "gpt_summary": None,
+        "propose_date": "2026-04-16",
+        "stage": "위원회",
+    }]
+    output_path = tmp_path / "failed-gemini-repair.json"
+
+    with patch("lawdigest_ai.processor.gemini_repair_pipeline.get_db_connection", return_value=_mock_connection(rows)), \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.build_cli_summarizer") as mock_build:
+        MockSummarizer = mock_build
+        MockSummarizer.return_value.failed_bills = [{"bill_id": "B003", "error": "timeout"}]
+        MockSummarizer.return_value.AI_structured_summarize.return_value = pd.DataFrame(rows)
+
+        with pytest.raises(RuntimeError):
+            run_gemini_repair_pipeline(
+                mode="dry_run",
+                limit=10,
+                batch_size=5,
+                output_path=str(output_path),
+            )
+
+    saved = json.loads(Path(output_path).read_text(encoding="utf-8"))
+    assert saved["stats"]["failure_count"] == 1
+    assert saved["items"][0]["status"] == "failed"
+
+
+def test_gemini_repair_pipeline_accepts_cli_provider(tmp_path):
+    from lawdigest_ai.processor.gemini_repair_pipeline import run_gemini_repair_pipeline
+
+    rows = [{
+        "bill_id": "B004",
+        "bill_name": "CLI 제공자 법안",
+        "summary": "원문 요약",
+        "proposers": "이영희",
+        "proposer_kind": "의원발의",
+        "title": None,
+        "gpt_summary": None,
+        "propose_date": "2026-04-16",
+        "stage": "위원회",
+    }]
+    result_rows = [{
+        **rows[0],
+        "title": "CLI 제공자 기반 요약",
+        "gpt_summary": "1. CLI 제공자 경로를 검증한다.",
+        "summary_tags": json.dumps(["CLI", "요약", "검증", "법안", "자동화"], ensure_ascii=False),
+    }]
+    output_path = tmp_path / "codex-repair.json"
+
+    with patch("lawdigest_ai.processor.gemini_repair_pipeline.get_db_connection", return_value=_mock_connection(rows)), \
+         patch("lawdigest_ai.processor.gemini_repair_pipeline.build_cli_summarizer") as mock_build:
+        mock_build.return_value.failed_bills = []
+        mock_build.return_value.AI_structured_summarize.return_value = pd.DataFrame(result_rows)
+
+        report = run_gemini_repair_pipeline(
+            mode="dry_run",
+            limit=10,
+            batch_size=5,
+            output_path=str(output_path),
+            cli_provider="codex",
+        )
+
+    mock_build.assert_called_once_with("codex")
+    assert report["cli_provider"] == "codex"

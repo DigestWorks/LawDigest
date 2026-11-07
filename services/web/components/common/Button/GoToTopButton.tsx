@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from 'react';
 import { IconArrowUp } from '@/public/svgs';
-import { Button } from '@nextui-org/react';
+import { Button } from '@/components/ui/button';
 
 export default function GoToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
@@ -31,9 +31,11 @@ export default function GoToTopButton() {
 
   return (
     <Button
-      isIconOnly
-      className={`${isVisible ? '' : 'hidden'} z-10 fixed bg-gray-1/80 dark:bg-gray-3/60 bottom-24 right-10 md:bottom-20 md:right-20`}
-      variant="light"
+      type="button"
+      size="icon"
+      aria-label="맨 위로 이동"
+      className={`${isVisible ? '' : 'hidden'} floating-scroll-top z-[42] fixed rounded-full bg-muted/90 bottom-20 right-10 md:right-20`}
+      variant="ghost"
       onClick={onClickGoToTopButton}>
       <IconArrowUp />
     </Button>

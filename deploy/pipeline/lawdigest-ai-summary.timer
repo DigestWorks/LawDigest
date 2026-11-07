@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule LawDigest ai-summary
+
+[Timer]
+OnCalendar=*-*-* 05:10:00 Asia/Seoul
+Unit=lawdigest-pipeline@ai-summary.service
+
+[Install]
+WantedBy=timers.target

@@ -1,17 +1,31 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useIntersect, useTabType } from '@/hooks';
-import { BillList } from '@/components/Bill';
+import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { SectionError } from '@/components/common/SectionState';
+
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useIntersect } from '@/hooks';
+import { feedAssembly, feedContent, feedStage, type FeedAssembly } from '@/lib/feedState';
+import { Button } from '@/components/ui/button';
+import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
+import BillList from '@/components/Bill/BillList/BillList';
 import { FEED_TAB } from '@/constants';
 import { NotificationTopThree } from '@/app/notification/components';
 import { useGetBillByStage, useGetBillPopular } from './apis';
 import StageDropdown from '../StageDropdown';
+import FeedFilterDropdown from '../FeedFilterDropdown';
 import FeedTab from '../FeedTab';
 import FollowingFeed from './FollowingFeed';
+import ReportFeed from './ReportFeed';
 import FollowingCongressmanStrip from './FollowingCongressmanStrip';
 
 type ContentType = 'report' | 'bill' | 'following';
+
+const ASSEMBLY_FILTERS: { label: string; value: FeedAssembly }[] = [
+  { label: '제22대', value: '22' },
+  { label: '제21대', value: '21' },
+  { label: '전체 대수', value: 'all' },
+];
 
 const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }[] = [
   {
@@ -28,7 +42,13 @@ const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }
         <path d="M12 2V6H16" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
         <path d="M7 10H13M7 13H11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
         <circle cx="15" cy="5" r="3" fill="currentColor" />
-        <path d="M14 5L14.7 5.7L16.3 4" stroke="white" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M14 5L14.7 5.7L16.3 4"
+          stroke="hsl(var(--background))"
+          strokeWidth="1.1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     ),
   },
@@ -60,115 +80,139 @@ const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }
 ];
 
 export default function Feed() {
-  const [contentType, setContentType] = useState<ContentType>('report');
-  const [feedType, setFeedType] = useTabType<typeof FEED_TAB>('sorted_by_latest');
-  const [stageType, setStageType] = useState(new Set(['전체']));
-  const selectedStageType = useMemo(() => Array.from(stageType).join(', ').replaceAll('_', ' '), [stageType]);
-  const { data, hasNextPage, isFetching, fetchNextPage, refetch } = useGetBillByStage(
-    selectedStageType === '전체' ? '' : selectedStageType,
-  );
-  const [bills, setBills] = useState(
-    data ? data.pages.flatMap(({ data: { bill_list: responses } }) => responses || []) : [],
-  );
-  const { data: popularFeed } = useGetBillPopular();
-  const [popularBills, setPopularBills] = useState(popularFeed?.data || []);
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const contentType = feedContent(params.get('tab'));
+  const assembly = feedAssembly(params.get('assembly'));
+  const feedType =
+    assembly === '22' && params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
+  const stage = feedStage(params.get('stage'));
+  const isLatest = feedType === FEED_TAB.sortedByLatest;
+  const query = useGetBillByStage(stage, assembly, contentType === 'bill' && isLatest);
+  const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
+  const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
+  const activeQuery = isLatest ? query : popular;
+  useListScrollRestoration(params.toString(), contentType === 'bill' && Boolean(activeQuery.data));
 
-  const fetchRef = useIntersect(async (entry: any, observer: any) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
+  const update = (name: string, value: string) => {
+    const next = new URLSearchParams(params.toString());
+    if (value) next.set(name, value);
+    else next.delete(name);
+    if (name === 'assembly') next.delete('sort');
+    router.push(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
+  };
+  const fetchRef = useIntersect(() => {
+    if (isLatest && query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) {
+      void query.fetchNextPage();
     }
   });
 
-  useEffect(() => {
-    if (data) {
-      setBills(() => [...data.pages.flatMap(({ data: { bill_list: responses } }) => responses || [])]);
-    }
-  }, [data]);
+  let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '최근 7일 동안 조회하거나 스크랩한 법안이 없습니다.';
+  if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
 
-  useEffect(() => {
-    if (popularFeed) {
-      setPopularBills(() => (popularFeed.data ? [...popularFeed.data] : []));
-    }
-  }, [popularFeed]);
-
-  useEffect(() => {
-    setBills([]);
-    refetch();
-  }, [selectedStageType]);
+  let results;
+  if (activeQuery.isPending) {
+    results = <ContentSkeleton />;
+  } else if (activeQuery.isError && !activeQuery.data) {
+    results = (
+      <div className="mx-5 mt-4">
+        <SectionError
+          message="법안을 불러오지 못했습니다."
+          pending={activeQuery.isFetching}
+          onRetry={() => void activeQuery.refetch()}
+        />
+      </div>
+    );
+  } else if (!bills.length) {
+    results = (
+      <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
+        <p role="status" className="text-sm text-muted-foreground">
+          {emptyMessage}
+        </p>
+        {isLatest && stage && (
+          <Button variant="outline" onClick={() => update('stage', '')}>
+            전체 단계 보기
+          </Button>
+        )}
+      </div>
+    );
+  } else {
+    results = (
+      <BillList
+        bills={bills}
+        isFetching={isLatest && query.isFetchingNextPage}
+        fetchRef={fetchRef}
+        hasNextPage={isLatest && query.hasNextPage}
+        error={isLatest && query.isFetchNextPageError}
+        onLoadMore={() => void query.fetchNextPage()}
+      />
+    );
+  }
 
   return (
     <section>
-      {/* 피드 헤더: 제목 */}
       <div className="mx-5 mt-5 mb-3">
-        <h2 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h2>
+        <h1 className="text-[26px] font-bold leading-tight text-black dark:text-white">피드</h1>
       </div>
-
-      {/* 콘텐츠 타입 탭 - 슬라이딩 인디케이터 */}
-      <div className="relative flex items-center gap-[5px] mx-6 mb-3">
-        {/* 슬라이딩 인디케이터 */}
+      <div className="relative flex items-center gap-[5px] mx-6 mb-3" role="group" aria-label="피드 종류">
         <div
           className="feed-tab-indicator"
+          aria-hidden="true"
           style={{
-            transform: `translateX(${CONTENT_TABS.findIndex((t) => t.value === contentType) * (85 + 5)}px)`,
+            transform: `translateX(${CONTENT_TABS.findIndex((tab) => tab.value === contentType) * 90}px)`,
           }}
         />
         {CONTENT_TABS.map(({ label, value, icon }) => (
           <button
             key={value}
             type="button"
-            onClick={() => setContentType(value)}
+            aria-pressed={contentType === value}
+            onClick={() => update('tab', value)}
             className={`feed-content-tab${contentType === value ? ' is-active' : ''}`}>
             {icon}
             <span>{label}</span>
           </button>
         ))}
       </div>
-
-      {/* 알림 카드 — 팔로잉 탭에서는 숨김 */}
-      {contentType !== 'following' && <NotificationTopThree />}
-
-      {/* 리포트 탭 */}
-      {contentType === 'report' && (
-        <>
-          <section className="flex items-center justify-between mx-5 mt-2">
-            <FeedTab type={feedType as any} clickHandler={setFeedType as any} />
-            {feedType === 'sorted_by_latest' && (
-              <StageDropdown type={selectedStageType as any} clickHandler={setStageType as any} />
-            )}
-          </section>
-          <BillList
-            bills={feedType === 'sorted_by_latest' ? bills : popularBills}
-            isFetching={isFetching}
-            fetchRef={fetchRef}
-            feedType={feedType as any}
-          />
-        </>
-      )}
-
-      {/* 법안 탭 */}
-      {contentType === 'bill' && (
-        <>
-          <section className="flex items-center justify-between mx-5 mt-2">
-            <FeedTab type={feedType as any} clickHandler={setFeedType as any} />
-            {feedType === 'sorted_by_latest' && (
-              <StageDropdown type={selectedStageType as any} clickHandler={setStageType as any} />
-            )}
-          </section>
-          <BillList
-            bills={feedType === 'sorted_by_latest' ? bills : popularBills}
-            isFetching={isFetching}
-            fetchRef={fetchRef}
-            feedType={feedType as any}
-          />
-        </>
-      )}
-
-      {/* 팔로잉 탭 */}
+      {contentType === 'report' && <ReportFeed scrollKey={params.toString()} />}
       {contentType === 'following' && (
         <>
           <FollowingCongressmanStrip />
-          <FollowingFeed />
+          <FollowingFeed scrollKey={params.toString()} />
+        </>
+      )}
+      {contentType === 'bill' && (
+        <>
+          <NotificationTopThree />
+          <section className="flex flex-wrap items-center justify-between gap-2 mx-5 mt-2">
+            {assembly === '22' ? (
+              <FeedTab
+                type={feedType}
+                clickHandler={(key) => update('sort', key === FEED_TAB.sortedByPopularity ? 'hot' : '')}
+              />
+            ) : (
+              <span className="text-sm font-medium text-muted-foreground">최신순</span>
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <FeedFilterDropdown
+                label="국회 대수"
+                options={ASSEMBLY_FILTERS}
+                value={assembly}
+                onChange={(value) => update('assembly', value === '22' ? '' : value)}
+              />
+              {isLatest && (
+                <StageDropdown
+                  type={stage || '전체'}
+                  clickHandler={(value) => update('stage', value === '전체' ? '' : value)}
+                />
+              )}
+            </div>
+          </section>
+          {!isLatest && (
+            <p className="mx-5 mt-3 text-sm text-muted-foreground">제22대 · 최근 7일 조회수와 스크랩 수 합계</p>
+          )}
+          {results}
         </>
       )}
     </section>

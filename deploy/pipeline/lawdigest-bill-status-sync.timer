@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule LawDigest bill-status-sync
+
+[Timer]
+OnCalendar=*-*-* 03:10:00 Asia/Seoul
+Unit=lawdigest-pipeline@bill-status-sync.service
+
+[Install]
+WantedBy=timers.target

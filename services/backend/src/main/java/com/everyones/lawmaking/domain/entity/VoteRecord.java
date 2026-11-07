@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
+
 @Entity
 @Data
 @Builder
@@ -31,6 +33,9 @@ public class VoteRecord extends BaseEntity{
     @NotNull
     @Column(name="votes_for_count")
     private Integer voteForCount;
+
+    @Column(name = "decision_date")
+    private LocalDate decisionDate;
 
     @NotNull
     @Column(name="votes_againt_count")

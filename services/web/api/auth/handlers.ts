@@ -1,27 +1,17 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { deleteCookie, getCookie } from 'cookies-next';
+import { deleteCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
-import axios, { AxiosError } from 'axios';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import _ from 'lodash';
-
-export const handleSuccessReissueToken = (error: AxiosError) => {
-  const { response } = error;
-  const router = useRouter();
-
-  const newConfig = _.cloneDeep(response!.config);
-  const accessToken = getCookie(ACCESS_TOKEN)!;
-  newConfig.headers.Authorization = `Bearer ${accessToken}`;
-
-  return axios(newConfig).then(() => router.refresh());
-};
+import { loginHref } from '@/lib/loginNavigation';
 
 export const handleFailReissueToken = () => {
-  deleteCookie(ACCESS_TOKEN);
-  const router = useRouter();
-  router.push('/login');
+  if (typeof window === 'undefined') return;
+
+  deleteCookie(ACCESS_TOKEN, { path: '/' });
+  if (window.location.hostname === 'lawdigest.kr' || window.location.hostname.endsWith('.lawdigest.kr')) {
+    deleteCookie(ACCESS_TOKEN, { path: '/', domain: '.lawdigest.kr' });
+  }
+  if (window.location.pathname !== '/login') {
+    window.location.replace(loginHref(window.location.pathname + window.location.search + window.location.hash));
+  }
 };

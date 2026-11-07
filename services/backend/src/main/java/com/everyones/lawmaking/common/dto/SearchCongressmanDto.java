@@ -32,6 +32,8 @@ public class SearchCongressmanDto implements SearchResponse {
 
     @NotNull
     private String searchType;
+    private boolean currentMember;
+    private int assemblyNumber;
 
 
     public static SearchResponse from(Congressman congressman) {
@@ -43,6 +45,8 @@ public class SearchCongressmanDto implements SearchResponse {
                 .partyId(party.getId())
                 .partyName(party.getName())
                 .searchType(SearchType.CONGRESSMAN.name())
+                .currentMember(Boolean.TRUE.equals(congressman.getState()))
+                .assemblyNumber(congressman.getAssemblyNumber())
                 .build();
     }
 }

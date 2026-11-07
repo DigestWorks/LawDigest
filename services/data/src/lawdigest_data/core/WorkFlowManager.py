@@ -75,6 +75,35 @@ class WorkFlowManager:
         return [text] if text else []
 
     @staticmethod
+    def _shorten_text(value: str, max_length: int = 120) -> str:
+        compact = " ".join(value.split())
+        if len(compact) <= max_length:
+            return compact
+        return compact[: max_length - 3].rstrip() + "..."
+
+    @classmethod
+    def _derive_title(
+        cls,
+        summary: Optional[str],
+        bill_name: Optional[str],
+        existing_title: Optional[str],
+    ) -> Optional[str]:
+        if existing_title:
+            return existing_title
+
+        ignored_lines = {"제안이유", "주요내용", "제안이유 및 주요내용"}
+        if summary:
+            for raw_line in summary.splitlines():
+                line = " ".join(str(raw_line).split())
+                if not line or line in ignored_lines:
+                    continue
+                return cls._shorten_text(line)
+
+        if bill_name:
+            return cls._shorten_text(bill_name)
+        return None
+
+    @staticmethod
     def _normalize_bill_proposer_kind(proposer_kind: object) -> str:
         normalized = str(proposer_kind or "").strip()
         if not normalized:
@@ -138,19 +167,36 @@ class WorkFlowManager:
             if not bill_id:
                 continue
 
+            bill_name = self._coerce_optional_text(row.get("bill_name"))
+            propose_date = self._coerce_optional_text(row.get("proposeDate"))
+            summary = self._coerce_optional_text(row.get("summary"))
+            stage = self._coerce_optional_text(row.get("stage"))
+            assembly_number = self._safe_to_int(row.get("assemblyNumber"), default=22)
+            explicit_bill_pdf_url = (
+                self._coerce_optional_text(row.get("billPdfUrl"))
+                or self._coerce_optional_text(row.get("bill_pdf_url"))
+                or self._coerce_optional_text(row.get("pdfLinkUrl"))
+                or self._coerce_optional_text(row.get("PDF_LINK_URL"))
+            )
+            title = self._derive_title(
+                summary=summary,
+                bill_name=bill_name,
+                existing_title=self._coerce_optional_text(row.get("title")),
+            )
+
             rows.append(
                 {
                     "bill_id": bill_id,
-                    "bill_name": self._coerce_optional_text(row.get("bill_name")),
+                    "bill_name": bill_name,
+                    "assembly_number": assembly_number,
                     "committee": self._coerce_optional_text(row.get("committee")),
                     "gpt_summary": self._coerce_optional_text(row.get("gpt_summary")),
-                    "propose_date": self._coerce_optional_text(row.get("proposeDate")),
-                    "summary": self._coerce_optional_text(row.get("summary")),
-                    "stage": self._coerce_optional_text(row.get("stage")),
+                    "propose_date": propose_date,
+                    "summary": summary,
+                    "stage": stage,
                     "proposers": self._coerce_optional_text(row.get("proposers")),
-                    "bill_pdf_url": self._coerce_optional_text(row.get("billPdfUrl"))
-                    or self._coerce_optional_text(row.get("bill_link")),
-                    "brief_summary": self._coerce_optional_text(row.get("brief_summary")),
+                    "bill_pdf_url": explicit_bill_pdf_url,
+                    "title": title,
                     "summary_tags": row.get("summary_tags"),
                     "bill_number": self._safe_to_int(row.get("billNumber")),
                     "bill_link": self._coerce_optional_text(row.get("bill_link")),
@@ -158,11 +204,65 @@ class WorkFlowManager:
                     "proposer_kind": self._normalize_bill_proposer_kind(
                         row.get("proposer_kind") or row.get("proposerKind")
                     ),
+                    "ingest_status": self._determine_bill_ingest_status(
+                        bill_name=bill_name,
+                        propose_date=propose_date,
+                        stage=stage,
+                        summary=summary,
+                    ),
                     "public_proposer_ids": self._coerce_string_list(row.get("publicProposerIdList")),
                     "rst_proposer_ids": self._coerce_string_list(row.get("rstProposerIdList")),
                 }
             )
         return rows
+
+    @staticmethod
+    def _rows_with_summary(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        return [row for row in rows if str(row.get("summary") or "").strip()]
+
+    def _build_bill_alternative_rows(self, df_alternatives: pd.DataFrame | None) -> List[Dict[str, Any]]:
+        if df_alternatives is None or df_alternatives.empty:
+            return []
+
+        rows: List[Dict[str, Any]] = []
+        seen_pairs: set[tuple[str, str]] = set()
+        for row in df_alternatives.to_dict(orient="records"):
+            alternative_bill_id = self._coerce_optional_text(
+                row.get("alternative_bill_id")
+                or row.get("altBillId")
+                or row.get("alt_bill_id")
+            )
+            original_bill_id = self._coerce_optional_text(
+                row.get("original_bill_id")
+                or row.get("bill_id")
+                or row.get("billId")
+            )
+            if not alternative_bill_id or not original_bill_id:
+                continue
+            pair = (alternative_bill_id, original_bill_id)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            rows.append(
+                {
+                    "alternative_bill_id": alternative_bill_id,
+                    "original_bill_id": original_bill_id,
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _determine_bill_ingest_status(
+        bill_name: Optional[str],
+        propose_date: Optional[str],
+        stage: Optional[str],
+        summary: Optional[str],
+    ) -> str:
+        if bill_name and propose_date and stage and summary:
+            return "READY"
+        if bill_name or propose_date or stage or summary:
+            return "PARTIAL"
+        return "PENDING"
 
     def _build_lawmaker_rows(self, df_lawmakers: pd.DataFrame) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
@@ -175,6 +275,7 @@ class WorkFlowManager:
             rows.append(
                 {
                     "congressman_id": congressman_id,
+                    "assembly_number": assembly_number,
                     "name": self._coerce_optional_text(row.get("congressmanName")),
                     "party_name": self._coerce_optional_text(row.get("partyName")),
                     "district": self._coerce_optional_text(row.get("district")),
@@ -296,29 +397,124 @@ class WorkFlowManager:
             "upserted": result["upserted"],
         }
 
+    def _persist_bill_rows(
+        self,
+        rows: List[Dict[str, Any]],
+        *,
+        source_name: str,
+        metadata: Dict[str, Any],
+    ) -> int:
+        if not rows or self.mode == "dry_run":
+            return 0
+
+        rows = self._rows_with_summary(rows)
+        if not rows:
+            return 0
+
+        db = self._build_db_manager(self.mode)
+        max_propose_date = max((row.get("propose_date") for row in rows if row.get("propose_date")), default=None)
+        db.insert_bill_info(
+            rows,
+            refresh_search=True,
+            checkpoint={
+                "source_name": source_name,
+                "assembly_number": self._safe_to_int(rows[0].get("assembly_number"), default=22),
+                "last_reference_date": max_propose_date,
+                "metadata": metadata,
+            },
+        )
+        return len(rows)
+
+    def _persist_bill_alternative_rows(self, rows: List[Dict[str, Any]]) -> int:
+        if not rows or self.mode == "dry_run":
+            return 0
+
+        db = self._build_db_manager(self.mode)
+        return db.insert_bill_alternatives(rows)
+
+    def rebuild_bill_search_documents(self, limit: int = 500) -> Dict[str, Any]:
+        if self.mode == "dry_run":
+            return {"mode": self.mode, "candidates": 0, "rebuilt": 0}
+
+        db = self._build_db_manager(self.mode)
+        candidates = db.fetch_bill_search_document_candidates(limit=limit)
+        rebuilt = db.refresh_bill_search_documents([row["bill_id"] for row in candidates])
+        return {
+            "mode": self.mode,
+            "candidates": len(candidates),
+            "rebuilt": rebuilt,
+        }
+
+    def refresh_bill_search_documents(self, bill_ids: List[str]) -> Dict[str, Any]:
+        if self.mode == "dry_run":
+            return {"mode": self.mode, "candidates": len(bill_ids), "rebuilt": 0}
+
+        db = self._build_db_manager(self.mode)
+        return {
+            "mode": self.mode,
+            "candidates": len(bill_ids),
+            "rebuilt": db.refresh_bill_search_documents(bill_ids),
+        }
+
+    def verify_bill_proposer_integrity(self, limit: int = 100) -> Dict[str, Any]:
+        """READY 의원 법안의 대표·공동 발의자 관계 무결성을 읽기 전용으로 점검합니다."""
+        if self.mode == "dry_run":
+            return {
+                "mode": self.mode,
+                "status": "success",
+                "incomplete": 0,
+                "samples": [],
+            }
+
+        db = self._build_db_manager(self.mode)
+        samples = db.fetch_incomplete_congressman_bill_relations(limit=max(1, int(limit)))
+        status = "partial" if samples else "success"
+        return {
+            "mode": self.mode,
+            "status": status,
+            "incomplete": len(samples),
+            "samples": samples,
+        }
+
     def fetch_bills_data_step(
         self,
         start_date: str | None = None,
         end_date: str | None = None,
         age: str | None = None,
     ) -> Dict[str, Any]:
-        start_date = start_date or self._default_bill_start_date()
         end_date = end_date or self._default_end_date()
         age = str(age or "22")
+
+        if start_date is None and self.mode != "dry_run":
+            db = self._build_db_manager(self.mode)
+            checkpoint = db.get_ingest_checkpoint("bill_ingest", int(age))
+            if checkpoint and checkpoint.get("last_reference_date"):
+                start_date = checkpoint["last_reference_date"].strftime("%Y-%m-%d")
+            else:
+                start_date = self._default_bill_start_date()
+        else:
+            start_date = start_date or self._default_bill_start_date()
 
         print(f"[bill_ingest.fetch] mode={self.mode} start={start_date} end={end_date} age={age}")
 
         fetcher = DataFetcher()
-        df_bills = fetcher.fetch_bills_data(start_date=start_date, end_date=end_date, age=age)
-        if df_bills is None or df_bills.empty:
-            print("[bill_ingest.fetch] 수집된 법안이 없습니다.")
-            return {"mode": self.mode, "fetched": 0, "artifact_path": None}
+        df_candidates = fetcher.discover_bill_candidates(start_date=start_date, end_date=end_date, age=age)
+        if df_candidates is None or df_candidates.empty:
+            print("[bill_ingest.fetch] 수집된 법안 후보가 없습니다.")
+            return {"mode": self.mode, "status": "empty", "fetched": 0, "artifact_path": None}
 
-        if "bill_id" in df_bills.columns:
-            df_bills = df_bills.drop_duplicates(subset=["bill_id"], keep="last")
+        if "bill_id" in df_candidates.columns:
+            df_candidates = df_candidates.drop_duplicates(subset=["bill_id"], keep="last")
 
-        artifact_path = self._write_artifact("bill_ingest_fetch", df_bills.to_dict(orient="records"))
-        return {"mode": self.mode, "fetched": len(df_bills), "artifact_path": artifact_path}
+        artifact_path = self._write_artifact("bill_ingest_fetch", df_candidates.to_dict(orient="records"))
+        return {
+            "mode": self.mode,
+            "status": "success",
+            "fetched": len(df_candidates),
+            "discovered": len(df_candidates),
+            "persisted": 0,
+            "artifact_path": artifact_path,
+        }
 
     def process_bills_data_step(self, artifact_path: str) -> Dict[str, Any]:
         print(f"[bill_ingest.process] mode={self.mode} artifact={artifact_path}")
@@ -326,12 +522,45 @@ class WorkFlowManager:
         records = self._read_artifact(artifact_path)
         if not records:
             print("[bill_ingest.process] 처리할 법안이 없습니다.")
-            return {"mode": self.mode, "processed": 0, "artifact_path": None}
+            return {"mode": self.mode, "status": "empty", "processed": 0, "artifact_path": None}
 
-        df_bills = pd.DataFrame(records)
+        df_candidates = pd.DataFrame(records)
         fetcher = DataFetcher()
+        hydrate_age = None
+        if not df_candidates.empty and "assemblyNumber" in df_candidates.columns:
+            hydrate_age = self._coerce_optional_text(df_candidates.iloc[0].get("assemblyNumber"))
+
+        df_bills = fetcher.hydrate_bill_candidates(df_candidates, age=hydrate_age)
+        if df_bills is None or df_bills.empty:
+            print("[bill_ingest.process] hydrate 결과가 없습니다.")
+            return {"mode": self.mode, "status": "empty", "processed": 0, "artifact_path": None}
+
         processor = DataProcessor(fetcher)
         df_congressman_bills = processor.process_congressman_bills(df_bills.copy())
+        _, df_alternatives = processor.process_chairman_bills(df_bills.copy())
+
+        rejected_rows: List[Dict[str, Any]] = []
+        if "proposer_kind" in df_bills.columns and "bill_id" in df_bills.columns:
+            congressman_mask = df_bills["proposer_kind"].astype(str).str.strip().isin(
+                {"의원", "CONGRESSMAN"}
+            )
+            resolved_bill_ids = set()
+            if df_congressman_bills is not None and not df_congressman_bills.empty:
+                if "bill_id" in df_congressman_bills.columns:
+                    resolved_bill_ids = set(df_congressman_bills["bill_id"].dropna().astype(str))
+            unresolved_mask = congressman_mask & ~df_bills["bill_id"].astype(str).isin(resolved_bill_ids)
+            if unresolved_mask.any():
+                unresolved_ids = df_bills.loc[unresolved_mask, "bill_id"].astype(str).tolist()
+                print(f"[bill_ingest.process] 발의자 관계가 없는 의원 법안을 제외합니다: {unresolved_ids}")
+                rejected_rows = [
+                    {
+                        "bill_id": bill_id,
+                        "reason": "missing_proposer_relations",
+                        "retryable": True,
+                    }
+                    for bill_id in unresolved_ids
+                ]
+                df_bills = df_bills.loc[~unresolved_mask].copy()
 
         if (
             df_congressman_bills is not None
@@ -361,29 +590,92 @@ class WorkFlowManager:
                         df_bills.drop(columns=[enriched], inplace=True)
 
         rows = self._build_bill_rows(df_bills)
-        processed_artifact_path = self._write_artifact("bill_ingest_process", rows)
+        alternative_rows = self._build_bill_alternative_rows(df_alternatives)
+        processed_artifact_path = self._write_artifact(
+            "bill_ingest_process",
+            {
+                "bills": rows,
+                "alternatives": alternative_rows,
+                "rejected": rejected_rows,
+            },
+        )
         return {
             "mode": self.mode,
+            "status": "partial" if rejected_rows else "success",
             "processed": len(rows),
+            "alternatives": len(alternative_rows),
+            "rejected": len(rejected_rows),
             "artifact_path": processed_artifact_path,
         }
 
     def upsert_bills_data_step(self, artifact_path: str) -> Dict[str, Any]:
         print(f"[bill_ingest.upsert] mode={self.mode} artifact={artifact_path}")
 
-        rows = self._read_artifact(artifact_path)
-        if not rows:
+        payload = self._read_artifact(artifact_path)
+        if isinstance(payload, dict):
+            rows = payload.get("bills") or []
+            alternative_rows = payload.get("alternatives") or []
+            rejected_rows = payload.get("rejected") or []
+        else:
+            rows = payload or []
+            alternative_rows = []
+            rejected_rows = []
+
+        if not rows and not alternative_rows:
             print("[bill_ingest.upsert] 적재할 법안이 없습니다.")
-            return {"mode": self.mode, "upserted": 0}
+            return {
+                "mode": self.mode,
+                "status": "partial" if rejected_rows else "empty",
+                "upserted": 0,
+                "alternatives_upserted": 0,
+                "rejected": len(rejected_rows),
+            }
 
         if self.mode == "dry_run":
-            print(f"[bill_ingest.upsert] [DRY_RUN] {len(rows)}개의 법안을 수집했으나 DB에 반영하지 않습니다.")
-            return {"mode": self.mode, "upserted": 0}
+            print(
+                "[bill_ingest.upsert] [DRY_RUN] "
+                f"{len(rows)}개의 법안과 {len(alternative_rows)}개의 대안 관계를 수집했으나 DB에 반영하지 않습니다."
+            )
+            return {
+                "mode": self.mode,
+                "status": "partial" if rejected_rows else "success",
+                "upserted": 0,
+                "alternatives_upserted": 0,
+                "rejected": len(rejected_rows),
+            }
 
-        db = self._build_db_manager(self.mode)
-        db.insert_bill_info(rows)
-        print(f"[bill_ingest.upsert] [{self.mode}] upserted={len(rows)}")
-        return {"mode": self.mode, "upserted": len(rows)}
+        rows_with_summary = self._rows_with_summary(rows)
+        rejected_rows = list(rejected_rows) + [
+            {
+                "bill_id": row.get("bill_id"),
+                "reason": "missing_summary",
+                "retryable": True,
+            }
+            for row in rows
+            if not str(row.get("summary") or "").strip()
+        ]
+        rows = rows_with_summary
+        kept_bill_ids = {row.get("bill_id") for row in rows}
+        alternative_rows = [
+            row for row in alternative_rows if row.get("alternative_bill_id") in kept_bill_ids
+        ]
+        upserted = self._persist_bill_rows(
+            rows,
+            source_name="bill_ingest",
+            metadata={"upserted": len(rows)},
+        )
+        alternatives_upserted = self._persist_bill_alternative_rows(alternative_rows)
+        print(
+            f"[bill_ingest.upsert] [{self.mode}] "
+            f"upserted={upserted} alternatives_upserted={alternatives_upserted}"
+        )
+        return {
+            "mode": self.mode,
+            "status": "partial" if rejected_rows else "success",
+            "upserted": upserted,
+            "alternatives_upserted": alternatives_upserted,
+            "rejected": len(rejected_rows),
+        }
 
     def update_lawmakers_data(self) -> Dict[str, Any]:
         print(f"[bill_status_sync] step=update_lawmakers_data mode={self.mode}")
@@ -391,15 +683,29 @@ class WorkFlowManager:
         fetcher = DataFetcher()
         df_lawmakers = fetcher.fetch_lawmakers_data()
         if df_lawmakers is None or df_lawmakers.empty:
-            print("[bill_status_sync] 수집된 의원 데이터가 없습니다.")
-            return {"step": "update_lawmakers_data", "mode": self.mode, "count": 0}
+            raise ValueError("전체 동기화에 빈 의원 명부를 사용할 수 없습니다.")
+
+        expected = df_lawmakers.attrs.get("source_total_count")
+        if (
+            not df_lawmakers.attrs.get("source_complete")
+            or not df_lawmakers.attrs.get("source_all_pages")
+            or expected != len(df_lawmakers)
+            or "MONA_CD" not in df_lawmakers
+            or "HG_NM" not in df_lawmakers
+            or "POLY_NM" not in df_lawmakers
+            or df_lawmakers["MONA_CD"].isna().any()
+            or df_lawmakers["MONA_CD"].astype(str).str.strip().eq("").any()
+            or df_lawmakers["MONA_CD"].astype(str).str.strip().duplicated().any()
+            or df_lawmakers["HG_NM"].fillna("").astype(str).str.strip().eq("").any()
+            or df_lawmakers["POLY_NM"].fillna("").astype(str).str.strip().eq("").any()
+        ):
+            raise ValueError("의원 명부 전체 수집과 코드 유일성을 확인하지 못했습니다.")
 
         df_lawmakers = df_lawmakers.drop(
             columns=[
                 "ENG_NM",
                 "HJ_NM",
                 "BTH_GBN_NM",
-                "ELECT_GBN_NM",
                 "STAFF",
                 "CMITS",
                 "SECRETARY",
@@ -422,6 +728,7 @@ class WorkFlowManager:
                 "REELE_GBN_NM": "elected",
                 "HOMEPAGE": "homepage",
                 "ORIG_NM": "district",
+                "ELECT_GBN_NM": "electSort",
                 "UNITS": "assemblyNumber",
                 "BTH_DATE": "congressmanBirth",
                 "SEX_GBN_NM": "sex",
@@ -436,7 +743,7 @@ class WorkFlowManager:
         rows = self._build_lawmaker_rows(df_lawmakers)
         if self.mode != "dry_run" and rows:
             db = self._build_db_manager(self.mode)
-            db.update_lawmaker_info(rows)
+            db.update_lawmaker_info(rows, full_snapshot=True)
 
         print(f"[bill_status_sync] lawmakers count={len(rows)}")
         return {"step": "update_lawmakers_data", "mode": self.mode, "count": len(rows)}
@@ -584,3 +891,80 @@ class WorkFlowManager:
             "vote_count": len(vote_rows),
             "party_count": len(party_rows),
         }
+
+def _wfm_build_status_sync_service(self):
+    from .bill_status_sync import BillStatusSyncService
+
+    return BillStatusSyncService(
+        mode=self.mode,
+        build_db_manager=self._build_db_manager,
+        artifact_dir=self._artifact_dir(),
+    )
+
+
+def _wfm_fetch_lifecycle_step(self, start_date=None, end_date=None, age=None):
+    service = self._build_status_sync_service()
+    return service.fetch_lifecycle_step(start_date=start_date, end_date=end_date, age=age)
+
+
+def _wfm_upsert_lifecycle_step(self, artifact_path):
+    service = self._build_status_sync_service()
+    return service.upsert_lifecycle_step(artifact_path)
+
+
+def _wfm_fetch_vote_step(self, start_date=None, end_date=None, age=None):
+    service = self._build_status_sync_service()
+    return service.fetch_vote_step(start_date=start_date, end_date=end_date, age=age)
+
+
+def _wfm_upsert_vote_step(self, artifact_path):
+    service = self._build_status_sync_service()
+    return service.upsert_vote_step(artifact_path)
+
+
+def _wfm_update_bills_timeline(self, start_date=None, end_date=None, age=None):
+    fetched = self.fetch_lifecycle_step(start_date=start_date, end_date=end_date, age=age)
+    artifact_path = fetched.get("artifact_path")
+    if not artifact_path:
+        return {"step": "update_bills_timeline", "mode": self.mode, "count": 0, "duplicate": 0, "not_found": 0}
+    result = self.upsert_lifecycle_step(artifact_path)
+    return {
+        "step": "update_bills_timeline",
+        "mode": self.mode,
+        "count": result.get("upserted", 0),
+        "duplicate": result.get("duplicate", 0),
+        "not_found": result.get("not_found", 0),
+    }
+
+
+def _wfm_update_bills_result(self, start_date=None, end_date=None, age=None):
+    fetched = self.fetch_lifecycle_step(start_date=start_date, end_date=end_date, age=age)
+    artifact_path = fetched.get("artifact_path")
+    if not artifact_path:
+        return {"step": "update_bills_result", "mode": self.mode, "count": 0}
+    result = self.upsert_lifecycle_step(artifact_path)
+    return {"step": "update_bills_result", "mode": self.mode, "count": result.get("updated", 0)}
+
+
+def _wfm_update_bills_vote(self, start_date=None, end_date=None, age=None):
+    fetched = self.fetch_vote_step(start_date=start_date, end_date=end_date, age=age)
+    artifact_path = fetched.get("artifact_path")
+    if not artifact_path:
+        return {"step": "update_bills_vote", "mode": self.mode, "vote_count": 0, "party_count": 0}
+    result = self.upsert_vote_step(artifact_path)
+    return {
+        "step": "update_bills_vote",
+        "mode": self.mode,
+        "vote_count": result.get("vote_count", 0),
+        "party_count": result.get("party_count", 0),
+    }
+
+
+WorkFlowManager._build_status_sync_service = _wfm_build_status_sync_service
+WorkFlowManager.fetch_lifecycle_step = _wfm_fetch_lifecycle_step
+WorkFlowManager.upsert_lifecycle_step = _wfm_upsert_lifecycle_step
+WorkFlowManager.fetch_vote_step = _wfm_fetch_vote_step
+WorkFlowManager.upsert_vote_step = _wfm_upsert_vote_step
+WorkFlowManager.update_bills_timeline = _wfm_update_bills_timeline
+WorkFlowManager.update_bills_result = _wfm_update_bills_result
+WorkFlowManager.update_bills_vote = _wfm_update_bills_vote

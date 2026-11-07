@@ -16,9 +16,12 @@ import com.everyones.lawmaking.common.dto.proposer.QRepresentativeProposerDto;
 import com.everyones.lawmaking.common.dto.proposer.RepresentativeProposerDto;
 import com.everyones.lawmaking.common.dto.response.BillListResponse;
 import com.everyones.lawmaking.common.dto.response.PaginationResponse;
+import com.everyones.lawmaking.domain.entity.IngestStatusType;
+import com.everyones.lawmaking.global.error.RequestParameterException;
 import com.everyones.lawmaking.global.util.PaginationUtil;
 import com.querydsl.core.group.GroupBy;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Collections;
 import java.util.List;
@@ -40,30 +43,72 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public BillListResponse findBillWithDetailAndPage(Pageable pageable, Optional<Long> userIdOptional, String stage) {
-        var pagedBill = findPagedBills(pageable, stage);
+    public BillListResponse findBillWithDetailAndPage(Pageable pageable, Optional<Long> userIdOptional, String stage, String assembly) {
+        var pagedBill = findPagedBills(pageable, stage, assembly);
+        return buildBillListResponse(pagedBill, pageable, userIdOptional);
+    }
+
+    @Override
+    public BillListResponse findBillByCategoryAndPage(Pageable pageable, Optional<Long> userIdOptional, String category, int assembly) {
+        var pagedBill = findPagedBillsByCategory(pageable, category, assembly);
+        return buildBillListResponse(pagedBill, pageable, userIdOptional);
+    }
+
+    private BillListResponse buildBillListResponse(List<BillInfoDto> pagedBill, Pageable pageable, Optional<Long> userIdOptional) {
+        var isLastPage = PaginationUtil.hasNextPage(pagedBill, pageable.getPageSize());
+        var pagination = PaginationResponse.of(isLastPage, pageable.getPageNumber());
         var billIds = extractBillIds(pagedBill);
         var representativeProposerMap = findRepresentativeProposerMap(billIds);
         var publicProposerMap = findPublicProposerMap(billIds);
         var billLikeMap = checkBillLiked(billIds, userIdOptional);
         var billDtoList = createBillDtoList(pagedBill, representativeProposerMap, publicProposerMap, billLikeMap);
-        var pagination = PaginationResponse.of(PaginationUtil.hasNextPage(pagedBill, pageable.getPageSize()), pageable.getPageNumber());
         return BillListResponse.of(pagination, billDtoList);
     }
-    private List<BillInfoDto> findPagedBills(Pageable pageable, String stage) {
+
+    private List<BillInfoDto> findPagedBills(Pageable pageable, String stage, String assembly) {
+        var hasAiSummary = hasText(bill.title).and(hasText(bill.gptSummary));
+        var archived = bill.assemblyNumber.eq(21);
+        var current = bill.assemblyNumber.eq(22);
+        var scope = switch (assembly == null ? "" : assembly) {
+            case "21" -> archived;
+            case "22" -> current;
+            case "all" -> current.or(archived);
+            case "" -> hasAiSummary;
+            default -> throw new RequestParameterException();
+        };
         return queryFactory.select(new QBillInfoDto(bill))
                 .from(bill)
-                .where(eqStage(stage))
+                .where(eqReady(), scope, eqStage(stage))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .orderBy(bill.proposeDate.desc(), bill.id.desc())
                 .fetch();
+    }
+
+    private List<BillInfoDto> findPagedBillsByCategory(Pageable pageable, String category, int assembly) {
+        var categoryMatch = bill.category.eq(category);
+        if ("unknown".equals(category)) {
+            categoryMatch = categoryMatch.or(bill.category.isNull()).or(bill.category.trim().isEmpty());
+        }
+        return queryFactory.select(new QBillInfoDto(bill))
+                .from(bill)
+                .where(eqReady(), bill.assemblyNumber.eq(assembly), categoryMatch)
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
+                .orderBy(bill.proposeDate.desc(), bill.id.desc())
+                .fetch();
+    }
+    private BooleanExpression eqReady() {
+        return bill.ingestStatus.eq(IngestStatusType.READY);
     }
     private BooleanExpression eqStage(String stage) {
         if(StringUtils.hasText(stage)) {
             return bill.stage.eq(stage);
         }
         return null;
+    }
+    private BooleanExpression hasText(StringPath value) {
+        return value.isNotNull().and(value.trim().isNotEmpty());
     }
     private Map<String, List<RepresentativeProposerDto>> findRepresentativeProposerMap(List<String> billIds) {
         return queryFactory

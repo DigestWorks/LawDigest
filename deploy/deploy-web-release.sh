@@ -55,6 +55,7 @@ load_env_file() {
     esac
 
     printf -v "$key" '%s' "$value"
+    # shellcheck disable=SC2163
     export "$key"
   done < "$env_file"
 }
@@ -71,16 +72,54 @@ NEXT_PUBLIC_IMAGE_URL="${NEXT_PUBLIC_IMAGE_URL:-https://api.lawdigest.kr}"
 NEXT_PUBLIC_HOSTNAME="${NEXT_PUBLIC_HOSTNAME:-api.lawdigest.kr}"
 INTERNAL_API_ORIGIN="${INTERNAL_API_ORIGIN:-http://127.0.0.1:808}"
 NEXT_PUBLIC_DOMAIN="${NEXT_PUBLIC_DOMAIN:-https://lawdigest.kr}"
+FORCED_NEXT_PUBLIC_DOMAIN="$NEXT_PUBLIC_DOMAIN"
 DEPLOY_LABEL="${DEPLOY_LABEL:-release}"
+DEV_RUNTIME_ROOT="$SHARED_REPO_ROOT/.runtime/dev-web"
+HEALTHCHECK_PATH="${WEB_HEALTHCHECK_PATH:-/}"
 
 load_env_file "$SOURCE_ENV_FILE"
 
 if [ -f "$TARGET_ROOT/.env.preview" ]; then
-  # shellcheck disable=SC1090
+  # shellcheck disable=SC1091
   . "$TARGET_ROOT/.env.preview"
 fi
 
+if [ -n "$FORCED_NEXT_PUBLIC_DOMAIN" ]; then
+  NEXT_PUBLIC_DOMAIN="$FORCED_NEXT_PUBLIC_DOMAIN"
+fi
+
 load_env_file "$TARGET_WEB_DIR/.env.preview"
+load_env_file "${WEB_PRIVATE_ENV_FILE:-}"
+
+start_web_process() {
+  local release_root="$1"
+
+  if pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
+    pm2 delete "$PM2_NAME"
+  fi
+
+  cd "$release_root/services/web"
+  NODE_ENV=production \
+  PORT="$PORT" \
+  HOSTNAME="$APP_HOST" \
+  NEXT_PUBLIC_URL="$NEXT_PUBLIC_URL" \
+  NEXT_PUBLIC_IMAGE_URL="$NEXT_PUBLIC_IMAGE_URL" \
+  NEXT_PUBLIC_HOSTNAME="$NEXT_PUBLIC_HOSTNAME" \
+  INTERNAL_API_ORIGIN="$INTERNAL_API_ORIGIN" \
+  NEXT_PUBLIC_DOMAIN="$NEXT_PUBLIC_DOMAIN" \
+  pm2 start npm --name "$PM2_NAME" -- run start
+}
+
+check_web_health() {
+  for _ in $(seq 1 30); do
+    if curl -fsS -o /dev/null "http://127.0.0.1:${PORT}${HEALTHCHECK_PATH}"; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  return 1
+}
 
 BRANCH_NAME="$(git -C "$TARGET_ROOT" branch --show-current)"
 COMMIT_SHA="$(git -C "$TARGET_ROOT" rev-parse --short HEAD)"
@@ -98,9 +137,12 @@ echo "  domain: $NEXT_PUBLIC_DOMAIN"
 
 mkdir -p "$RELEASES_DIR"
 
+echo "▶ 이전 웹 릴리스 정리"
+python3 "$SCRIPT_DIR/web_release_storage.py" prune "$RUNTIME_ROOT" --keep "${WEB_RELEASES_TO_KEEP:-6}"
+
 echo "▶ 의존성 설치"
 cd "$TARGET_WEB_DIR"
-npm install
+npm ci
 
 echo "▶ 프로덕션 빌드"
 NODE_ENV=production \
@@ -111,32 +153,106 @@ INTERNAL_API_ORIGIN="$INTERNAL_API_ORIGIN" \
 NEXT_PUBLIC_DOMAIN="$NEXT_PUBLIC_DOMAIN" \
 npm run build
 
+echo "▶ 빌드 산출물 검증"
+if [ ! -d "$TARGET_WEB_DIR/.next" ]; then
+  echo "✗ .next 디렉터리가 생성되지 않았습니다: $TARGET_WEB_DIR/.next"
+  exit 1
+fi
+
+REQUIRED_NEXT_FILES=(
+  "$TARGET_WEB_DIR/.next/build-manifest.json"
+  "$TARGET_WEB_DIR/.next/prerender-manifest.json"
+  "$TARGET_WEB_DIR/.next/react-loadable-manifest.json"
+  "$TARGET_WEB_DIR/.next/routes-manifest.json"
+)
+for required_file in "${REQUIRED_NEXT_FILES[@]}"; do
+  if [ ! -f "$required_file" ]; then
+    echo "✗ 누락된 Next.js 산출물입니다: $required_file"
+    exit 1
+  fi
+done
+
+if [ ! -d "$TARGET_WEB_DIR/.next/server/app" ] && [ ! -d "$TARGET_WEB_DIR/.next/server/pages" ]; then
+  echo "✗ .next/server/app 또는 .next/server/pages가 모두 없습니다: $TARGET_WEB_DIR/.next/server"
+  exit 1
+fi
+
+echo "▶ release 복사 공간 확인"
+python3 "$SCRIPT_DIR/web_release_storage.py" check-space "$RUNTIME_ROOT" --source "$TARGET_WEB_DIR"
+
 echo "▶ release 디렉터리 생성"
-mkdir -p "$RELEASE_DIR/services"
+mkdir "$RELEASE_DIR"
 
 echo "▶ 산출물 복사"
-cp -a "$TARGET_WEB_DIR" "$RELEASE_DIR/services/"
+if ! {
+  mkdir -p "$RELEASE_DIR/services/web" &&
+    tar -C "$TARGET_WEB_DIR" --exclude='./.next/cache/webpack' -cf - . |
+    tar -C "$RELEASE_DIR/services/web" -xpf -
+}; then
+  echo "✗ 웹 release 파일을 복사하지 못했습니다." >&2
+  rm -rf -- "$RELEASE_DIR"
+  exit 1
+fi
+
+PREVIOUS_RELEASE=""
+if [ -L "$CURRENT_LINK" ]; then
+  PREVIOUS_RELEASE="$(readlink -f "$CURRENT_LINK")"
+fi
 
 echo "▶ current 심링크 전환"
 ln -sfn "$RELEASE_DIR" "$TMP_LINK"
 mv -Tf "$TMP_LINK" "$CURRENT_LINK"
 
 echo "▶ PM2 재기동"
-if pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
-  pm2 delete "$PM2_NAME"
+start_web_process "$CURRENT_LINK"
+
+echo "▶ 웹 헬스체크"
+if ! check_web_health; then
+  echo "✗ 새 웹 release 헬스체크 실패"
+  pm2 logs "$PM2_NAME" --lines 100 --nostream || true
+
+  if [ -z "$PREVIOUS_RELEASE" ] || [ ! -d "$PREVIOUS_RELEASE/services/web" ]; then
+    echo "✗ 복구할 이전 웹 release가 없습니다."
+    pm2 delete "$PM2_NAME" || true
+    exit 1
+  fi
+
+  echo "▶ 이전 웹 release 복구"
+  ln -sfn "$PREVIOUS_RELEASE" "$TMP_LINK"
+  mv -Tf "$TMP_LINK" "$CURRENT_LINK"
+  start_web_process "$CURRENT_LINK"
+
+  if ! check_web_health; then
+    echo "✗ 이전 웹 release 복구 헬스체크 실패"
+    pm2 logs "$PM2_NAME" --lines 100 --nostream || true
+    exit 1
+  fi
+
+  pm2 save
+  echo "✓ 이전 웹 release 복구 완료: $PREVIOUS_RELEASE"
+  exit 1
 fi
 
-cd "$CURRENT_LINK/services/web"
-NODE_ENV=production \
-PORT="$PORT" \
-HOSTNAME="$APP_HOST" \
-NEXT_PUBLIC_URL="$NEXT_PUBLIC_URL" \
-NEXT_PUBLIC_IMAGE_URL="$NEXT_PUBLIC_IMAGE_URL" \
-NEXT_PUBLIC_HOSTNAME="$NEXT_PUBLIC_HOSTNAME" \
-INTERNAL_API_ORIGIN="$INTERNAL_API_ORIGIN" \
-NEXT_PUBLIC_DOMAIN="$NEXT_PUBLIC_DOMAIN" \
-pm2 start npm --name "$PM2_NAME" -- run start
+if [ -x "$SCRIPT_DIR/ensure-dev-web-pm2.sh" ] && [ "$PM2_NAME" != "lawdigest-web-dev" ]; then
+  echo "▶ dev 웹 PM2 누락 여부 점검"
+  WEB_PORT=3021 \
+  APP_HOST=0.0.0.0 \
+  RUNTIME_ROOT="$DEV_RUNTIME_ROOT" \
+  PM2_NAME=lawdigest-web-dev \
+  NEXT_PUBLIC_DOMAIN=https://dev.lawdigest.kr \
+  "$SCRIPT_DIR/ensure-dev-web-pm2.sh" --quiet
+fi
+
 pm2 save
+
+if [ -n "$PREVIOUS_RELEASE" ] && [ "$PREVIOUS_RELEASE" != "$RELEASE_DIR" ]; then
+  ln -sfn "$PREVIOUS_RELEASE" "$RUNTIME_ROOT/.previous.tmp"
+  mv -Tf "$RUNTIME_ROOT/.previous.tmp" "$RUNTIME_ROOT/previous"
+fi
+
+if ! python3 "$SCRIPT_DIR/web_release_storage.py" prune "$RUNTIME_ROOT" --keep "${WEB_RELEASES_TO_KEEP:-6}"; then
+  echo "⚠ 새 릴리스는 정상이며 이전 산출물 정리는 다음 배포에서 다시 시도합니다." >&2
+fi
 
 echo "✓ 배포 완료"
 echo "  domain: $NEXT_PUBLIC_DOMAIN"

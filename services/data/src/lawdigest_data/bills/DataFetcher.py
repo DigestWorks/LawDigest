@@ -4,11 +4,19 @@ from xml.etree import ElementTree
 import time
 from datetime import datetime, timedelta
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import json
-import re # fetch_bills_info (주석 해제 시) 대비
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from bs4 import BeautifulSoup
+
+from .open_assembly import OpenAssemblyBillClient
+from .likms_proposers import (
+    ProposerSourceError,
+    fetch_historical_member_code,
+    fetch_likms_proposers,
+)
 
 try:
     from tqdm import tqdm
@@ -108,8 +116,76 @@ class DataFetcher:
             "success_code": "00",
         }
 
-        load_dotenv()
+        load_dotenv(Path(__file__).resolve().parents[3] / ".env")
         # __init__에서 자동 데이터 수집 로직 제거
+
+    @staticmethod
+    def _parse_likms_alternative_fragment(alternative_bill_id, html):
+        soup = BeautifulSoup(html, "html.parser")
+        rows_by_bill_id = {}
+        for anchor in soup.select("a[data-bill-id]"):
+            bill_id = str(anchor.get("data-bill-id") or "").strip()
+            if not bill_id or bill_id == alternative_bill_id:
+                continue
+
+            bill_name = " ".join(anchor.get_text(" ", strip=True).split())
+            existing = rows_by_bill_id.get(bill_id)
+            if existing and existing.get("bill_name") and not existing["bill_name"].isdigit():
+                continue
+
+            rows_by_bill_id[bill_id] = {
+                "bill_id": bill_id,
+                "bill_name": bill_name,
+            }
+
+        return list(rows_by_bill_id.values())
+
+    def _fetch_likms_alternative_bills(self, bill_id):
+        detail_response = self.session.get(
+            "https://likms.assembly.go.kr/bill/billDetail.do",
+            params={"billId": bill_id},
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if detail_response.status_code != 200:
+            tqdm.write(
+                f"❌ [ERROR] 의안정보시스템 상세 조회 실패 (bill_id={bill_id}), "
+                f"응답 코드: {detail_response.status_code}"
+            )
+            return []
+
+        soup = BeautifulSoup(detail_response.text, "html.parser")
+        params = {}
+        for form_id in ["form", "historyForm"]:
+            form = soup.find("form", {"id": form_id})
+            if form is None:
+                continue
+            for input_tag in form.find_all("input"):
+                name = input_tag.get("name")
+                if name:
+                    params.setdefault(name, input_tag.get("value", ""))
+
+        if not params.get("billId"):
+            params["billId"] = bill_id
+
+        fragment_response = self.session.post(
+            "https://likms.assembly.go.kr/bill/bi/bill/detail/anBillInfo.do",
+            data=params,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": detail_response.url,
+            },
+        )
+        if fragment_response.status_code != 200:
+            tqdm.write(
+                f"❌ [ERROR] 의안정보시스템 대안정보 조회 실패 (bill_id={bill_id}), "
+                f"응답 코드: {fragment_response.status_code}"
+            )
+            return []
+
+        return self._parse_likms_alternative_fragment(bill_id, fragment_response.text)
 
     # ------------------------------------------------------------------
     # Generic API helpers (변경 없음)
@@ -189,6 +265,11 @@ class DataFetcher:
 
         if not all_pages:
             df = pd.DataFrame(all_data)
+            df.attrs.update(
+                source_total_count=total_count,
+                source_complete=len(df) == total_count,
+                source_all_pages=False,
+            )
             print(f"\n🎉 다운로드 완료! 총 {len(df)}개의 데이터를 수집했습니다. 📊")
             return df
 
@@ -220,137 +301,296 @@ class DataFetcher:
                         break
 
         df = pd.DataFrame(all_data)
+        df.attrs.update(
+            source_total_count=total_count,
+            source_complete=len(df) == total_count,
+            source_all_pages=True,
+        )
         print(f"\n🎉 다운로드 완료! 총 {len(df)}개의 데이터를 수집했습니다. 📊")
         return df
         
-    def fetch_bills_data(self, start_date=None, end_date=None, age=None, start_ord=None, end_ord=None, retry=2, **kwargs):
-        """
-        법안 주요 내용 데이터를 API에서 수집하는 함수.
-        
-        Args:
-            start_date (str, optional): 검색 시작일 (YYYY-MM-DD). Defaults to 어제.
-            end_date (str, optional): 검색 종료일 (YYYY-MM-DD). Defaults to 오늘.
-            age (str, optional): 대수. Defaults to AGE 환경변수.
-            start_ord (str, optional): 검색 시작 대수. Defaults to age.
-            end_ord (str, optional): 검색 종료 대수. Defaults to age.
-            retry (int, optional): 데이터 수집 실패 시 재시도 횟수. Defaults to 2.
-            **kwargs: API 요청에 전달할 추가 매개변수.
-        """
-        # self.params.get() 대신 메서드 인자를 직접 사용
-        _start_date = start_date or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        _end_date = end_date or datetime.now().strftime('%Y-%m-%d')
-        _age = age or os.environ.get("AGE")
-        _start_ord = start_ord or _age
-        _end_ord = end_ord or _age
 
-        api_key = os.environ.get("APIKEY_DATAGOKR")
-        url = 'http://apis.data.go.kr/9710000/BillInfoService2/getBillInfoList'
-        mapper = self.mapper_datagokr_xml
+    @staticmethod
+    def _parse_api_date(value):
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        for fmt in ("%Y-%m-%d", "%Y.%m.%d"):
+            try:
+                return datetime.strptime(text, fmt).date()
+            except ValueError:
+                continue
+        return None
 
-        # requests에 전달할 params 딕셔너리를 *이곳에서* 생성
-        params = {
-            'serviceKey': api_key,
-            mapper['page_param']: 1,
-            mapper['size_param']: 100,
-            'start_ord': _start_ord,
-            'end_ord': _end_ord,
-            'start_propose_date': _start_date,
-            'end_propose_date': _end_date,
-        }
-        
-        # **kwargs를 통해 받은 추가 인자를 params에 병합
-        params.update(kwargs)
-        
-        verbose = kwargs.get('verbose', False)
+    def _row_matches_date_range(self, row, keys, start_date, end_date):
+        for key in keys:
+            parsed = self._parse_api_date(row.get(key))
+            if parsed is None:
+                continue
+            return start_date <= parsed <= end_date
+        return False
 
-        print(f"📌 [{_start_date} ~ {_end_date}] 의안 주요 내용 데이터 수집 시작...")
+    def _first_available_date(self, row, keys):
+        for key in keys:
+            parsed = self._parse_api_date(row.get(key))
+            if parsed is not None:
+                return parsed
+        return None
 
-        attempts = 0
-        max_attempts = retry + 1
-        df_bills = pd.DataFrame()
+    def _collect_incremental_rows(self, client, endpoint, params, date_keys, start_date, end_date, page_size=100):
+        collected = []
+        page = 1
 
-        while attempts < max_attempts:
-            attempts += 1
-            if attempts > 1:
-                print(f"🔄 [RETRY] 데이터 수집 재시도 중... ({attempts-1}/{retry})")
-                time.sleep(2) # 재시도 전 대기
-
-            df_bills = self.fetch_data_generic(
-                url=url,
-                params=params, # <-- 지역 변수 params 전달
-                mapper=mapper,
-                format='xml',
-                all_pages=True,
-                verbose=verbose
+        while True:
+            page_rows = client.fetch_rows(
+                endpoint,
+                {**params, 'pIndex': page, 'pSize': page_size},
+                all_pages=False,
+                page_size=page_size,
             )
-
-            if not df_bills.empty:
+            if not page_rows:
                 break
 
-        if df_bills.empty:
-            print(
-                f"⚠️ [WARNING] {max_attempts}회 시도했으나 수집된 데이터가 없습니다. API 응답을 확인하세요."
+            collected.extend(
+                row for row in page_rows
+                if self._row_matches_date_range(row, date_keys, start_date, end_date)
             )
-            # 빈 DF라도 캐시하고 반환
+
+            oldest_row_date = None
+            for row in reversed(page_rows):
+                oldest_row_date = self._first_available_date(row, date_keys)
+                if oldest_row_date is not None:
+                    break
+
+            if oldest_row_date is not None and oldest_row_date < start_date:
+                break
+
+            if len(page_rows) < page_size:
+                break
+
+            page += 1
+
+        return collected
+
+    @staticmethod
+    def _safe_bill_number(value):
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _stringify_bill_number(value):
+        if value is None:
+            return ""
+        if isinstance(value, float) and pd.isna(value):
+            return ""
+        text = str(value).strip()
+        if text.endswith('.0'):
+            text = text[:-2]
+        return text
+
+    @staticmethod
+    def _first_non_empty_value(*values):
+        for value in values:
+            if value is None:
+                continue
+            text = str(value).strip()
+            if text:
+                return text
+        return None
+
+    def _build_open_assembly_client(self, api_key=None):
+        resolved_api_key = api_key or os.environ.get('APIKEY_billsInfo') or os.environ.get('APIKEY_status')
+        if not resolved_api_key:
+            print('❌ [ERROR] 열린국회정보 API KEY가 설정되어 있지 않습니다.')
+            return None
+        return OpenAssemblyBillClient(session=self.session, api_key=resolved_api_key)
+
+    def _derive_bill_stage(self, lifecycle_row, candidate_row, detail_row):
+        lifecycle_row = lifecycle_row or {}
+        candidate_row = candidate_row or {}
+        detail_row = detail_row or {}
+
+        if candidate_row.get('PROC_RESULT_CD') == '철회' or candidate_row.get('PROC_RSLT') == '철회':
+            return '철회'
+        if lifecycle_row.get('PROM_DT'):
+            return '공포'
+        if lifecycle_row.get('GVRN_TRSF_DT'):
+            return '정부이송'
+        if lifecycle_row.get('RGS_RSLN_DT') or lifecycle_row.get('RGS_PRSNT_DT') or detail_row.get('RGS_RSLN_DT') or detail_row.get('RGS_PRSNT_DT'):
+            return '본회의 심의'
+        if lifecycle_row.get('LAW_PROC_DT') or lifecycle_row.get('LAW_PRSNT_DT') or lifecycle_row.get('LAW_CMMT_DT') or detail_row.get('LAW_PROC_DT') or detail_row.get('LAW_PRSNT_DT') or detail_row.get('LAW_CMMT_DT'):
+            return '체계자구 심사'
+        if lifecycle_row.get('JRCMIT_PROC_DT') or lifecycle_row.get('JRCMIT_PRSNT_DT') or lifecycle_row.get('JRCMIT_CMMT_DT') or lifecycle_row.get('JRCMIT_NM') or candidate_row.get('CURR_COMMITTEE') or detail_row.get('JRCMIT_NM'):
+            return '위원회 심사'
+        return '접수'
+
+    def discover_bill_candidates(self, start_date=None, end_date=None, age=None, api_key=None, include_receipts=False):
+        _start_date = start_date or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        _end_date = end_date or datetime.now().strftime('%Y-%m-%d')
+        _age = str(age or os.environ.get('AGE') or '22')
+
+        start_bound = datetime.strptime(_start_date, '%Y-%m-%d').date()
+        end_bound = datetime.strptime(_end_date, '%Y-%m-%d').date()
+
+        client = self._build_open_assembly_client(api_key=api_key)
+        if client is None:
+            return pd.DataFrame()
+
+        print(f"📌 [{_start_date} ~ {_end_date}] 열린국회정보 후보 법안 수집 시작...")
+
+        candidate_map = {}
+        discovery_sources = [
+            ('BILL_PENDING', 'nwbqublzajtcqpdae', {}, ('PROPOSE_DT',)),
+            ('BILL_PROCESSED', 'nzpltgfqabtcpsmai', {'AGE': _age}, ('PROC_DT',)),
+            ('RECENT_PLENARY', 'nxjuyqnxadtotdrbw', {'AGE': _age}, ('PROC_DT',)),
+        ]
+        if include_receipts:
+            discovery_sources.insert(0, ('BILLRCP', 'BILLRCP', {'ERACO': f'제{_age}대'}, ('PPSL_DT',)))
+
+        for source_name, endpoint, params, date_keys in discovery_sources:
+            rows = self._collect_incremental_rows(client, endpoint, params, date_keys, start_bound, end_bound)
+            for row in rows:
+                bill_id = str(row.get('BILL_ID') or '').strip()
+                if not bill_id:
+                    continue
+                candidate_map[bill_id] = {
+                    'bill_id': bill_id,
+                    'bill_name': row.get('BILL_NM') or row.get('BILL_NAME'),
+                    'billNumber': self._safe_bill_number(row.get('BILL_NO')),
+                    'proposeDate': row.get('PPSL_DT') or row.get('PROPOSE_DT'),
+                    'summary': None,
+                    'stage': self._derive_bill_stage({}, row, {}),
+                    'proposer_kind': row.get('PPSR_KIND') or row.get('PROPOSER_KIND') or row.get('PPSR_KND'),
+                    'proposers': row.get('PROPOSER') or row.get('PPSR') or row.get('PPSR_NM'),
+                    'committee': row.get('CURR_COMMITTEE') or row.get('JRCMIT_NM'),
+                    'bill_link': row.get('LINK_URL') or row.get('DETAIL_LINK'),
+                    'billResult': row.get('PROC_RESULT_CD') or row.get('PROC_RSLT') or row.get('RGS_CONF_RSLT'),
+                    'assemblyNumber': _age,
+                    'source_name': source_name,
+                }
+
+        df_candidates = pd.DataFrame(candidate_map.values())
+        if not df_candidates.empty and 'bill_id' in df_candidates.columns:
+            df_candidates = df_candidates.drop_duplicates(subset=['bill_id'], keep='last').reset_index(drop=True)
+
+        self.content = df_candidates
+        self.df_bills = df_candidates
+        return df_candidates
+
+    def hydrate_bill_candidates(self, candidates, age=None, api_key=None):
+        if candidates is None:
+            return pd.DataFrame()
+
+        if isinstance(candidates, pd.DataFrame):
+            df_candidates = candidates.copy()
+        else:
+            df_candidates = pd.DataFrame(candidates)
+
+        if df_candidates.empty:
+            return df_candidates
+
+        _age = str(age or df_candidates.get('assemblyNumber', pd.Series(['22'])).iloc[0] or os.environ.get('AGE') or '22')
+        client = self._build_open_assembly_client(api_key=api_key)
+        if client is None:
+            return pd.DataFrame()
+
+        hydrated_rows = []
+        for candidate_row in tqdm(df_candidates.to_dict(orient='records'), desc='법안 hydrate', unit='건'):
+            bill_id = str(candidate_row.get('bill_id') or '').strip()
+            if not bill_id:
+                continue
+
+            detail_row = client.fetch_bill_detail(bill_id) or {}
+            bill_no = self._stringify_bill_number(detail_row.get('BILL_NO') or candidate_row.get('billNumber'))
+
+            member_rows = []
+            if not bill_no:
+                member_rows = client.fetch_member_bills(_age, BILL_ID=bill_id)
+                if member_rows:
+                    bill_no = self._stringify_bill_number(member_rows[0].get('BILL_NO'))
+            member_row = member_rows[0] if member_rows else {}
+
+            summary_row = client.fetch_bill_summary(bill_no) if bill_no else {}
+            summary_row = summary_row or {}
+            lifecycle_row = client.fetch_bill_lifecycle(bill_no) if bill_no else {}
+            lifecycle_row = lifecycle_row or {}
+
+            hydrated_rows.append(
+                {
+                    'bill_id': bill_id,
+                    'bill_name': detail_row.get('BILL_NM') or summary_row.get('BILL_NAME') or candidate_row.get('bill_name') or member_row.get('BILL_NAME'),
+                    'billNumber': self._safe_bill_number(bill_no or candidate_row.get('billNumber')),
+                    'proposeDate': detail_row.get('PPSL_DT') or candidate_row.get('proposeDate') or member_row.get('PROPOSE_DT'),
+                    'summary': summary_row.get('SUMMARY') or candidate_row.get('summary'),
+                    'stage': self._derive_bill_stage(lifecycle_row, candidate_row, detail_row),
+                    'proposer_kind': detail_row.get('PPSR_KIND') or lifecycle_row.get('PPSR_KND') or candidate_row.get('proposer_kind'),
+                    'proposers': detail_row.get('PPSR') or lifecycle_row.get('PPSR_NM') or candidate_row.get('proposers') or member_row.get('PROPOSER'),
+                    'committee': lifecycle_row.get('JRCMIT_NM') or candidate_row.get('committee') or detail_row.get('JRCMIT_NM') or member_row.get('COMMITTEE'),
+                    'bill_link': lifecycle_row.get('LINK_URL') or candidate_row.get('bill_link') or member_row.get('DETAIL_LINK'),
+                    'billPdfUrl': self._first_non_empty_value(
+                        lifecycle_row.get('PDF_LINK_URL'),
+                        detail_row.get('PDF_LINK_URL'),
+                        member_row.get('PDF_LINK_URL'),
+                        lifecycle_row.get('BILL_PDF_URL'),
+                        detail_row.get('BILL_PDF_URL'),
+                        member_row.get('BILL_PDF_URL'),
+                    ),
+                    'billResult': lifecycle_row.get('RGS_CONF_RSLT') or candidate_row.get('billResult') or member_row.get('PROC_RESULT'),
+                    'assemblyNumber': candidate_row.get('assemblyNumber') or _age,
+                    'source_name': candidate_row.get('source_name'),
+                }
+            )
+
+        df_bills = pd.DataFrame(hydrated_rows)
+        if not df_bills.empty and 'bill_id' in df_bills.columns:
+            df_bills = df_bills.drop_duplicates(subset=['bill_id'], keep='last').reset_index(drop=True)
+
+        self.content = df_bills
+        self.df_bills = df_bills
+        return df_bills
+
+    def fetch_bills_data(self, start_date=None, end_date=None, age=None, start_ord=None, end_ord=None, retry=2, **kwargs):
+        """열린국회정보 API를 조합해 법안 본체 데이터를 수집합니다."""
+        _start_date = start_date or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        _end_date = end_date or datetime.now().strftime('%Y-%m-%d')
+        _age = str(age or os.environ.get('AGE') or '22')
+
+        df_candidates = self.discover_bill_candidates(
+            start_date=_start_date,
+            end_date=_end_date,
+            age=_age,
+            api_key=kwargs.get('api_key'),
+            include_receipts=kwargs.get('include_receipts', False),
+        )
+        if df_candidates.empty:
+            print('[open_assembly] 날짜 범위에 해당하는 법안 후보가 없습니다.')
+            self.df_bills = df_candidates
+            self.content = df_candidates
+            return df_candidates
+
+        df_bills = self.hydrate_bill_candidates(df_candidates, age=_age, api_key=kwargs.get('api_key'))
+        if df_bills.empty:
+            print('[open_assembly] hydrate 결과가 비어 있습니다.')
             self.df_bills = df_bills
             self.content = df_bills
             return df_bills
 
-        print(f"✅ [INFO] 총 {len(df_bills)} 개의 법안 수집됨.")
-
-        if self.filter_data:
-            print("✅ [INFO] 데이터 컬럼 필터링을 수행합니다.")
-            # 유지할 컬럼 목록
-            columns_to_keep = [
-                'proposeDt',  # 발의일자
-                'billId', # 법안 ID
-                'billName', # 법안 이름
-                'billNo',  # 법안번호
-                'summary',  # 주요내용
-                'procStageCd',  # 현재 처리 단계
-                'proposerKind' # 발의자 종류
-            ]
-            
-            # 실제 존재하는 컬럼만 필터링
-            existing_columns_to_keep = [col for col in columns_to_keep if col in df_bills.columns]
-            df_bills = df_bills[existing_columns_to_keep]
-
-            # 'summary' 컬럼에 결측치가 있는 행 제거
-            if 'summary' in df_bills.columns:
-                df_bills = df_bills.dropna(subset=['summary'])
-
-            # 인덱스 재설정
-            df_bills.reset_index(drop=True, inplace=True)
-
-            print(f"✅ [INFO] 결측치 처리 완료. {len(df_bills)} 개의 법안 유지됨.")
-
-        else:
-            print("✅ [INFO] 데이터 컬럼 필터링을 수행하지 않습니다.")
-
-        # 컬럼 이름 변경
-        df_bills.rename(columns={
-            "proposeDt": "proposeDate",
-            "billId": "bill_id",
-            "billName": "bill_name",
-            "billNo": "billNumber",
-            "summary": "summary",
-            "procStageCd": "stage",
-            "proposerKind": "proposer_kind"
-        }, inplace=True)
-
-        # AssemblyNumber는 데이터 호출에 사용된 _age에서 가져오기
-        df_bills['assemblyNumber'] = _age 
-
-
-        print("\n📌 발의일자별 수집한 데이터 수:")
+        print(f"✅ [INFO] 총 {len(df_bills)} 개의 열린국회정보 법안 수집됨.")
         if 'proposeDate' in df_bills.columns:
+            print("\n📌 발의일자별 수집한 데이터 수:")
             print(df_bills['proposeDate'].value_counts())
-        else:
-            print("ProposeDate 컬럼이 없습니다.")
 
         self.content = df_bills
-        self.df_bills = df_bills # 인스턴스에 캐시
-        
+        self.df_bills = df_bills
         return df_bills
 
     # def fetch_bills_info(self, df_bills=None, start_date=None, end_date=None, age=None, **kwargs):
@@ -467,7 +707,7 @@ class DataFetcher:
         return df_lawmakers
 
 
-    def fetch_bills_coactors(self, df_bills=None, start_date=None, end_date=None, age=None, **kwargs):
+    def fetch_bills_coactors(self, df_bills=None, start_date=None, end_date=None, age=None, max_retry=3, **kwargs):
         """
         열린국회정보 API를 활용하여 대표발의자 및 공동발의자 정보를 수집합니다.
         
@@ -477,8 +717,10 @@ class DataFetcher:
             start_date (str, optional): df_bills 자동 수집 시 사용할 시작일.
             end_date (str, optional): df_bills 자동 수집 시 사용할 종료일.
             age (str, optional): df_bills 자동 수집 시 사용할 대수.
+            max_retry (int, optional): 법안별 빈 응답 최대 재시도 횟수. Defaults to 3.
             **kwargs: *공동발의자* API 요청에 전달할 추가 매개변수.
         """
+        max_retry = max(0, int(max_retry))
 
         # 1. df_bills 처리 (사용자 > 캐시 > 자동 수집)
         local_df_bills = df_bills
@@ -582,20 +824,56 @@ class DataFetcher:
             if 'HJ_NM' in df_lawmakers.columns and hj_name:
                 candidates = candidates[candidates['HJ_NM'] == hj_name]
             if 'POLY_NM' in df_lawmakers.columns and party:
-                candidates = candidates[candidates['POLY_NM'] == party]
+                same_party = candidates[candidates['POLY_NM'] == party]
+                if not same_party.empty:
+                    candidates = same_party
 
             if not candidates.empty:
-                return normalize_str(candidates.iloc[0]['MONA_CD'])
-
-            # 한자/정당 정보가 일치하지 않는 경우 이름만으로 재검색
-            candidates = df_lawmakers[df_lawmakers['HG_NM'] == name]
-            if not candidates.empty:
-                return normalize_str(candidates.iloc[0]['MONA_CD'])
+                codes = {normalize_str(value) for value in candidates['MONA_CD']} - {None}
+                return codes.pop() if len(codes) == 1 else None
 
             return None
         # --- (내부 헬퍼 함수 끝) ---
 
         aggregated = {}
+
+        bill_details = {
+            str(row.get('bill_id')): (
+                self._stringify_bill_number(row.get('billNumber')),
+                row.get('assemblyNumber') or age,
+            )
+            for row in local_df_bills.to_dict('records')
+        }
+        catalog = df_lawmakers.to_dict('records')
+        historical_cache = {}
+        historical_key = os.environ.get("APIKEY_lawmakers") or api_key
+
+        def fetch_official_list(bill_id):
+            bill_no, term = bill_details.get(bill_id, (None, None))
+            if not bill_no:
+                return None
+
+            def historical_code(member):
+                cache_key = (member.name, member.hanja, str(term))
+                if cache_key not in historical_cache:
+                    code = fetch_historical_member_code(
+                        self.session, historical_key, member.name, member.hanja, term
+                    )
+                    if code:
+                        historical_cache[cache_key] = code
+                return historical_cache.get(cache_key)
+
+            try:
+                return fetch_likms_proposers(
+                    self.session, bill_id, bill_no, catalog, historical_code
+                )
+            except (ProposerSourceError, requests.RequestException) as exc:
+                reason = str(exc) if isinstance(exc, ProposerSourceError) else "HTTP 조회 실패"
+                tqdm.write(
+                    f"⚠️ [WARN] 공식 화면 발의자 확인 미완료: "
+                    f"bill_id={bill_id}, error_type={type(exc).__name__}, reason={reason}"
+                )
+                return None
 
         verbose = kwargs.pop('verbose', False)
 
@@ -618,20 +896,37 @@ class DataFetcher:
             # verbose 모드일 때 상위 5개 법안에 대해서만 응답 출력
             current_verbose = verbose and (len(aggregated) < 5)
 
-            df_tmp = self.fetch_data_generic(
-                url=url,
-                params=params,
-                mapper=mapper,
-                format='xml',
-                all_pages=True,
-                verbose=current_verbose
-            )
+            for attempt in range(max_retry + 1):
+                df_tmp = self.fetch_data_generic(
+                    url=url,
+                    params=params,
+                    mapper=mapper,
+                    format='xml',
+                    all_pages=True,
+                    verbose=current_verbose,
+                )
+                if not df_tmp.empty:
+                    break
+                if attempt == 0:
+                    official = fetch_official_list(bill_id)
+                    if official is not None:
+                        aggregated[bill_id] = official
+                        break
+                if attempt < max_retry:
+                    wait_seconds = min(2 ** attempt, 8)
+                    tqdm.write(
+                        f"⚠️ [RETRY] bill_id={bill_id} 발의자 응답이 비어 있어 "
+                        f"재시도합니다 ({attempt + 1}/{max_retry})"
+                    )
+                    time.sleep(wait_seconds)
 
             if current_verbose and not df_tmp.empty:
                  print(f"🔎 [VERBOSE] Bill {bill_id} Raw Data Sample (First row):")
                  print(df_tmp.iloc[0].to_dict())
 
             if df_tmp.empty:
+                if aggregated[bill_id]['representativeProposerIdList']:
+                    continue
                 tqdm.write(f"⚠️ [WARN] bill_id {bill_id}에 대한 발의자 데이터를 찾을 수 없습니다.")
                 continue
 
@@ -639,20 +934,27 @@ class DataFetcher:
             if 'BILL_ID' not in df_tmp.columns:
                 df_tmp['BILL_ID'] = bill_id
 
+            complete_api_relations = True
             for row in df_tmp.to_dict('records'):
                 row_bill_id = normalize_str(row.get('BILL_ID', bill_id))
+                if row_bill_id != bill_id:
+                    complete_api_relations = False
+                    continue
                 target = ensure_entry(row_bill_id)
                 if target is None:
                     continue
-                proposer_role = normalize_str(
-                    row.get('PUBL_PROPOSER') 
-                    or row.get('REP_DIV')
+                proposer_role = normalize_str(row.get('PUBL_PROPOSER')) or normalize_str(row.get('REP_DIV'))
+                proposer_code = (
+                    normalize_str(row.get('PPSR_CD'))
+                    or normalize_str(row.get('PUBL_PRPSR_CD'))
+                    or normalize_str(row.get('RPRSNT_PRPSR_CD'))
                 )
-                proposer_code = normalize_str(
-                    row.get('PPSR_CD')
-                    or row.get('PUBL_PRPSR_CD')
-                    or row.get('RPRSNT_PRPSR_CD')
-                )
+                # BILLINFOPPSR의 발의자 행은 NASS_CD를 쓰고 대표발의에만 REP_DIV를 채운다.
+                if normalize_str(row.get('PPSR_ROLE')) == '발의자':
+                    assembly_code = normalize_str(row.get('NASS_CD'))
+                    if assembly_code:
+                        proposer_code = proposer_code or assembly_code
+                        proposer_role = proposer_role or '발의자'
                 proposer_name = normalize_str(
                     row.get('PPSR_NM')
                     or row.get('PUBL_PRPSR_NM')
@@ -674,6 +976,9 @@ class DataFetcher:
                         party=proposer_party,
                     )
 
+                if proposer_code is None or proposer_role is None:
+                    complete_api_relations = False
+
                 is_representative = proposer_role and ('대표' in proposer_role)
 
                 if is_representative:
@@ -683,6 +988,14 @@ class DataFetcher:
                 else:
                     append_unique(target['publicProposerIdList'], proposer_code)
                     append_unique(target['ProposerName'], proposer_name)
+
+            target = aggregated[bill_id]
+            if not complete_api_relations or not target['representativeProposerIdList']:
+                official = fetch_official_list(bill_id)
+                if official is None:
+                    aggregated.pop(bill_id, None)
+                else:
+                    aggregated[bill_id] = official
 
         if not aggregated:
             print("⚠️ [WARN] 어떤 법안에서도 발의자 정보를 수집하지 못했습니다.")
@@ -703,15 +1016,6 @@ class DataFetcher:
         df_coactors = df_coactors[
             ['bill_id', 'representativeProposerIdList', 'publicProposerIdList', 'ProposerName']
         ]
-
-        # 대표발의자가 비어있으면 공동발의자의 첫 번째 사람을 대표발의자로 간주 (법안 데이터 특성상 맨 앞이 대표발의자인 경우가 많음)
-        def fill_missing_representative(row):
-            if not row['representativeProposerIdList'] and row['publicProposerIdList']:
-                 # 첫번째 사람을 추가
-                 row['representativeProposerIdList'] = [row['publicProposerIdList'][0]]
-            return row
-
-        df_coactors = df_coactors.apply(fill_missing_representative, axis=1)
 
         filtered_count = len(df_coactors)
         # 공동발의자가 있는 데이터만 남기기
@@ -1089,7 +1393,7 @@ class DataFetcher:
             print("🚨 [WARNING] 투표 결과(df_vote) 데이터가 없어 정당별 투표를 수집할 수 없습니다.")
             return None
 
-        print(f"\n📌 [INFO] 법안별 정당별 투표 결과 데이터 수집 시작...")
+        print("\n📌 [INFO] 법안별 정당별 투표 결과 데이터 수집 시작...")
         
         # 'PROC_RESULT_CD'가 '철회'가 아닌 'BILL_ID' 목록 추출
         bill_ids_to_fetch = []
@@ -1297,8 +1601,11 @@ class DataFetcher:
 
                         return law_data
                     else:
-                        tqdm.write(f"❌ [ERROR] API 요청 실패 (bill_id={bill_id}), 응답 코드: {response.status_code}")
-                        return []
+                        tqdm.write(
+                            f"⚠️ [WARN] 공공데이터 대안 API 요청 실패 "
+                            f"(bill_id={bill_id}, status={response.status_code}); 의안정보시스템 fallback 사용"
+                        )
+                        return self._fetch_likms_alternative_bills(bill_id)
                 except Exception as e:
                     if attempt < max_retry:
                         tqdm.write(f"⚠️ [RETRY] bill_id={bill_id} 요청 중 오류 발생 ({attempt+1}/{max_retry}): {e}")
@@ -1306,7 +1613,7 @@ class DataFetcher:
                         continue
                     else:
                         tqdm.write(f"❌ [ERROR] bill_id={bill_id} 처리 중 최종 오류 발생: {e}")
-                        return []
+                        return self._fetch_likms_alternative_bills(bill_id)
             return []
 
         # 대안 데이터프레임 초기화

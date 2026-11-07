@@ -9,5 +9,5 @@ export const getFollowingCongressman = () =>
 export const getFollowingBill = async (page: number) =>
   http.get<FeedResponse>({
     url: '/following-tab/bill',
-    params: { page, size: 3 },
+    params: { page, size: 10 },
   });

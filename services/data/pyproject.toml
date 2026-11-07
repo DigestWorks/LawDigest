@@ -32,12 +32,16 @@ dependencies = [
   "langchain-google-genai>=4.2.1",
   "llama-index>=0.14.15",
   "pymupdf>=1.26.0",
+  "fonttools>=4.62.0",
 ]
 
 [project.optional-dependencies]
 dev = [
   "jupyter",
 ]
+
+[project.scripts]
+lawdigest-pipeline = "lawdigest_data.runtime.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

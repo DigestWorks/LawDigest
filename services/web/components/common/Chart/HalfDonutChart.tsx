@@ -54,14 +54,13 @@ export default function HalfDonutChart({
   width = 300,
   height = 140,
 }: HalfDonutChartProps) {
-  // ----- 하프 도넛 최대값(의석 수) 고정 -----
-  const MAX_COUNT = 300; // 전체 의석 수
+  const MAX_COUNT = totalVoteCount;
 
   // 승인율 계산 (MAX_COUNT 대비 승인 비율)
   const approvalPercentage = useMemo(() => {
     const percentage = (approvalCount / MAX_COUNT) * 100;
     return Math.min(percentage, 100); // 100% 초과 방지
-  }, [approvalCount]);
+  }, [approvalCount, totalVoteCount]);
 
   // 애니메이션을 위한 상태
   const [animatedValue, setAnimatedValue] = useState(0);
@@ -150,9 +149,9 @@ export default function HalfDonutChart({
 
   // ----- 임계값(50%) 관련 계산 -----
   const thresholdValue = totalVoteCount * 0.5; // totalVoteCount의 50%
-  const progressColor = approvalCount >= thresholdValue ? '#3CC692' : '#EB6969'; // 임계값 초과 여부에 따른 색상
+  const progressColor = billResult === '부결' ? '#EB6969' : '#3CC692'; // 임계값 초과 여부에 따른 색상
 
-  // 하프 도넛 스케일은 MAX_COUNT(300)를 100%로 보정하므로,
+  // 하프 도넛 스케일은 실제 투표수를 100%로 보정하므로,
   // 임계값(투표수 절반)을 MAX_COUNT 대비 비율로 변환
   const thresholdFraction = thresholdValue / MAX_COUNT; // 0~0.5 범위
 
@@ -296,7 +295,14 @@ export default function HalfDonutChart({
   return (
     <div className="relative flex flex-col items-center">
       {/* SVG 차트 */}
-      <svg width={width} height={height} ref={svgRef}>
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="max-w-full text-foreground"
+        ref={svgRef}
+        role="img"
+        aria-label={`${billResult}: 찬성 ${approvalCount}표, 총 투표 ${totalVoteCount}표`}>
         {/* 배경 반원 */}
         <path d={arc(null as any) as string} fill="#e6e6e6" transform={`translate(${centerX}, ${centerY})`} />
 
@@ -341,6 +347,7 @@ export default function HalfDonutChart({
           y={centerY - 55}
           textAnchor="middle"
           dominantBaseline="middle"
+          fill="currentColor"
           className="text-lg font-semibold">
           {billResult}
         </text>
@@ -351,9 +358,10 @@ export default function HalfDonutChart({
           y={centerY - 20}
           textAnchor="middle"
           dominantBaseline="middle"
+          fill="currentColor"
           className="flex items-end text-2xl font-medium">
-          <tspan className="text-2xl font-bold">{approvalCount}</tspan>
-          <tspan className="text-sm font-normal"> / {MAX_COUNT}</tspan>
+          <tspan className="text-lg font-bold">찬성 {approvalCount}표</tspan>
+          <tspan className="text-sm font-normal"> / 총 {MAX_COUNT}표</tspan>
         </text>
       </svg>
 
@@ -383,13 +391,13 @@ export default function HalfDonutChart({
             <span className="font-semibold">{((tooltip.value / approvalCount) * 100).toFixed(1)}%</span>
           </div>
 
-          {/* 툴팁 삼각형 화살표 */}
+          {/* 툴팁 화살표 */}
           <div
-            className="absolute w-0 h-0 border-t-8 border-l-8 border-r-8 border-l-transparent border-r-transparent border-t-popover"
+            className="absolute h-3 w-3 bg-popover"
             style={{
-              bottom: '-8px',
+              bottom: '-6px',
               left: '50%',
-              transform: 'translateX(-50%)',
+              transform: 'translateX(-50%) rotate(45deg)',
             }}
           />
         </div>

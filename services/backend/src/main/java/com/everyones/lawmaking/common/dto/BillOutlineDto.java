@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.util.StringUtils;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
@@ -24,24 +25,31 @@ public class BillOutlineDto {
     private String billStage;
     private String billResult;
     private String billProposers;
-    private String billBriefSummary;
+    private String billTitle;
 
 
     public static BillOutlineDto from(Bill bill) {
+        return from(bill, bill.getBillResult());
+    }
+
+    public static BillOutlineDto from(Bill bill, String result) {
         var representProposers = bill.getRepresentativeProposer();
         List<PartyDto> partyList = new ArrayList<>();
         for (RepresentativeProposer representativeProposer : representProposers) {
-            var party = representativeProposer.getCongressman().getParty();
-            partyList.add(PartyDto.from(party));
+            var congressman = representativeProposer.getCongressman();
+            if (congressman != null && congressman.getParty() != null) {
+                partyList.add(PartyDto.from(congressman.getParty()));
+            }
         }
         return BillOutlineDto.builder()
                 .partyInfo(partyList)
                 .billId(bill.getId())
                 .billName(bill.getBillName())
                 .billStage(bill.getStage())
-                .billResult(bill.getBillResult())
+                .billResult(result)
                 .billProposers(bill.getProposers())
-                .billBriefSummary(bill.getBriefSummary())
+                .billTitle(StringUtils.hasText(bill.getGptSummary()) && StringUtils.hasText(bill.getTitle())
+                        ? bill.getTitle() : bill.getBillName())
                 .build();
     }
 }

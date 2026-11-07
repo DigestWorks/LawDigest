@@ -1,7 +1,6 @@
 package com.everyones.lawmaking.common.dto;
 
 import com.everyones.lawmaking.domain.entity.Bill;
-import com.everyones.lawmaking.domain.entity.VoteRecord;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.AllArgsConstructor;
@@ -24,17 +23,12 @@ public class PlenaryDto {
 
     private List<PartyVoteDto> partyVoteList;
 
-    public static PlenaryDto of(Bill bill, VoteRecord voteRecord, List<PartyVoteDto> partyVoteList) {
-        var plenaryBuilder =  PlenaryDto.builder()
-                .billInfo(BillOutlineDto.from(bill))
-                .partyVoteList(partyVoteList);
-        if (voteRecord == null) {
-            return plenaryBuilder.build();
-        }
-        return plenaryBuilder
-                .approvalVoteCount(voteRecord.getVoteForCount())
-                .totalVoteCount(voteRecord.getTotalVoteCount())
+    public static PlenaryDto of(Bill bill, String result, VoteResultResponse vote) {
+        return PlenaryDto.builder()
+                .billInfo(BillOutlineDto.from(bill, result))
+                .approvalVoteCount(vote.getApprovalCount())
+                .totalVoteCount(vote.getTotalVoteCount())
+                .partyVoteList(vote.getPartyVoteList())
                 .build();
-
     }
 }

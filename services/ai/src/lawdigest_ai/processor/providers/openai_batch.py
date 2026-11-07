@@ -1,0 +1,294 @@
+from __future__ import annotations
+
+import json
+import os
+from typing import Any, Dict, List
+
+import requests
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ValidationError
+
+from lawdigest_ai.config import OPENAI_BASE_URL, get_openai_api_key
+from lawdigest_ai.processor.summary_prompt_templates import (
+    SUMMARY_LIST_GUIDELINE,
+    build_proposer_opening_line,
+)
+from lawdigest_ai.processor.providers.types import (
+    BatchProviderBase,
+    BatchProviderJobState,
+    BatchProviderParseResult,
+    ProviderName,
+)
+from lawdigest_ai.processor.category_taxonomy import (
+    CategoryLabel,
+    build_category_prompt_block,
+    category_label_to_code,
+)
+
+
+class BatchStructuredSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    title: str = Field(
+        alias="title",
+        description=(
+            "기존 DB 스타일의 긴 제목형 한국어 요약. 핵심 변경 목적이나 수단을 먼저 쓰고 "
+            "'을/를 위한' 뒤에 정확한 법안명을 붙여 끝낸다. "
+            "'입니다', '합니다', '것입니다', '함' 같은 문장 종결 표현으로 끝내지 않는다."
+        ),
+    )
+    gpt_summary: str = Field(alias="gptSummary")
+    tags: List[str] = Field(alias="tags", min_length=5, max_length=5)
+    category: CategoryLabel = Field(
+        alias="category",
+        description="법안 내용에 가장 부합하는 17개 생활영역 분야 라벨 중 정확히 1개.",
+    )
+
+
+def _build_prompt_for_bill(row: Dict[str, Any]) -> str:
+    payload = {
+        "bill_id": row.get("bill_id"),
+        "bill_name": row.get("bill_name"),
+        "proposers": row.get("proposers"),
+        "opening_proposer_line": build_proposer_opening_line(
+            row.get("proposers"),
+            str(row.get("bill_name") or "법안명 미상"),
+        ),
+        "proposer_kind": row.get("proposer_kind"),
+        "propose_date": str(row.get("propose_date") or ""),
+        "stage": row.get("stage"),
+        "summary": row.get("summary"),
+    }
+    return (
+        "다음 법안 정보를 보고 JSON으로만 응답하세요.\n"
+        "키는 title, gptSummary, tags, category 네 개만 포함해야 합니다.\n"
+        "title은 기존 DB 스타일의 긴 제목형 요약으로 작성하세요.\n"
+        "title 형식은 가능한 한 '[핵심 변경 목적/수단]을/를 위한 [정확한 bill_name]' 구조를 따르세요.\n"
+        "title은 반드시 입력 payload의 bill_name과 같은 법안명으로 끝나야 합니다.\n"
+        "title은 완성된 설명문이나 문장으로 쓰지 말고, '입니다', '합니다', '것입니다', '함' 같은 종결 표현으로 끝내지 마세요.\n"
+        "title 예: '해양폐기물관리위원회 위원에 지방자치단체 협의체 추천 인사를 포함하기 위한 해양폐기물 및 해양오염퇴적물 관리법 일부개정법률안'\n"
+        "title 예: '공공외교 기본계획에 지자체·민간 협력체계 구축 방안을 명시하기 위한 공공외교법 일부개정법률안'\n"
+        "gptSummary는 기존 양식에 맞춰 아래 규칙으로 작성하세요.\n"
+        f"1) 첫 줄: \"{{opening_proposer_line}}\"\n"
+        f"2) 다음 줄부터 {SUMMARY_LIST_GUIDELINE}\n"
+        "3) 마지막에 한 단락으로 '이 법안의 취지는 ...' 형태의 종결 문단을 추가\n"
+        "각 항목은 한 문장으로 핵심만 기술하고, 전체는 JSON 문자열에 그대로 담겨도 무방하게 작성하세요.\n"
+        "tags는 중복 없는 한국어 태그 정확히 5개입니다.\n"
+        f"{build_category_prompt_block()}\n\n"
+        f"{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+
+def _extract_message_content(choice_message: Any) -> str:
+    if isinstance(choice_message, str):
+        return choice_message
+    if isinstance(choice_message, list):
+        return "".join(item.get("text", "") for item in choice_message if isinstance(item, dict))
+    if isinstance(choice_message, dict):
+        content = choice_message.get("content")
+        return _extract_message_content(content) if content else ""
+    return ""
+
+
+def _normalize_openai_status(status: str | None) -> str:
+    normalized = (status or "UNKNOWN").upper()
+    return {
+        "VALIDATING": "VALIDATING",
+        "IN_PROGRESS": "IN_PROGRESS",
+        "FINALIZING": "FINALIZING",
+        "COMPLETED": "COMPLETED",
+        "FAILED": "FAILED",
+        "EXPIRED": "EXPIRED",
+        "CANCELLING": "CANCELLING",
+        "CANCELLED": "CANCELED",
+        "CANCELED": "CANCELED",
+    }.get(normalized, normalized)
+
+
+def _extract_openai_error_message(payload: dict[str, Any]) -> str | None:
+    error_message = payload.get("error_message")
+    if isinstance(error_message, str) and error_message:
+        return error_message
+
+    errors = payload.get("errors")
+    if isinstance(errors, dict):
+        message = errors.get("message")
+        if isinstance(message, str) and message:
+            return message
+
+        data = errors.get("data")
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    item_message = item.get("message")
+                    if isinstance(item_message, str) and item_message:
+                        return item_message
+
+        return json.dumps(errors, ensure_ascii=False)
+
+    return None
+
+
+def _extract_openai_row_error(row: dict[str, Any]) -> str | None:
+    error = row.get("error")
+    if isinstance(error, str) and error:
+        return error
+    if isinstance(error, dict):
+        message = error.get("message")
+        if isinstance(message, str) and message:
+            return message
+        return json.dumps(error, ensure_ascii=False)
+    return None
+
+
+def _to_batch_job_state(payload: dict[str, Any]) -> BatchProviderJobState:
+    return BatchProviderJobState(
+        batch_id=str(payload.get("id") or ""),
+        status=_normalize_openai_status(payload.get("status")),
+        output_file_id=payload.get("output_file_id"),
+        error_file_id=payload.get("error_file_id"),
+        error_message=_extract_openai_error_message(payload),
+    )
+
+
+class OpenAIBatchProvider(BatchProviderBase):
+    def __init__(self) -> None:
+        super().__init__(ProviderName.OPENAI)
+
+    def _headers(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {get_openai_api_key()}"}
+
+    def build_request_rows(self, bills: List[Dict[str, Any]], model: str) -> List[Dict[str, Any]]:
+        summary_schema = BatchStructuredSummary.model_json_schema(by_alias=True)
+        return [
+            {
+                "custom_id": bill["bill_id"],
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "당신은 한국 법안 요약 전문가입니다. 반드시 JSON 객체로만 응답하세요.",
+                        },
+                        {"role": "user", "content": _build_prompt_for_bill(bill)},
+                    ],
+                    "temperature": 0.2,
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {"name": "bill_summary", "strict": True, "schema": summary_schema},
+                    },
+                },
+            }
+            for bill in bills
+        ]
+
+    def upload_batch_file(self, jsonl_path: str, display_name: str | None = None) -> str:
+        del display_name
+        with open(jsonl_path, "rb") as file_handle:
+            response = requests.post(
+                f"{OPENAI_BASE_URL}/files",
+                headers=self._headers(),
+                data={"purpose": "batch"},
+                files={"file": (os.path.basename(jsonl_path), file_handle, "application/jsonl")},
+                timeout=60,
+            )
+        response.raise_for_status()
+        return response.json()["id"]
+
+    def create_batch_job(
+        self,
+        *,
+        model: str,
+        source_file_name: str,
+        display_name: str | None = None,
+    ) -> BatchProviderJobState:
+        metadata = {"model": model, "pipeline": "lawdigest_ai_batch"}
+        if display_name:
+            metadata["display_name"] = display_name
+        payload = {
+            "input_file_id": source_file_name,
+            "endpoint": "/v1/chat/completions",
+            "completion_window": "24h",
+            "metadata": metadata,
+        }
+        response = requests.post(
+            f"{OPENAI_BASE_URL}/batches",
+            headers={**self._headers(), "Content-Type": "application/json"},
+            data=json.dumps(payload),
+            timeout=60,
+        )
+        response.raise_for_status()
+        return _to_batch_job_state(response.json())
+
+    def get_batch_job(self, name: str) -> BatchProviderJobState:
+        response = requests.get(f"{OPENAI_BASE_URL}/batches/{name}", headers=self._headers(), timeout=60)
+        response.raise_for_status()
+        return _to_batch_job_state(response.json())
+
+    def download_output_file(self, file_name: str) -> str:
+        response = requests.get(
+            f"{OPENAI_BASE_URL}/files/{file_name}/content",
+            headers=self._headers(),
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.text
+
+    def parse_output_line(self, line: str) -> BatchProviderParseResult:
+        row = json.loads(line)
+        bill_id = row.get("custom_id")
+        row_error = _extract_openai_row_error(row)
+        if row_error is not None:
+            return BatchProviderParseResult(
+                bill_id=bill_id,
+                title=None,
+                gpt_summary=None,
+                tags=None,
+                error=row_error,
+            )
+        response = row.get("response") or {}
+        if response.get("status_code") != 200:
+            return BatchProviderParseResult(
+                bill_id=bill_id,
+                title=None,
+                gpt_summary=None,
+                tags=None,
+                error=f"status_code={response.get('status_code')}",
+            )
+        choices = (response.get("body") or {}).get("choices") or []
+        if not choices:
+            return BatchProviderParseResult(
+                bill_id=bill_id,
+                title=None,
+                gpt_summary=None,
+                tags=None,
+                error="choices가 비어있습니다.",
+            )
+        content = _extract_message_content(choices[0].get("message", {}).get("content", ""))
+        if not content:
+            return BatchProviderParseResult(
+                bill_id=bill_id,
+                title=None,
+                gpt_summary=None,
+                tags=None,
+                error="message content가 비어있습니다.",
+            )
+        try:
+            parsed = BatchStructuredSummary.model_validate_json(content)
+        except ValidationError as exc:
+            return BatchProviderParseResult(
+                bill_id=bill_id,
+                title=None,
+                gpt_summary=None,
+                tags=None,
+                error=f"Structured Output 검증 실패: {exc}",
+            )
+        return BatchProviderParseResult(
+            bill_id=bill_id,
+            title=parsed.title,
+            gpt_summary=parsed.gpt_summary,
+            tags=parsed.tags,
+            error=None,
+            category=category_label_to_code(parsed.category),
+        )

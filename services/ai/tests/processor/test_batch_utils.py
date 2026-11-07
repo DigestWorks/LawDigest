@@ -1,12 +1,16 @@
 import json
-import pytest
 from unittest.mock import MagicMock
+
 from lawdigest_ai.processor.batch_utils import (
+    build_bill_summary_update,
     build_batch_request_rows,
     parse_output_jsonl_line,
     apply_batch_results,
-    BatchStructuredSummary,
+    openai_create_batch,
+    openai_get_batch,
 )
+from lawdigest_ai.processor.providers.openai_batch import BatchStructuredSummary, OpenAIBatchProvider
+from lawdigest_ai.processor.providers.types import BatchProviderJobState
 
 
 def test_build_batch_request_rows_structure():
@@ -20,7 +24,7 @@ def test_build_batch_request_rows_structure():
 
 def test_parse_output_jsonl_line_success():
     summary = BatchStructuredSummary(
-        brief_summary="요약", gpt_summary="상세", tags=["a", "b", "c", "d", "e"]
+        title="요약", gpt_summary="상세", tags=["a", "b", "c", "d", "e"], category="경제·세금"
     )
     content = summary.model_dump_json(by_alias=True)
     line = json.dumps({
@@ -30,9 +34,10 @@ def test_parse_output_jsonl_line_success():
             "body": {"choices": [{"message": {"content": content}}]}
         }
     })
-    bill_id, brief, gpt, tags, err = parse_output_jsonl_line(line)
+    bill_id, title, gpt, tags, category, err = parse_output_jsonl_line(line)
     assert bill_id == "B001"
-    assert brief == "요약"
+    assert title == "요약"
+    assert category == "economy"
     assert err is None
 
 
@@ -41,15 +46,74 @@ def test_parse_output_jsonl_line_error():
         "custom_id": "B001",
         "response": {"status_code": 500, "body": {}}
     })
-    bill_id, brief, gpt, tags, err = parse_output_jsonl_line(line)
+    bill_id, title, gpt, tags, category, err = parse_output_jsonl_line(line)
     assert err is not None
-    assert brief is None
+    assert title is None
+
+
+def test_parse_output_jsonl_line_surfaces_top_level_openai_error():
+    line = json.dumps({
+        "custom_id": "B001",
+        "error": {"code": "invalid_request_error", "message": "row failed before response"},
+    })
+
+    bill_id, title, gpt, tags, category, err = parse_output_jsonl_line(line)
+
+    assert bill_id == "B001"
+    assert title is None
+    assert gpt is None
+    assert tags is None
+    assert err == "row failed before response"
+
+
+def test_build_bill_summary_update_omits_summary_tags_when_column_absent():
+    sql, params = build_bill_summary_update(
+        title="요약",
+        gpt_summary="상세",
+        summary_tags=["태그"],
+        bill_id="B001",
+        include_summary_tags=False,
+    )
+
+    assert "summary_tags" not in sql
+    assert params == ("요약", "상세", "B001")
+
+
+def test_build_bill_summary_update_includes_category_when_present():
+    sql, params = build_bill_summary_update(
+        title="요약",
+        gpt_summary="상세",
+        summary_tags=None,
+        bill_id="B001",
+        include_summary_tags=False,
+        category="economy",
+        include_category=True,
+    )
+
+    assert "category=%s" in sql
+    assert "economy" in params
+
+
+def test_build_bill_summary_update_skips_category_when_none():
+    """미분류 경로가 기존 분류를 NULL로 덮지 않도록, category=None이면 절(clause) 생략."""
+    sql, params = build_bill_summary_update(
+        title="요약",
+        gpt_summary="상세",
+        summary_tags=None,
+        bill_id="B001",
+        include_summary_tags=False,
+        category=None,
+        include_category=True,
+    )
+
+    assert "category" not in sql
+    assert params == ("요약", "상세", "B001")
 
 
 def test_apply_batch_results_success_and_partial_failure():
     """성공 라인과 실패 라인이 섞인 JSONL에서 각각 올바르게 처리되는지 확인."""
     summary = BatchStructuredSummary(
-        brief_summary="요약", gpt_summary="상세", tags=["a", "b", "c", "d", "e"]
+        title="요약", gpt_summary="상세", tags=["a", "b", "c", "d", "e"], category="경제·세금"
     )
     success_line = json.dumps({
         "custom_id": "B001",
@@ -71,3 +135,67 @@ def test_apply_batch_results_success_and_partial_failure():
     success, failed = apply_batch_results(mock_conn, job_id=1, output_jsonl=output_jsonl)
     assert success == 1
     assert failed == 1
+
+
+def test_openai_batch_utils_preserve_legacy_dict_contract(monkeypatch):
+    state = BatchProviderJobState(
+        batch_id="batch_123",
+        status="COMPLETED",
+        output_file_id="file_out_123",
+        error_file_id="file_err_123",
+        error_message="partial failure",
+    )
+
+    create_mock = MagicMock(return_value=state)
+    get_mock = MagicMock(return_value=state)
+    monkeypatch.setattr(
+        "lawdigest_ai.processor.batch_utils.OpenAIBatchProvider.create_batch_job",
+        create_mock,
+    )
+    monkeypatch.setattr(
+        "lawdigest_ai.processor.batch_utils.OpenAIBatchProvider.get_batch_job",
+        get_mock,
+    )
+
+    created = openai_create_batch(input_file_id="file_in_123", model="gpt-4o-mini")
+    fetched = openai_get_batch("batch_123")
+
+    assert created == {
+        "id": "batch_123",
+        "status": "completed",
+        "output_file_id": "file_out_123",
+        "error_file_id": "file_err_123",
+        "error_message": "partial failure",
+    }
+    assert fetched == created
+    create_mock.assert_called_once_with(model="gpt-4o-mini", source_file_name="file_in_123")
+    get_mock.assert_called_once_with("batch_123")
+
+
+def test_openai_batch_provider_normalizes_canceling_and_cancelled_statuses(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    class _FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    responses = [
+        _FakeResponse({"id": "batch_123", "status": "cancelling"}),
+        _FakeResponse({"id": "batch_456", "status": "cancelled"}),
+    ]
+    get_mock = MagicMock(side_effect=responses)
+    monkeypatch.setattr("lawdigest_ai.processor.providers.openai_batch.requests.get", get_mock)
+
+    provider = OpenAIBatchProvider()
+
+    canceling = provider.get_batch_job("batch_123")
+    cancelled = provider.get_batch_job("batch_456")
+
+    assert canceling.status == "CANCELLING"
+    assert cancelled.status == "CANCELED"

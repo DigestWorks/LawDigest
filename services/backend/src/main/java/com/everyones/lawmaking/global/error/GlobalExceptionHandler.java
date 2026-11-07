@@ -3,6 +3,7 @@ package com.everyones.lawmaking.global.error;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -11,7 +12,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     // 400 BAD_REQUEST 에러
-    @ExceptionHandler({LikeException.UpdateParameterException.class})
+    @ExceptionHandler({LikeException.UpdateParameterException.class,
+            BillException.SearchParameterInvalid.class,
+            CongressmanException.SearchParameterInvalid.class,
+            RequestParameterException.class})
     protected ResponseEntity<ErrorResponse> handleGlobalBadRequestException(final CustomException e) {
         log.error(e.getErrorInfoLog());
         return ResponseEntity.badRequest()
@@ -20,12 +24,28 @@ public class GlobalExceptionHandler {
 
     // 404 NotFound 에러
     @ExceptionHandler({PartyException.PartyNotFound.class,
+                        BillException.BillNotFound.class,
+                        CongressmanException.CongressmanNotFound.class,
                         VoteRecordException.VoteRecordNotFound.class,
                         UserException.UserNotFoundException.class})
     protected ResponseEntity<ErrorResponse> handleGlobalNotFoundException(final CustomException e) {
 
         log.error(e.getErrorInfoLog());
         return new ResponseEntity<>(ErrorResponse.from(e), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    protected ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+            final MissingServletRequestParameterException e
+    ) {
+        log.error(e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.from(ErrorCode.BAD_REQUEST));
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    protected ResponseEntity<ErrorResponse> handleInvalidParameterType(final Exception e) {
+        return ResponseEntity.badRequest().body(ErrorResponse.from(ErrorCode.BAD_REQUEST));
     }
 
     //401 error

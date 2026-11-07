@@ -2,18 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Navbar, NavbarContent, NavbarItem, NavbarBrand } from '@nextui-org/navbar';
-import { useCallback, useState } from 'react';
+import { Navbar, NavbarContent, NavbarItem, NavbarBrand } from '@heroui/navbar';
 import { siteConfig } from '@/config/site';
 import { IconNavBorder } from '@/public/svgs';
-import {
-  SearchBarButton,
-  GoBackButton,
-  SettingButton,
-  SearchButton,
-  NotificationButton,
-  ThemeSwitchButton,
-} from '@/components/common';
+import GoBackButton from '@/components/common/Button/GoBackButton';
+import SettingButton from '@/components/common/Button/SettingButton';
+import SearchButton from '@/components/common/Button/SearchButton';
+import NotificationButton from '@/components/common/Button/NotifcationButton';
+import ThemeSwitchButton from '@/components/common/Button/ThemeSwitchButton';
 import Logo from './Logo';
 
 export default function Header({
@@ -35,18 +31,13 @@ export default function Header({
 }) {
   const pathname = usePathname();
   const { navItems } = siteConfig;
-  const [toggleSearch, setToggleSearch] = useState(false);
   const isTimelineOrFollowing = pathname.startsWith('/timeline') || pathname.startsWith('/following');
-
-  const onClickSearch = useCallback(() => {
-    setToggleSearch(!toggleSearch);
-  }, [toggleSearch]);
 
   return (
     <section className="w-full">
       <Navbar
         position="static"
-        className={`dark:bg-dark-b dark:lg:bg-dark-pb lg:shadow-md md:h-[98px] dark:border-dark-l ${isTimelineOrFollowing ? 'md:border-b' : 'border-b'}`}>
+        className={`dark:bg-dark-b dark:lg:bg-dark-pb md:h-[98px] dark:border-dark-l ${isTimelineOrFollowing ? 'md:border-b' : 'border-b'}`}>
         <NavbarBrand className="hidden xl:absolute xl:left-[-100px] lg:block">
           <Link href="/">
             <Logo width={106} height={18} />
@@ -70,7 +61,7 @@ export default function Header({
         )}
 
         <NavbarContent justify="center" className="hidden mx-auto md:block">
-          <ul className="flex justify-between md:min-w-[430px] w-full gap-2 px-10 lg:gap-20">
+          <ul className="flex justify-between md:min-w-[430px] w-full gap-0 px-0 lg:gap-6 xl:gap-20 xl:px-10">
             {navItems.map(({ label, href }) => {
               const isActive = pathname === '/' ? pathname?.endsWith(href) : href !== '/' && pathname?.startsWith(href);
 
@@ -80,7 +71,7 @@ export default function Header({
                     <IconNavBorder />
                   </div>
                   <Link
-                    className={`${isActive ? 'text-black dark:text-white font-semibold bg-transparent' : 'text-gray-2'} flex flex-col items-center justify-center text-sm lg:text-base font-medium lg:px-5 lg:py-3 bg-white lg:dark:bg-dark-pb dark:bg-dark-b w-[110px] h-[60px] leading-[60px]`}
+                    className={`${isActive ? 'text-black dark:text-white font-semibold bg-transparent' : 'text-gray-2'} flex flex-col items-center justify-center text-sm lg:text-base font-medium lg:px-5 lg:py-3 bg-white lg:dark:bg-dark-pb dark:bg-dark-b w-[100px] lg:w-[110px] h-[60px] leading-[60px]`}
                     href={href}>
                     {label}
                   </Link>
@@ -96,49 +87,27 @@ export default function Header({
           </NavbarContent>
         )}
 
-        {setting && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+        <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+          <NavbarItem>
+            <SearchButton />
+          </NavbarItem>
+          {(setting || search || notification || theme) && (
             <NavbarItem>
               <ThemeSwitchButton />
             </NavbarItem>
+          )}
+          {setting && (
             <NavbarItem>
               <SettingButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {search && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-            <NavbarItem>
-              <SearchButton onClick={onClickSearch} />
-            </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {notification && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-            <NavbarItem>
+          )}
+          {(notification || search) && (
+            <NavbarItem className={notification ? '' : 'hidden md:list-item'}>
               <NotificationButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {theme && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-          </NavbarContent>
-        )}
+          )}
+        </NavbarContent>
       </Navbar>
-
-      <div>{toggleSearch && <SearchBarButton />}</div>
     </section>
   );
 }

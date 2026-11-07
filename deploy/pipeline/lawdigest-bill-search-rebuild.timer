@@ -1,0 +1,9 @@
+[Unit]
+Description=Schedule LawDigest bill-search-rebuild
+
+[Timer]
+OnCalendar=*-*-* 09:00:00 Asia/Seoul
+Unit=lawdigest-pipeline@bill-search-rebuild.service
+
+[Install]
+WantedBy=timers.target

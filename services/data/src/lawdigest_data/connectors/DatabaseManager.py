@@ -3,7 +3,12 @@ import os
 import json
 import pymysql
 import contextlib 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+import re
 from typing import List, Tuple, Dict, Any, Optional, Generator, Set
+
+from ..bills.search_document import build_bill_search_documents
 
 class DatabaseManager:
     """MySQL RDS 연결 및 데이터베이스 관련 기능을 제공하는 클래스"""
@@ -126,6 +131,54 @@ class DatabaseManager:
             cursor.executemany(query, params_list)
 
 
+    def _bill_table_has_column(self, cursor: pymysql.cursors.Cursor, column_name: str) -> bool:
+        cursor.execute("SHOW COLUMNS FROM Bill LIKE %s", (column_name,))
+        return bool(cursor.fetchall())
+
+    def _bill_table_enum_values(self, cursor: pymysql.cursors.Cursor, column_name: str) -> Set[str]:
+        cursor.execute("SHOW COLUMNS FROM Bill LIKE %s", (column_name,))
+        row = cursor.fetchone()
+        if not row:
+            return set()
+
+        column_type = row.get("Type") if isinstance(row, dict) else row[1]
+        if not isinstance(column_type, str) or not column_type.startswith("enum("):
+            return set()
+
+        return {
+            match.group(1).replace("''", "'")
+            for match in re.finditer(r"'((?:''|[^'])*)'", column_type)
+        }
+
+    def _validate_bill_proposer_kind_schema(
+        self,
+        cursor: pymysql.cursors.Cursor,
+        bills_data: List[Dict],
+    ) -> None:
+        requested_values = {
+            str(bill.get("proposer_kind") or "").strip()
+            for bill in bills_data
+            if str(bill.get("proposer_kind") or "").strip()
+        }
+        if not requested_values:
+            return
+
+        allowed_values = self._bill_table_enum_values(cursor, "proposer_kind")
+        if not allowed_values:
+            return
+
+        unsupported_values = sorted(requested_values - allowed_values)
+        if not unsupported_values:
+            return
+
+        raise RuntimeError(
+            "Bill.proposer_kind enum does not allow "
+            f"{', '.join(unsupported_values)}. "
+            "Apply infra/db/migrations/20260624_extend_bill_proposer_kind_government.sql "
+            "before ingesting these bill proposer kinds."
+        )
+
+
     def get_latest_propose_date(self) -> Optional[str]:
         """
         RDS 데이터베이스에서 가장 최근의 법안 발의 날짜를 가져옵니다.
@@ -150,15 +203,71 @@ class DatabaseManager:
             str or None: 가장 최근 처리 날짜 (YYYY-MM-DD), 없거나 에러 시 None
         """
         try:
-            query = "SELECT MAX(status_update_date) AS latest_date FROM BillTimeline"
+            query = "SELECT MAX(status_update_date) AS latest_date FROM BillTimeline WHERE invalidated_at IS NULL"
             result = self.execute_query(query, fetch_one=True)
             return result["latest_date"] if result else None
         except Exception as e:
             print("❌ [ERROR] Failed to fetch the latest status_update_date")
             print(e)
             return None
+
+    def get_ingest_checkpoint(self, source_name: str, assembly_number: int) -> Optional[Dict[str, Any]]:
+        try:
+            query = """
+                SELECT source_name, assembly_number, last_reference_date, metadata_json
+                FROM IngestCheckpoint
+                WHERE source_name = %s AND assembly_number = %s
+            """
+            return self.execute_query(query, (source_name, assembly_number), fetch_one=True)
+        except Exception as e:
+            print("❌ [ERROR] Failed to fetch ingest checkpoint")
+            print(e)
+            return None
+
+    def upsert_ingest_checkpoint(
+        self,
+        source_name: str,
+        assembly_number: int,
+        last_reference_date: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        with self.transaction() as cursor:
+            self._upsert_ingest_checkpoint_cursor(
+                cursor,
+                source_name=source_name,
+                assembly_number=assembly_number,
+                last_reference_date=last_reference_date,
+                metadata=metadata,
+            )
+
+    @staticmethod
+    def _upsert_ingest_checkpoint_cursor(
+        cursor: pymysql.cursors.Cursor,
+        *,
+        source_name: str,
+        assembly_number: int,
+        last_reference_date: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        payload = None if metadata is None else json.dumps(metadata, ensure_ascii=False)
+        query = """
+            INSERT INTO IngestCheckpoint (
+                source_name, assembly_number, last_reference_date, metadata_json, created_date, modified_date
+            ) VALUES (%s, %s, %s, %s, NOW(), NOW()) AS new
+            ON DUPLICATE KEY UPDATE
+                last_reference_date = new.last_reference_date,
+                metadata_json = new.metadata_json,
+                modified_date = NOW()
+        """
+        cursor.execute(query, (source_name, assembly_number, last_reference_date, payload))
     
-    def insert_bill_info(self, bills_data: List[Dict]) -> None:
+    def insert_bill_info(
+        self,
+        bills_data: List[Dict],
+        *,
+        checkpoint: Optional[Dict[str, Any]] = None,
+        refresh_search: bool = False,
+    ) -> None:
         """
         법안 정보를 DB에 적재합니다. (기존 insertBillInfoDf 대체)
 
@@ -171,43 +280,119 @@ class DatabaseManager:
                 - bill_id, bill_name, prose_date, ... (Bill 테이블 컬럼)
                 - public_proposer_ids (List[str]): 공동발의자 의원 ID 목록
                 - rst_proposer_ids (List[str]): 대표발의자 의원 ID 목록
+            checkpoint (Dict, optional): 법안과 같은 트랜잭션으로 반영할 checkpoint 정보.
+            refresh_search: 공개 법안 검색 문서를 같은 트랜잭션에서 갱신할지 여부.
         """
+        missing_summary_ids = [
+            str(bill.get("bill_id") or "<unknown>")
+            for bill in bills_data
+            if not str(bill.get("summary") or "").strip()
+        ]
+        if missing_summary_ids:
+            raise ValueError(
+                "Bill.summary is required before insert_bill_info: "
+                + ", ".join(missing_summary_ids[:10])
+            )
+
+        self._validate_congressman_proposer_relations(bills_data)
+
         normalized_bills = []
         for bill in bills_data:
             row = dict(bill)
+            for field in ("gpt_summary", "title"):
+                if isinstance(row.get(field), str) and not row[field].strip():
+                    row[field] = None
             tags = row.get("summary_tags")
             if isinstance(tags, (list, tuple)):
                 row["summary_tags"] = json.dumps(list(tags), ensure_ascii=False)
             elif tags is None:
                 row["summary_tags"] = None
             elif isinstance(tags, str):
-                row["summary_tags"] = tags
+                row["summary_tags"] = tags if tags.strip() else None
             else:
                 row["summary_tags"] = json.dumps(tags, ensure_ascii=False)
             normalized_bills.append(row)
 
         with self.transaction() as cursor:
+            include_summary_tags = self._bill_table_has_column(cursor, "summary_tags")
+            self._validate_bill_proposer_kind_schema(cursor, normalized_bills)
+            insert_columns = [
+                "bill_id",
+                "assembly_number",
+                "bill_name",
+                "committee",
+                "gpt_summary",
+                "propose_date",
+                "summary",
+                "stage",
+                "proposers",
+                "bill_pdf_url",
+                "viewCount",
+                "title",
+                "bill_number",
+                "bill_link",
+                "bill_result",
+                "proposer_kind",
+                "ingest_status",
+                "created_date",
+                "modified_date",
+            ]
+            value_columns = [
+                "%(bill_id)s",
+                "%(assembly_number)s",
+                "%(bill_name)s",
+                "%(committee)s",
+                "%(gpt_summary)s",
+                "%(propose_date)s",
+                "%(summary)s",
+                "%(stage)s",
+                "%(proposers)s",
+                "%(bill_pdf_url)s",
+                "0",
+                "%(title)s",
+                "%(bill_number)s",
+                "%(bill_link)s",
+                "%(bill_result)s",
+                "%(proposer_kind)s",
+                "%(ingest_status)s",
+                "NOW()",
+                "NOW()",
+            ]
+            update_columns = [
+                "assembly_number = new.assembly_number",
+                "bill_name = new.bill_name",
+                "committee = new.committee",
+                "propose_date = new.propose_date",
+                "summary = new.summary",
+                "stage = new.stage",
+                "gpt_summary = COALESCE(NULLIF(TRIM(new.gpt_summary), ''), Bill.gpt_summary)",
+                "bill_pdf_url = new.bill_pdf_url",
+                "title = CASE WHEN NULLIF(TRIM(new.gpt_summary), '') IS NULL "
+                "THEN COALESCE(NULLIF(TRIM(Bill.title), ''), new.title) "
+                "ELSE COALESCE(NULLIF(TRIM(new.title), ''), Bill.title) END",
+                "bill_link = new.bill_link",
+                "bill_result = new.bill_result",
+                "proposer_kind = new.proposer_kind",
+                "ingest_status = new.ingest_status",
+                "created_date = COALESCE(Bill.created_date, new.created_date)",
+                "modified_date = NOW()",
+            ]
+            if include_summary_tags:
+                insert_index = insert_columns.index("bill_number")
+                insert_columns.insert(insert_index, "summary_tags")
+                value_columns.insert(insert_index, "%(summary_tags)s")
+                update_index = update_columns.index("bill_link = new.bill_link")
+                update_columns.insert(update_index, "summary_tags = COALESCE(NULLIF(TRIM(new.summary_tags), ''), Bill.summary_tags)")
+
             # 1. Bill 테이블 Upsert
-            bill_query = """
+            bill_query = f"""
                 INSERT INTO Bill (
-                    bill_id, bill_name, committee, gpt_summary, propose_date, 
-                    summary, stage, proposers, bill_pdf_url, viewCount, 
-                    brief_summary, summary_tags, bill_number, bill_link, bill_result, 
-                    proposer_kind, created_date, modified_date
+                    {", ".join(insert_columns)}
                 ) VALUES (
-                    %(bill_id)s, %(bill_name)s, %(committee)s, %(gpt_summary)s, %(propose_date)s,
-                    %(summary)s, %(stage)s, %(proposers)s, %(bill_pdf_url)s, 0,
-                    %(brief_summary)s, %(summary_tags)s, %(bill_number)s, %(bill_link)s, %(bill_result)s,
-                    %(proposer_kind)s, NOW(), NOW()
+                    {", ".join(value_columns)}
                 ) AS new
                 ON DUPLICATE KEY UPDATE
-                    summary = new.summary,
-                    gpt_summary = new.gpt_summary,
-                    bill_pdf_url = new.bill_pdf_url,
-                    brief_summary = new.brief_summary,
-                    summary_tags = new.summary_tags,
-                    bill_link = new.bill_link,
-                    modified_date = NOW()
+                    {", ".join(update_columns)}
             """
             
             # bills_data에서 Bill 테이블용 데이터만 추출하여 실행할 수도 있지만,
@@ -218,16 +403,234 @@ class DatabaseManager:
             # 각 법안별로 발의자 연결 실행
             for bill in normalized_bills:
                 bill_id = bill['bill_id']
-                
-                # 2-1. 공동발의자 (Public Proposer)
-                if 'public_proposer_ids' in bill and bill['public_proposer_ids']:
-                    self._link_proposers(cursor, bill_id, bill['public_proposer_ids'], is_representative=False)
-                
-                # 2-2. 대표발의자 (Representative Proposer)
-                if 'rst_proposer_ids' in bill and bill['rst_proposer_ids']:
-                    self._link_proposers(cursor, bill_id, bill['rst_proposer_ids'], is_representative=True)
 
-    def _link_proposers(self, cursor: pymysql.cursors.Cursor, bill_id: str, proposer_ids: List[str], is_representative: bool = False) -> None:
+                # 2-1. 공동발의자 (Public Proposer)
+                public_ids = self._clean_proposer_ids(bill.get('public_proposer_ids') or [])
+                written_public = self._link_proposers(
+                    cursor, bill_id, public_ids, is_representative=False
+                )
+
+                # 2-2. 대표발의자 (Representative Proposer)
+                representative_ids = self._clean_proposer_ids(bill.get('rst_proposer_ids') or [])
+                written_representative = self._link_proposers(
+                    cursor, bill_id, representative_ids, is_representative=True
+                )
+
+                if str(bill.get("proposer_kind") or "").strip() in {"의원", "CONGRESSMAN"}:
+                    expected_public = len(set(public_ids))
+                    expected_representative = len(set(representative_ids))
+                    if (
+                        written_public != expected_public
+                        or written_representative != expected_representative
+                    ):
+                        raise ValueError(
+                            f"Incomplete proposer relations for {bill_id}: "
+                            f"public={written_public}/{expected_public}, "
+                            f"representative={written_representative}/{expected_representative}"
+                        )
+
+            if refresh_search:
+                self._refresh_bill_search_documents_cursor(cursor, [bill["bill_id"] for bill in normalized_bills])
+
+            if checkpoint:
+                self._upsert_ingest_checkpoint_cursor(
+                    cursor,
+                    source_name=checkpoint["source_name"],
+                    assembly_number=checkpoint["assembly_number"],
+                    last_reference_date=checkpoint.get("last_reference_date"),
+                    metadata=checkpoint.get("metadata"),
+                )
+
+    def _clean_proposer_ids(self, proposer_ids: List[Any]) -> List[str]:
+        cleaned_ids = []
+        for proposer_id in proposer_ids:
+            if proposer_id is None:
+                continue
+            value = str(proposer_id).strip()
+            if not value or value.lower() == "nan":
+                continue
+            cleaned_ids.append(value)
+        return cleaned_ids
+
+    def _validate_congressman_proposer_relations(self, bills_data: List[Dict]) -> None:
+        for bill in bills_data:
+            proposer_kind = str(bill.get("proposer_kind") or "").strip()
+            if proposer_kind not in {"의원", "CONGRESSMAN"}:
+                continue
+
+            public_ids = self._clean_proposer_ids(bill.get("public_proposer_ids") or [])
+            representative_ids = self._clean_proposer_ids(bill.get("rst_proposer_ids") or [])
+            if not public_ids or not representative_ids:
+                bill_id = str(bill.get("bill_id") or "<unknown>")
+                raise ValueError(
+                    f"Incomplete proposer relations for {bill_id}: "
+                    "both public and representative proposer IDs are required"
+                )
+
+    def insert_bill_alternatives(self, alternatives_data: List[Dict[str, Any]]) -> int:
+        unique_pairs = []
+        seen_pairs = set()
+        for row in alternatives_data:
+            alternative_bill_id = str(row.get("alternative_bill_id") or "").strip()
+            original_bill_id = str(row.get("original_bill_id") or "").strip()
+            if not alternative_bill_id or not original_bill_id:
+                continue
+            pair = (alternative_bill_id, original_bill_id)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            unique_pairs.append(pair)
+
+        if not unique_pairs:
+            return 0
+
+        query = """
+            INSERT INTO BillAlternative (
+                alternative_bill_id, original_bill_id, created_date, modified_date
+            ) VALUES (%s, %s, NOW(6), NOW(6)) AS new
+            ON DUPLICATE KEY UPDATE
+                modified_date = NOW(6)
+        """
+        with self.transaction() as cursor:
+            cursor.executemany(query, unique_pairs)
+        return len(unique_pairs)
+
+    def fetch_bill_search_document_candidates(self, limit: int = 500) -> List[Dict[str, Any]]:
+        query = """
+            SELECT
+                b.bill_id,
+                b.bill_name,
+                b.title,
+                b.gpt_summary,
+                b.summary,
+                COALESCE(b.modified_date, b.created_date) AS source_modified_date
+            FROM Bill b
+            LEFT JOIN BillSearchDocument bsd
+                ON b.bill_id = bsd.bill_id
+            WHERE b.ingest_status = 'READY'
+              AND b.summary IS NOT NULL
+              AND b.summary <> ''
+              AND (
+                  bsd.bill_id IS NULL
+                  OR (
+                      COALESCE(b.modified_date, b.created_date) IS NOT NULL
+                      AND (
+                          bsd.source_modified_date IS NULL
+                          OR COALESCE(b.modified_date, b.created_date) > bsd.source_modified_date
+                      )
+                  )
+              )
+            ORDER BY COALESCE(b.modified_date, b.created_date) DESC, b.bill_id DESC
+            LIMIT %s
+        """
+        with self.transaction() as cursor:
+            cursor.execute(query, (limit,))
+            return cursor.fetchall()
+
+    def fetch_incomplete_congressman_bill_relations(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """READY 상태 의원 법안 중 발의자 관계가 한쪽이라도 없는 샘플을 조회합니다."""
+        limit = max(1, int(limit))
+        query = """
+            SELECT
+                b.bill_id,
+                b.proposer_kind,
+                COALESCE(bp.public_proposer_count, 0) AS public_proposer_count,
+                COALESCE(rp.representative_proposer_count, 0) AS representative_proposer_count
+            FROM Bill b
+            LEFT JOIN (
+                SELECT bill_id, COUNT(*) AS public_proposer_count
+                FROM BillProposer
+                GROUP BY bill_id
+            ) bp ON bp.bill_id = b.bill_id
+            LEFT JOIN (
+                SELECT bill_id, COUNT(*) AS representative_proposer_count
+                FROM RepresentativeProposer
+                GROUP BY bill_id
+            ) rp ON rp.bill_id = b.bill_id
+            WHERE b.ingest_status = 'READY'
+              AND b.proposer_kind = 'CONGRESSMAN'
+              AND (
+                  COALESCE(bp.public_proposer_count, 0) = 0
+                  OR COALESCE(rp.representative_proposer_count, 0) = 0
+              )
+            ORDER BY b.propose_date DESC, b.bill_id ASC
+            LIMIT %s
+        """
+        with self.transaction() as cursor:
+            cursor.execute(query, (limit,))
+            return cursor.fetchall()
+
+    def refresh_bill_search_documents(self, bill_ids: List[str]) -> int:
+        if not bill_ids:
+            return 0
+        unique_ids = sorted(set(bill_ids))
+        rebuilt = 0
+        # 대량 갱신이 Bill 행 잠금을 오래 잡지 않도록 묶음마다 커밋한다.
+        for offset in range(0, len(unique_ids), 200):
+            with self.transaction() as cursor:
+                rebuilt += self._refresh_bill_search_documents_cursor(cursor, unique_ids[offset:offset + 200])
+        return rebuilt
+
+    def _refresh_bill_search_documents_cursor(self, cursor, bill_ids: List[str]) -> int:
+        unique_ids = sorted(set(bill_ids))
+        rebuilt = 0
+        tags_column = "summary_tags, " if self._bill_table_has_column(cursor, "summary_tags") else ""
+        for offset in range(0, len(unique_ids), 200):
+            batch = unique_ids[offset:offset + 200]
+            placeholders = ",".join(["%s"] * len(batch))
+            cursor.execute(
+                f"SELECT bill_id, bill_name, title, gpt_summary, summary, {tags_column}"
+                "COALESCE(modified_date, created_date) AS source_modified_date "
+                f"FROM Bill WHERE bill_id IN ({placeholders}) AND ingest_status = 'READY' "
+                "AND summary IS NOT NULL AND TRIM(summary) <> '' ORDER BY bill_id FOR UPDATE",
+                batch,
+            )
+            documents = build_bill_search_documents(cursor.fetchall())
+            rebuilt += self._upsert_bill_search_documents_cursor(cursor, documents)
+        return rebuilt
+
+    def upsert_bill_search_documents(self, documents: List[Dict[str, Any]]) -> int:
+        if not documents:
+            return 0
+        with self.transaction() as cursor:
+            return self._upsert_bill_search_documents_cursor(cursor, documents)
+
+    def _upsert_bill_search_documents_cursor(self, cursor, documents: List[Dict[str, Any]]) -> int:
+        if not documents:
+            return 0
+        query = """
+            INSERT INTO BillSearchDocument (
+                bill_id,
+                bill_name_text,
+                title_text,
+                gpt_summary_text,
+                raw_summary_text,
+                search_text,
+                source_modified_date,
+                rebuilt_date
+            ) VALUES (
+                %(bill_id)s,
+                %(bill_name_text)s,
+                %(title_text)s,
+                %(gpt_summary_text)s,
+                %(raw_summary_text)s,
+                %(search_text)s,
+                %(source_modified_date)s,
+                NOW(6)
+            ) AS new
+            ON DUPLICATE KEY UPDATE
+                bill_name_text = new.bill_name_text,
+                title_text = new.title_text,
+                gpt_summary_text = new.gpt_summary_text,
+                raw_summary_text = new.raw_summary_text,
+                search_text = new.search_text,
+                source_modified_date = new.source_modified_date,
+                rebuilt_date = NOW(6)
+        """
+        cursor.executemany(query, documents)
+        return len(documents)
+
+    def _link_proposers(self, cursor: pymysql.cursors.Cursor, bill_id: str, proposer_ids: List[str], is_representative: bool = False) -> int:
         """
         법안과 의원(발의자) 간의 관계를 저장합니다.
         
@@ -237,8 +640,9 @@ class DatabaseManager:
             proposer_ids: 의원 ID 리스트
             is_representative: 대표발의자 여부 (True: RepresentativeProposer, False: BillProposer)
         """
+        proposer_ids = self._clean_proposer_ids(proposer_ids)
         if not proposer_ids:
-            return
+            return 0
 
         # 1. 유효한 의원 ID 및 소속 정당 ID 조회
         # 중복 제거를 위해 Set으로 변환
@@ -255,7 +659,7 @@ class DatabaseManager:
         
         if not valid_congressmen:
             print(f"⚠️ [WARN] No valid congressmen found for bill {bill_id} among {proposer_ids}")
-            return
+            return 0
 
         # 2. 관계 테이블 Insert
         # 기존 관계를 삭제하고 다시 넣는 것보다, INSERT IGNORE를 사용하여 기존 데이터 유지하면서 신규만 추가
@@ -295,6 +699,7 @@ class DatabaseManager:
             insert_params.append((bill_id, cm['congressman_id'], cm['party_id']))
             
         cursor.executemany(insert_query, insert_params)
+        return len(insert_params)
 
     def update_bill_stage(self, bills_stage_data: List[Dict]) -> Dict[str, List[str]]:
         """
@@ -344,7 +749,7 @@ class DatabaseManager:
             timeline_check_query = f"""
                 SELECT bill_id, bill_timeline_stage, status_update_date 
                 FROM BillTimeline 
-                WHERE (bill_id, bill_timeline_stage, status_update_date) IN ({format_strings})
+                WHERE invalidated_at IS NULL AND (bill_id, bill_timeline_stage, status_update_date) IN ({format_strings})
             """
             
             # 튜플 리스트를 flat하게 펴서 파라미터로 전달
@@ -386,7 +791,8 @@ class DatabaseManager:
                     continue
                 
                 # 업데이트 대상 추가
-                update_bill_params.append((stage, bill_id))
+                if not item.get("timeline_only"):
+                    update_bill_params.append((stage, bill_id))
                 insert_timeline_params.append((
                     bill_id, committee, stage, update_date, None # bill_result is null initially in logic
                 ))
@@ -399,6 +805,7 @@ class DatabaseManager:
                     update_bill_params
                 )
                 
+            if insert_timeline_params:
                 # BillTimeline 테이블 Insert
                 cursor.executemany(
                     """
@@ -442,16 +849,26 @@ class DatabaseManager:
 
             return existing_ids
 
-    def update_lawmaker_info(self, lawmaker_data: List[Dict]) -> None:
+    def update_lawmaker_info(self, lawmaker_data: List[Dict], *, full_snapshot: bool = False) -> None:
         """
         의원 정보를 DB에 동기화합니다. (기존 updateLawmakerDf 대체)
 
         Args:
             lawmaker_data (List[Dict]): 업데이트할 의원 정보 리스트.
                 - congressman_id, name, party_name, district, elect_sort, ...
+            full_snapshot: 검증된 전체 명부일 때만 누락된 현직 의원을 비활성화한다.
+                기본값 False는 전달된 의원만 추가·갱신한다.
         """
+        if not lawmaker_data and full_snapshot:
+            raise ValueError("전체 동기화에 빈 의원 명부를 사용할 수 없습니다.")
         if not lawmaker_data:
             return
+
+        input_ids = [str(item.get('congressman_id') or '').strip() for item in lawmaker_data]
+        if not all(input_ids) or len(set(input_ids)) != len(input_ids):
+            raise ValueError("의원 명부의 코드가 비었거나 중복되었습니다.")
+        if any(not str(item.get('party_name') or '').strip() for item in lawmaker_data):
+            raise ValueError("의원 명부의 정당을 확인하지 못했습니다.")
 
         with self.transaction() as cursor:
             # 1. 정당 ID 확보 (없으면 생성)
@@ -459,15 +876,16 @@ class DatabaseManager:
             party_map = self._ensure_parties(cursor, party_names)
 
             # 2. 존재하는 의원 ID 조회
-            cursor.execute("SELECT congressman_id FROM Congressman")
-            existing_rows = cursor.fetchall()
-            existing_ids = {row['congressman_id'] for row in existing_rows}
+            existing_ids = set()
+            if full_snapshot:
+                cursor.execute("SELECT congressman_id FROM Congressman WHERE state = 1")
+                existing_ids = {row['congressman_id'] for row in cursor.fetchall()}
             
-            input_ids = {item['congressman_id'] for item in lawmaker_data}
+            input_ids = set(input_ids)
 
             # 3. 비활성 처리 (Disable)
             # DB에는 있는데 입력 데이터에 없는 의원은 state=False 처리
-            disable_ids = list(existing_ids - input_ids)
+            disable_ids = list(existing_ids - input_ids) if full_snapshot else []
             if disable_ids:
                 format_strings = ','.join(['%s'] * len(disable_ids))
                 disable_query = f"UPDATE Congressman SET state = 0, modified_date = NOW() WHERE congressman_id IN ({format_strings})"
@@ -476,20 +894,22 @@ class DatabaseManager:
             # 4. Upsert (Insert or Update)
             upsert_query = """
                 INSERT INTO Congressman (
-                    congressman_id, name, party_id, district, elect_sort, 
+                    congressman_id, assembly_number, name, party_id, district, elect_sort,
                     commits, elected, homepage, congressman_image_url, 
                     email, sex, congressman_age, congressman_office, congressman_telephone,
                     brief_history, state, created_date, modified_date
                 ) VALUES (
-                    %(congressman_id)s, %(name)s, %(party_id)s, %(district)s, %(elect_sort)s,
+                    %(congressman_id)s, %(assembly_number)s, %(name)s, %(party_id)s, %(district)s, %(elect_sort)s,
                     %(commits)s, %(elected)s, %(homepage)s, %(congressman_image_url)s,
                     %(email)s, %(sex)s, %(congressman_age)s, %(congressman_office)s, %(congressman_telephone)s,
                     %(brief_history)s, 1, NOW(), NOW()
                 ) AS new
                 ON DUPLICATE KEY UPDATE
+                    name = new.name,
+                    assembly_number = new.assembly_number,
                     party_id = new.party_id,
                     district = new.district,
-                    elect_sort = new.elect_sort,
+                    elect_sort = COALESCE(new.elect_sort, Congressman.elect_sort),
                     commits = new.commits,
                     elected = new.elected,
                     homepage = new.homepage,
@@ -497,6 +917,8 @@ class DatabaseManager:
                     email = new.email,
                     sex = new.sex,
                     congressman_age = new.congressman_age,
+                    congressman_office = new.congressman_office,
+                    congressman_telephone = new.congressman_telephone,
                     brief_history = new.brief_history,
                     state = 1,
                     modified_date = NOW()
@@ -506,13 +928,15 @@ class DatabaseManager:
             for item in lawmaker_data:
                 item_party_id = party_map.get(item.get('party_name'))
                 if item_party_id is None:
-                    # Party creation failed or missing name, skip or handle error?
-                    # _ensure_parties should have created it.
+                    if full_snapshot:
+                        raise ValueError("전체 의원 명부의 정당을 저장하지 못했습니다.")
                     continue
                 
                 # Prepare params dict including party_id
                 params = item.copy()
+                params['congressman_id'] = str(params['congressman_id']).strip()
                 params['party_id'] = item_party_id
+                params['assembly_number'] = int(item.get('assembly_number', 22))
                 
                 # Fill optional fields with defaults if missing
                 # (executemany expects same keys, but DictCursor params matching uses keys)
@@ -531,6 +955,14 @@ class DatabaseManager:
 
             if upsert_params:
                 cursor.executemany(upsert_query, upsert_params)
+            if full_snapshot:
+                self._upsert_ingest_checkpoint_cursor(
+                    cursor,
+                    source_name="congressman_roster",
+                    assembly_number=max(item["assembly_number"] for item in upsert_params),
+                    last_reference_date=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(),
+                    metadata={"member_count": len(upsert_params)},
+                )
 
     def _ensure_parties(self, cursor: pymysql.cursors.Cursor, party_names: Set[str]) -> Dict[str, int]:
         """
@@ -602,24 +1034,13 @@ class DatabaseManager:
                     update_params
                 )
 
-                # 2. BillTimeline 테이블 업데이트
-                # '본회의 심의' 단계이면서 아직 결과가 없는(NULL) 타임라인만 업데이트
+                # '본회의 심의' 중 결과가 비어 있는 유효한 이력만 갱신한다.
                 cursor.executemany(
                     """
-                    UPDATE BillTimeline 
+                    UPDATE BillTimeline
                     SET bill_result = %s, modified_date = NOW()
-                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의' AND bill_result IS NULL
-                    """,
-                    update_params
-                )
-    
-                # 2. BillTimeline 테이블 업데이트
-                # '본회의 심의' 단계이면서 아직 결과가 없는(NULL) 타임라인만 업데이트
-                cursor.executemany(
-                    """
-                    UPDATE BillTimeline 
-                    SET bill_result = %s, modified_date = NOW()
-                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의' AND bill_result IS NULL
+                    WHERE bill_id = %s AND bill_timeline_stage = '본회의 심의'
+                        AND bill_result IS NULL AND invalidated_at IS NULL
                     """,
                     update_params
                 )
@@ -651,7 +1072,8 @@ class DatabaseManager:
                     'votes_for_count': item.get('votes_for_count', 0),
                     'votes_againt_count': item.get('votes_againt_count', 0),
                     'abstention_count': item.get('abstention_count', 0),
-                    'total_vote_count': item.get('total_vote_count', 0)
+                    'total_vote_count': item.get('total_vote_count', 0),
+                    'decision_date': item.get('decision_date'),
                 })
 
             if upsert_params:
@@ -659,12 +1081,19 @@ class DatabaseManager:
                 upsert_query = """
                     INSERT INTO VoteRecord (
                         bill_id, votes_for_count, votes_againt_count, abstention_count, total_vote_count,
-                        created_date, modified_date
+                        decision_date, created_date, modified_date
                     ) VALUES (
                         %(bill_id)s, %(votes_for_count)s, %(votes_againt_count)s, %(abstention_count)s, %(total_vote_count)s,
-                        NOW(), NOW()
+                        %(decision_date)s, NOW(), NOW()
                     ) AS new
                     ON DUPLICATE KEY UPDATE
+                        decision_date = CASE
+                            WHEN new.decision_date IS NOT NULL THEN new.decision_date
+                            WHEN VoteRecord.total_vote_count = new.total_vote_count
+                              AND VoteRecord.votes_for_count = new.votes_for_count
+                              AND VoteRecord.votes_againt_count = new.votes_againt_count
+                              AND VoteRecord.abstention_count = new.abstention_count THEN VoteRecord.decision_date
+                            ELSE NULL END,
                         votes_for_count = new.votes_for_count,
                         votes_againt_count = new.votes_againt_count,
                         abstention_count = new.abstention_count,
@@ -705,7 +1134,8 @@ class DatabaseManager:
                 upsert_params.append({
                     'bill_id': bill_id,
                     'party_id': party_id,
-                    'votes_for_count': item.get('votes_for_count', 0)
+                    'votes_for_count': item.get('votes_for_count', 0),
+                    'decision_date': item.get('decision_date'),
                 })
 
             if upsert_params:
@@ -752,14 +1182,18 @@ class DatabaseManager:
                 # 실행
                 if insert_batch:
                     cursor.executemany("""
-                        INSERT INTO VoteParty (bill_id, party_id, votes_for_count, created_date, modified_date)
-                        VALUES (%(bill_id)s, %(party_id)s, %(votes_for_count)s, NOW(), NOW())
+                        INSERT INTO VoteParty (bill_id, party_id, votes_for_count, decision_date, created_date, modified_date)
+                        VALUES (%(bill_id)s, %(party_id)s, %(votes_for_count)s, %(decision_date)s, NOW(), NOW())
                     """, insert_batch)
                     
                 if update_batch:
                     cursor.executemany("""
                         UPDATE VoteParty 
-                        SET votes_for_count = %(votes_for_count)s, modified_date = NOW()
+                        SET decision_date = CASE
+                                WHEN %(decision_date)s IS NOT NULL THEN %(decision_date)s
+                                WHEN votes_for_count = %(votes_for_count)s THEN decision_date
+                                ELSE NULL END,
+                            votes_for_count = %(votes_for_count)s, modified_date = NOW()
                         WHERE vote_party_id = %(vote_party_id)s
                     """, update_batch)
     

@@ -9,17 +9,32 @@ import axios, {
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN, HTTP_METHODS } from '@/constants';
 import { BaseResponse } from '@/types';
+import { BROWSER_API_TIMEOUT_MS, SERVER_API_TIMEOUT_MS } from '@/lib/apiTiming';
 import qs from 'qs';
-import { handleSuccessReissueToken, handleFailReissueToken } from '../auth';
+import { handleFailReissueToken } from '../auth';
 
-const serverApiOrigin = (process.env.INTERNAL_API_ORIGIN ?? process.env.NEXT_PUBLIC_URL ?? 'https://api.lawdigest.kr/')
-  .replace(/\/+$/, '');
+const serverApiOrigin = (
+  process.env.INTERNAL_API_ORIGIN ??
+  process.env.NEXT_PUBLIC_URL ??
+  'https://api.lawdigest.kr/'
+).replace(/\/+$/, '');
+
+type AuthRetryConfig = InternalAxiosRequestConfig & { authRetried?: boolean };
+let refreshRequest: Promise<unknown> | undefined;
 
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: typeof window === 'undefined' ? `${serverApiOrigin}/v1` : '/v1',
+  timeout: typeof window === 'undefined' ? SERVER_API_TIMEOUT_MS : BROWSER_API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
+});
+
+// OAuth 콜백이 발급한 HttpOnly 재발급 쿠키는 API 호스트에 저장된다.
+const refreshClient = axios.create({
+  baseURL: `${serverApiOrigin}/v1`,
+  timeout: BROWSER_API_TIMEOUT_MS,
   withCredentials: true,
 });
 
@@ -34,37 +49,49 @@ axiosInstance.interceptors.request.use(
     if (!accessToken) {
       return config;
     }
-    // eslint-disable-next-line
+
     config.headers.Authorization = `Bearer ${accessToken}`;
     return config;
   },
   (error: AxiosError) => {
-    Promise.reject(error);
+    return Promise.reject(error);
   },
 );
 
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      return axiosInstance
-        .post('/auth/reissue/token')
-        .then(() => {
-          return handleSuccessReissueToken(error);
-        })
-        .catch(() => {
-          return handleFailReissueToken();
-        });
+    const config = error.config as AuthRetryConfig | undefined;
+    if (error.response?.status !== 401 || !config || config.url === '/auth/reissue/token') {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    if (config.authRetried) {
+      handleFailReissueToken();
+      return Promise.reject(error);
+    }
+
+    config.authRetried = true;
+    refreshRequest ??= refreshClient
+      .post('/auth/reissue/token')
+      .catch((refreshError: unknown) => {
+        if (axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
+          handleFailReissueToken();
+        }
+        throw refreshError;
+      })
+      .finally(() => {
+        refreshRequest = undefined;
+      });
+    await refreshRequest;
+    return axiosInstance.request(config);
   },
 );
 
 const createApiMethod =
   (instance: AxiosInstance, method: Method) =>
-    <T>(config: AxiosRequestConfig): Promise<BaseResponse<T>> =>
-      instance({ ...config, method });
+  <T>(config: AxiosRequestConfig): Promise<BaseResponse<T>> =>
+    instance({ ...config, method });
 
 const http = {
   get: createApiMethod(axiosInstance, HTTP_METHODS.get),

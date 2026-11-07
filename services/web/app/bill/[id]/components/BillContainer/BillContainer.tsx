@@ -1,11 +1,10 @@
-'use client';
+import { BillResponse } from '@/types';
+import { BillDetail } from '../BillDetail';
 
-import { BillDetail } from '..';
-
-export default function BillContainer({ id, viewCount }: { id: string; viewCount: number }) {
+export default function BillContainer({ data }: { data: BillResponse }) {
   return (
     <section className="flex flex-col md:mb-10">
-      <BillDetail id={id} viewCount={viewCount} />
+      <BillDetail data={data} />
     </section>
   );
 }

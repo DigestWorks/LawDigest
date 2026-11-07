@@ -39,7 +39,7 @@ public class SearchFacade {
     }
 
     public SearchBillResponse searchBill(String searchWord, int page) {
-        Pageable pageable = PageRequest.of(page, 5);
+        Pageable pageable = PageRequest.of(page, 10);
         var billList = billService.searchBill(searchWord, pageable);
         var billListByUser = setBillListResponseBookMark(billList);
         return SearchBillResponse.builder()
@@ -82,4 +82,4 @@ public class SearchFacade {
         billListResponse.setBillList(billList);
         return billListResponse;
     }
-} 
+}

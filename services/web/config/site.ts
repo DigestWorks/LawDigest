@@ -1,10 +1,10 @@
-import { IconElection, IconHome, IconMyPage, IconTimeline } from '@/public/svgs';
+import { IconExplore, IconHome, IconMyPage, IconTimeline } from '@/public/svgs';
 
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
   title: '모두의입법',
-  description: '자연어 처리 기술을 이용한 법률 개정안 요약 플랫폼',
+  description: '국회 법안과 처리 경과를 살펴보고 의원·정당의 입법 활동을 확인합니다.',
   url: 'https://www.lawdigest.kr/',
   ogImage: '/images/opengraph-image.png',
   links: {
@@ -28,9 +28,9 @@ export const siteConfig = {
       IconComponent: IconTimeline,
     },
     {
-      label: '선거',
-      href: '/election',
-      IconComponent: IconElection,
+      label: '탐색',
+      href: '/explore',
+      IconComponent: IconExplore,
     },
     {
       label: '마이페이지',
@@ -46,7 +46,7 @@ export const siteConfig = {
   ],
   feedTabs: [
     { label: '시간순', value: 'sortedByLatest' },
-    { label: 'HOT', value: 'sortedByPopularity' },
+    { label: '인기', value: 'sortedByPopularity' },
   ],
   billTabs: [
     { label: '대표발의한 법안', value: 'representProposer' },

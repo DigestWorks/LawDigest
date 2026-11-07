@@ -46,10 +46,21 @@ class DataProcessor:
         # bill_name 컬럼 값에서 정규표현식을 사용하여 괄호 안의 발의자 정보를 추출합니다.
         # 예: '조세특례제한법 일부개정법률안(김형동의원 등 11인)' -> '김형동의원 등 11인'
         print("\n[bill_name에서 발의자 정보 추출 중...]")
-        df_bills_congressman["proposers"] = (
+        extracted_proposers = (
             df_bills_congressman["bill_name"]
             .str.extract(self.BILL_NAME_PROPOSER_PATTERN, expand=False)
             .fillna("")
+        )
+        extracted_proposers = extracted_proposers.where(
+            extracted_proposers.str.contains("의원", regex=False), ""
+        )
+        existing_proposers = (
+            df_bills_congressman["proposers"]
+            if "proposers" in df_bills_congressman.columns
+            else pd.Series([""] * len(df_bills_congressman), index=df_bills_congressman.index)
+        )
+        df_bills_congressman["proposers"] = extracted_proposers.where(
+            extracted_proposers != "", existing_proposers.fillna("")
         )
         print("[발의자 정보 추출 완료]")
 
@@ -57,43 +68,52 @@ class DataProcessor:
         print("\n[bill_name에서 발의자 정보 제거 중...]")
         df_bills_congressman["bill_name"] = (
             df_bills_congressman["bill_name"]
-            .str.replace(self.BILL_NAME_STRIP_PATTERN, "", regex=True)
+            .where(
+                extracted_proposers.eq(""),
+                df_bills_congressman["bill_name"].str.replace(self.BILL_NAME_STRIP_PATTERN, "", regex=True),
+            )
             .str.strip()
         )
         print("[bill_name 정리 완료]")
 
         # df_bills_congressman에 발의자 정보 컬럼 머지
         print("\n[의원 발의자 데이터 병합 중...]")
-        df_coactors = self.fetcher.fetch_bills_coactors()
-        df_bills_congressman = pd.merge(df_bills_congressman, df_coactors, on='bill_id', how='inner')
+        df_coactors = self.fetcher.fetch_bills_coactors(df_bills=df_bills_congressman.copy())
+        df_bills_congressman = pd.merge(df_bills_congressman, df_coactors, on='bill_id', how='left')
         print("[의원 발의자 데이터 병합 완료]")
 
-        # 아래 로직은 'proposers' 컬럼이 생성된 후에 실행됩니다.
-        # '의원'이라는 단어 앞에 있는 한글 이름을 모두 찾습니다.
-        df_bills_congressman["rstProposerNameList"] = df_bills_congressman["proposers"].apply(
-            self._extract_proposer_names
+        for column in ["representativeProposerIdList", "publicProposerIdList", "ProposerName"]:
+            if column not in df_bills_congressman.columns:
+                df_bills_congressman[column] = [[] for _ in range(len(df_bills_congressman))]
+            else:
+                df_bills_congressman[column] = df_bills_congressman[column].apply(
+                    lambda value: value if isinstance(value, list) else []
+                )
+
+        df_bills_congressman["rstProposerIdList"] = df_bills_congressman["representativeProposerIdList"]
+
+        relation_ready_mask = (
+            df_bills_congressman["publicProposerIdList"].apply(bool)
+            & df_bills_congressman["rstProposerIdList"].apply(bool)
+            & df_bills_congressman.apply(
+                lambda row: set(row["rstProposerIdList"]).issubset(row["publicProposerIdList"]),
+                axis=1,
+            )
         )
-
-        if 'publicProposerIdList' not in df_bills_congressman.columns:
-            df_bills_congressman['publicProposerIdList'] = [
-                [f'ID_{i}{j}' for j in range(1, 20)] for i in range(len(df_bills_congressman))
-            ]
-
-        # 이름 개수에 맞춰 proposer ID를 맞춰서 생성합니다.
-        df_bills_congressman["rstProposerIdList"] = [
-            row["publicProposerIdList"][: len(row["rstProposerNameList"])]
-            for _, row in df_bills_congressman.iterrows()
-        ]
+        if not relation_ready_mask.all():
+            unresolved_ids = df_bills_congressman.loc[~relation_ready_mask, "bill_id"].tolist()
+            print(f"⚠️ [INFO] 발의자 관계를 확보하지 못한 의원 법안을 제외합니다: {unresolved_ids}")
+            df_bills_congressman = df_bills_congressman.loc[relation_ready_mask].copy()
 
         print(f"\n[처리 후 의원 발의 법안 개수: {len(df_bills_congressman)}]")
 
         # 제외할 컬럼 목록
         # ProposerName 컬럼이 존재할 경우에만 삭제 시도
-        columns_to_drop = ["rstProposerNameList"]
+        columns_to_drop = []
         if "ProposerName" in df_bills_congressman.columns:
             columns_to_drop.append('ProposerName')
 
-        df_bills_congressman.drop(columns=columns_to_drop, inplace=True, errors="ignore")
+        df_bills_congressman = df_bills_congressman.drop(columns=columns_to_drop, errors="ignore")
 
         return df_bills_congressman
 
@@ -116,10 +136,16 @@ class DataProcessor:
             return pd.DataFrame(), pd.DataFrame()
 
         # 위원장안 - 포함된 의원 관계 데이터 수집
-        df_alternatives = self.fetcher.fetch_bills_alternatives(df_bills)
+        df_alternatives = self.fetcher.fetch_bills_alternatives(df_bills_chair)
 
         # df_bills_chair의 billName에서 (대안) 제거
-        df_bills_chair["billName"] = df_bills_chair["billName"].str.replace(r"\(대안\)", "", regex=True)
+        for bill_name_column in ["billName", "bill_name"]:
+            if bill_name_column in df_bills_chair.columns:
+                df_bills_chair[bill_name_column] = df_bills_chair[bill_name_column].str.replace(
+                    r"\(대안\)",
+                    "",
+                    regex=True,
+                )
 
         # TODO: 의장 법안 데이터용 proposers 컬럼 추출
         # 위 의원 데이터 처리에서와 같은 로직 적용 가능
@@ -171,7 +197,7 @@ class DataProcessor:
         return df_bills
 
     def add_AI_summary_columns(self, df_bills):
-        df_bills["brief_summary"] = None
+        df_bills["title"] = None
         df_bills["gpt_summary"] = None
         print("\n[AI 요약 데이터 컬럼 추가 완료]")
 

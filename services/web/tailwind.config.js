@@ -1,4 +1,4 @@
-import { nextui } from '@nextui-org/theme';
+import { heroui } from '@heroui/theme';
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -6,7 +6,7 @@ module.exports = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
@@ -39,7 +39,26 @@ module.exports = {
         'slide-in-right': 'slideInRight 0.3s ease-out both',
         'bar-grow': 'barGrow 0.4s ease-out 0.28s both',
       },
+      // Legacy gray-2 text follows the reading color without changing gray fills or borders.
+      textColor: {
+        'gray-2': 'hsl(var(--muted-foreground) / <alpha-value>)',
+      },
       colors: {
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        border: 'hsl(var(--border) / <alpha-value>)',
+        input: 'hsl(var(--input) / <alpha-value>)',
+        ring: 'hsl(var(--ring) / <alpha-value>)',
+        muted: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+        },
+        accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--foreground) / <alpha-value>)' },
+        secondary: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        },
+        destructive: { DEFAULT: 'hsl(var(--destructive) / <alpha-value>)', foreground: '#fff' },
         // Gray color
         gray: {
           0.5: '#EBEBEB',
@@ -50,6 +69,8 @@ module.exports = {
         },
         // Primary color
         primary: {
+          DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+          foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
           1: '#F5F7FD',
           2: '#96BCFA',
           3: '#191919',
@@ -83,5 +104,5 @@ module.exports = {
     },
   },
   darkMode: 'class',
-  plugins: [nextui()],
+  plugins: [heroui(), require('tailwindcss-animate')],
 };

@@ -1,14 +1,13 @@
-import { atom } from 'recoil';
+import { atomWithReset } from 'jotai/utils';
 
 interface SearchModalStateProps {
   show: boolean;
+  trigger?: HTMLElement | null;
+  keyword?: string;
 }
 
-const searchModalState = atom<SearchModalStateProps>({
-  key: 'searchModalState',
-  default: {
-    show: false,
-  },
+const searchModalState = atomWithReset<SearchModalStateProps>({
+  show: false,
 });
 
 export default searchModalState;

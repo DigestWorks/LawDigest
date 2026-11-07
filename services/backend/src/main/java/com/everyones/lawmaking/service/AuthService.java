@@ -10,7 +10,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +20,6 @@ import static com.everyones.lawmaking.repository.OAuth2AuthorizationRequestBased
 
 @RequiredArgsConstructor
 @Service
-@Slf4j
 @Transactional(readOnly = true)
 public class AuthService {
 
@@ -38,10 +36,10 @@ public class AuthService {
         String refreshTokenCookie = getCookieValue(httpServletRequest,REFRESH_TOKEN);
 
 
-        if (refreshTokenCookie == null) {
+        if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
             //로그아웃
             tokenService.logout(httpServletRequest,httpServletResponse);
-            return;
+            throw new AuthException.Unauthorized();
         }
 
         //토큰 재발급
@@ -52,12 +50,7 @@ public class AuthService {
         } catch (AuthException e) {
             // 예외 발생 시 로그아웃 메서드 호출
             tokenService.logout(httpServletRequest, httpServletResponse);
-            return;
-        } catch (Exception e){
-            log.error("Unexpected exception was caused",e);
-            // 예외 발생 시 로그아웃 메서드 호출
-            tokenService.logout(httpServletRequest, httpServletResponse);
-            return;
+            throw new AuthException.Unauthorized();
         }
         var cookieDomain = appProperties.getCookieDomain();
 
@@ -93,8 +86,8 @@ public class AuthService {
                 .orElseThrow(() -> new AuthException.AuthInfoNotFound(Map.of("userId", String.valueOf(userId))));
     }
 
-    public  int deleteAuthInfoBySocialId(String socialId) {
-        return authInfoRepository.deleteBySocialId(socialId);
+    public int deleteAuthInfoById(Long authInfoId) {
+        return authInfoRepository.deleteAuthInfoById(authInfoId);
     }
 
 }

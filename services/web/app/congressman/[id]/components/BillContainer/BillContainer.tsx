@@ -1,41 +1,58 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { BillList, BillTab } from '@/components';
-import { useIntersect, useTabType } from '@/hooks';
-import { BILL_TAB } from '@/constants';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
+import { BillList, BillTab } from '@/components/Bill';
+import { useIntersect } from '@/hooks';
+import { Button } from '@/components/ui/button';
 import { useGetBillByCongressman } from '../../apis';
 
 export default function BillContainer({ id }: { id: string }) {
-  const [billType, setBillType] = useTabType<typeof BILL_TAB>('represent_proposer');
-  const { data, hasNextPage, isFetching, fetchNextPage, refetch } = useGetBillByCongressman(id, billType);
-  const [bills, setBills] = useState(data ? data.pages.flatMap(({ data: { bill_list: responses } }) => responses) : []);
-
-  const fetchRef = useIntersect(async (entry: any, observer: any) => {
-    observer.unobserve(entry.target);
-    if (hasNextPage && !isFetching) {
-      fetchNextPage();
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const billType = params.get('proposal') === 'joint' ? 'public_proposer' : 'represent_proposer';
+  const query = useGetBillByCongressman(id, billType);
+  const bills = query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [];
+  useListScrollRestoration(`${pathname}?${params}`, Boolean(query.data));
+  const fetchRef = useIntersect(() => {
+    if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) {
+      void query.fetchNextPage();
     }
   });
 
-  useEffect(() => {
-    if (data) {
-      setBills(() => [...data.pages.flatMap(({ data: { bill_list: responses } }) => responses)]);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    setBills([]);
-    refetch();
-  }, [billType]);
-
   return (
     <section>
-      <BillTab type={billType as any} clickHandler={setBillType as any} />
-      <BillList bills={bills} isFetching={isFetching} fetchRef={fetchRef} />
-      {bills.length === 0 && !isFetching && (
-        <p className="flex justify-center my-8 text-sm text-gray-2 dark:text-gray-3">
-          발의한 법안이 존재하지 않습니다.
+      <BillTab
+        type={billType}
+        clickHandler={(key) => {
+          if (key !== 'represent_proposer' && key !== 'public_proposer') return;
+          const next = new URLSearchParams(params.toString());
+          if (key === 'public_proposer') next.set('proposal', 'joint');
+          else next.delete('proposal');
+          router.push(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
+        }}
+      />
+      {query.isError && !query.data ? (
+        <div className="flex flex-col items-center gap-3 py-8" role="alert">
+          <p>발의 법안을 불러오지 못했습니다.</p>
+          <Button variant="outline" onClick={() => void query.refetch()}>
+            다시 불러오기
+          </Button>
+        </div>
+      ) : (
+        <BillList
+          bills={bills}
+          isFetching={query.isPending || query.isFetchingNextPage}
+          fetchRef={fetchRef}
+          hasNextPage={query.hasNextPage}
+          error={query.isFetchNextPageError}
+          onLoadMore={() => void query.fetchNextPage()}
+        />
+      )}
+      {query.isSuccess && bills.length === 0 && (
+        <p className="py-8 text-sm text-center text-muted-foreground">
+          {billType === 'represent_proposer' ? '대표발의한 법안이 없습니다.' : '공동발의한 법안이 없습니다.'}
         </p>
       )}
     </section>

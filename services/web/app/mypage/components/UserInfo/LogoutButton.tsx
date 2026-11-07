@@ -2,14 +2,14 @@ import { deleteCookie } from 'cookies-next';
 import { useRouter } from 'next/navigation';
 import { ACCESS_TOKEN } from '@/constants';
 import { useCallback } from 'react';
-import { Button } from '@nextui-org/react';
-import { useSetRecoilState } from 'recoil';
+import { Button } from '@heroui/react';
+import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import { postLogout } from '../../apis';
 
 export default function LogoutButton() {
   const router = useRouter();
-  const setSnackbar = useSetRecoilState(snackbarState);
+  const setSnackbar = useSetAtom(snackbarState);
 
   const onClickLogout = useCallback(async () => {
     postLogout();
@@ -25,7 +25,7 @@ export default function LogoutButton() {
       radius="full"
       size="sm"
       variant="bordered"
-      className="h-8 bg-transparent border-1 border-[#E0E0E0] text-[#999999] dark:border-gray-3 dark:text-gray-2">
+      className="h-8 bg-transparent border-1 border-[#E0E0E0] text-muted-foreground dark:border-gray-3">
       로그아웃
     </Button>
   );
