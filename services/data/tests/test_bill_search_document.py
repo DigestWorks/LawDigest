@@ -1,5 +1,4 @@
 import pytest
-
 from lawdigest_data.bills.search_document import build_bill_search_document
 
 
