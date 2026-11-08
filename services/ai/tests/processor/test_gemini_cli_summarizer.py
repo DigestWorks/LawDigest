@@ -155,12 +155,11 @@ def test_gemini_cli_summarizer_reuses_api_prompt_and_schema():
     assert "키는 title, gptSummary, tags, category 네 개만 포함해야 합니다." in prompt
     assert "category는 아래 17개 분야" in prompt
     assert "키는 title, gptSummary, tags, category 네 개만 허용됩니다." in prompt
-    assert "기존 DB 스타일의 긴 제목형 요약" in prompt
-    assert "[핵심 변경 목적/수단]을/를 위한 [정확한 bill_name]" in prompt
-    assert "입력 payload의 bill_name과 같은 법안명으로 끝나야 합니다." in prompt
+    assert "카드에 표시할 설명형 제목" in prompt
+    assert "[대상·바뀌는 내용·목적]하기 위한 법안" in prompt
+    assert "정식 법안명(bill_name)을 붙이지 마세요." in prompt
     assert (
-        "해양폐기물관리위원회 위원에 지방자치단체 협의체 추천 인사를 포함하기 위한 "
-        "해양폐기물 및 해양오염퇴적물 관리법 일부개정법률안"
+        "해양폐기물관리위원회 위원에 지방자치단체 협의체 추천 인사를 포함하기 위한 법안"
     ) in prompt
     assert "'입니다', '합니다', '것입니다', '함' 같은 종결 표현으로 끝내지 마세요." in prompt
     assert '"title"' in prompt

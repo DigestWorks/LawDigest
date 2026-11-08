@@ -36,6 +36,10 @@ RETRYABLE_FAILURE_TYPES = frozenset({"empty_output", "execution_error", "invalid
 CODEX_AUTH_FILES = ("auth.json", ".credentials.json", "installation_id")
 CODEX_SYSTEM_SKILL_NAMES = ("imagegen", "openai-docs", "plugin-creator", "skill-creator", "skill-installer")
 REPORT_SKILL_NAME = "lawdigest-bill-report"
+# 카드 제목 계약: '[대상·바뀌는 내용·목적]하기 위한 법안' (2026-11-08 사용자 결정)
+TITLE_PATTERN = re.compile(r"^(?P<clause>.+?(?:기|을|를))\s+위한\s+법안$")
+TITLE_CLAUSE_MIN_CHARS = 25
+TITLE_CLAUSE_MAX_CHARS = 80
 REPORT_CODEX_CONFIG_BEGIN = "# BEGIN Lawdigest bill report agent managed skills"
 REPORT_CODEX_CONFIG_END = "# END Lawdigest bill report agent managed skills"
 REPORT_SKILL_BODY = """---
@@ -136,16 +140,18 @@ description: Use for Lawdigest bill report generation from deterministic evidenc
 - 법률·행정용어 툴팁 문법은 직접 쓰지 마세요. 중괄호 기반 툴팁 표기는 파이프라인 검증에서 제거되거나 실패 처리됩니다.
 - 법제처 정의가 있는 용어도 본문에서는 자연스러운 단어로만 쓰세요. 툴팁 표기는 코드가 후처리로 주입합니다.
 - 최종 출력은 JSON 객체 하나만 작성하세요. JSON 앞뒤에 설명, 코드펜스, Markdown을 붙이지 마세요.
-- `title`에는 카드에 표시할 제목형 요약을 작성하세요. 완결된 설명문이 아니라 핵심 변경 목적·수단을 먼저 쓰고, `을/를 위한` 뒤에 입력의 정확한 법안명을 붙여 끝내세요.
-- `title`는 원문이나 `쉬운 요약`의 첫 문장을 그대로 복사하지 말고, 여러 핵심 변화가 있으면 가장 중요한 2~3개를 짧은 명사형으로 묶으세요.
-- 예: `선관위원장 상임화·상임위원 확대 및 감사·인사검증 강화를 위한 선거관리위원회법 일부개정법률안`
+- `title`에는 카드에 표시할 설명형 제목을 작성하세요. 누구에게 무엇이 어떻게 바뀌는지와 그 목적을 담아 `~하기 위한 법안`으로 끝내세요.
+- `title`의 `위한 법안` 앞부분은 25~80자로 쓰세요. 핵심 변화가 여러 개면 가장 중요한 1~2개를 동사구로 이어 쓰세요.
+- `title`에 정식 법안명을 붙이지 마세요. 정식 법안명은 화면이 따로 보여 줍니다.
+- `title`는 원문이나 `쉬운 요약`의 첫 문장을 그대로 복사하지 말고, 마침표나 `-요`, `-니다` 같은 문장 종결 표현을 쓰지 마세요.
+- 예: `선거관리위원장을 상임직으로 바꾸고 감사·인사검증을 강화해 선관위 내부 통제를 높이기 위한 법안`
 - `report_body`에는 사용자에게 보여줄 최종 Markdown 리포트만 넣으세요. 첫 줄은 반드시 `# 법안명`으로 시작하세요.
 - 두 번째 수준의 섹션 제목은 위에 제시한 순서대로 각각 한 번만 쓰세요.
 - `tooltips`에는 법제처 용어 사전 후보 중 본문 문맥에서 일반 독자에게 꼭 필요한 high-confidence 용어만 넣으세요.
 - 후보에 없는 용어를 새로 만들지 마세요. `surface`는 `report_body`에 실제로 등장하는 표현이어야 합니다.
 - `definition`은 참고용이며 최종 툴팁 정의는 파이프라인이 후보 사전 정의로만 주입합니다.
 - `bill_id`, `gpt_summary`, `tags`를 만들지 마세요.
-- 출력 스키마: `{"title":"핵심 변화를 위한 법안명","report_body":"# 법안명\n\n## 쉬운 요약\n- ...","tooltips":[{"term":"청문","surface":"청문 절차","definition":"후보 정의","reason":"문맥상 핵심 절차 용어","confidence":"high"}],"rejected":[]}`
+- 출력 스키마: `{"title":"대상과 바뀌는 내용을 담아 목적을 이루기 위한 법안","report_body":"# 법안명\n\n## 쉬운 요약\n- ...","tooltips":[{"term":"청문","surface":"청문 절차","definition":"후보 정의","reason":"문맥상 핵심 절차 용어","confidence":"high"}],"rejected":[]}`
 """.strip() + "\n"
 
 PASSED_RESULT_TERMS = ("원안가결", "수정가결", "가결")
@@ -1046,9 +1052,11 @@ def build_bill_report_prompt(
         f"{legal_term_context}\n\n"
         "출력 규칙:\n"
         "- JSON 객체 하나만 작성하세요. JSON 앞뒤에 설명, 코드펜스, Markdown을 붙이지 마세요.\n"
-        "- title은 카드용 제목형 요약입니다. 원문 첫 문장을 복사하지 말고, 핵심 변경 목적·수단을 짧은 명사형으로 먼저 쓰세요.\n"
-        "- title은 '[핵심 변경 목적/수단]을/를 위한 [정확한 bill.bill_name]' 형태로 작성하고 반드시 정확한 법안명으로 끝내세요.\n"
-        "- title은 '입니다', '합니다', '것입니다', '함' 같은 문장 종결 표현으로 끝내지 마세요.\n"
+        "- title은 카드용 설명형 제목입니다. 원문 첫 문장을 복사하지 말고, 누구에게 무엇이 어떻게 바뀌는지와 목적을 담으세요.\n"
+        "- title은 '[대상·바뀌는 내용·목적]하기 위한 법안' 형태로 작성하고 반드시 '위한 법안'으로 끝내세요. 정식 법안명을 붙이지 마세요.\n"
+        "- title의 '위한 법안' 앞부분은 25~80자로 쓰세요.\n"
+        "- title은 '입니다', '합니다', '것입니다', '함' 같은 문장 종결 표현이나 마침표를 쓰지 마세요.\n"
+        "- title 예: '선거관리위원장을 상임직으로 바꾸고 감사·인사검증을 강화해 선관위 내부 통제를 높이기 위한 법안'\n"
         "- report_body 값은 Markdown 문자열입니다. 첫 줄 H1 제목은 bill.bill_name과 같아야 합니다.\n"
         "- report_body 안에는 툴팁 문법이나 중괄호 표기를 직접 쓰지 마세요.\n"
         "- tooltips 배열에는 candidate_terms 중 본문 문맥에서 꼭 필요한 high-confidence 용어만 넣으세요.\n"
@@ -1056,7 +1064,7 @@ def build_bill_report_prompt(
         "- confidence는 high 또는 low만 사용하세요. 파이프라인은 high만 반영합니다.\n"
         "- bill_id, gpt_summary, tags를 만들지 마세요.\n\n"
         "출력 스키마:\n"
-        '{"title":"핵심 변화를 위한 예시법안","report_body":"# 예시법안\\n\\n## 쉬운 요약\\n- ...","tooltips":[{"term":"청문","surface":"청문 절차","definition":"후보 정의","reason":"문맥상 핵심 절차 용어","confidence":"high"}],"rejected":[{"term":"정확성","reason":"일반어이거나 문맥 정의가 불확실함"}]}\n\n'
+        '{"title":"대상과 바뀌는 내용을 담아 목적을 이루기 위한 법안","report_body":"# 예시법안\\n\\n## 쉬운 요약\\n- ...","tooltips":[{"term":"청문","surface":"청문 절차","definition":"후보 정의","reason":"문맥상 핵심 절차 용어","confidence":"high"}],"rejected":[{"term":"정확성","reason":"일반어이거나 문맥 정의가 불확실함"}]}\n\n'
         f"candidate_terms:\n{json.dumps(candidate_terms, ensure_ascii=False, indent=2, default=str)}\n\n"
         f"입력 evidence packet:\n{json.dumps(evidence_payload, ensure_ascii=False, indent=2, default=str)}"
     )
@@ -1077,12 +1085,13 @@ def build_bill_report_batch_prompt(batch_items: list[dict[str, Any]]) -> str:
         "출력 규칙:\n"
         "- 최종 출력은 JSON 객체 하나만 작성하세요. JSON 앞뒤에 설명, 코드펜스, Markdown을 붙이지 마세요.\n"
         "- reports 배열은 입력 batch_items와 같은 순서로 title과 report_body를 각각 정확히 한 번씩 넣으세요.\n"
-        "- 각 title은 원문 첫 문장이 아니라 '[핵심 변경 목적/수단]을/를 위한 [정확한 bill.bill_name]' 형태의 제목형 요약이어야 합니다.\n"
+        "- 각 title은 원문 첫 문장이 아니라 '[대상·바뀌는 내용·목적]하기 위한 법안' 형태의 설명형 제목이어야 합니다. 정식 법안명을 붙이지 말고 '위한 법안'으로 끝내세요.\n"
+        "- 각 title의 '위한 법안' 앞부분은 25~80자로 쓰세요. 예: '선거관리위원장을 상임직으로 바꾸고 감사·인사검증을 강화해 선관위 내부 통제를 높이기 위한 법안'\n"
         "- 각 report_body의 첫 줄 H1 제목은 해당 batch_items의 bill.bill_name과 같아야 합니다.\n"
         "- report_body 값은 Markdown 문자열입니다. JSON 문자열 안의 줄바꿈은 반드시 escape된 줄바꿈으로 표현하세요.\n"
         "- bill_id, gpt_summary, tags를 만들지 마세요.\n\n"
         "출력 스키마:\n"
-        '{"reports":[{"title":"핵심 변화를 위한 예시법안","report_body":"# 예시법안\\n\\n## 쉬운 요약\\n- ..."}]}\n\n'
+        '{"reports":[{"title":"대상과 바뀌는 내용을 담아 목적을 이루기 위한 법안","report_body":"# 예시법안\\n\\n## 쉬운 요약\\n- ..."}]}\n\n'
         f"batch_items:\n{json.dumps(batch_items, ensure_ascii=False, indent=2, default=str)}"
     )
 
@@ -1138,19 +1147,21 @@ def _validate_generated_title(
     bill_name = str(bill.get("bill_name") or "").strip()
     if not bill_name:
         return
-    title_pattern = re.compile(rf"^(?P<prefix>.+?)(?:을|를)\s+위한\s+{re.escape(bill_name)}$")
-    match = title_pattern.fullmatch(title)
+    match = TITLE_PATTERN.fullmatch(title.strip())
     if match is None:
         raise RuntimeError(
             "생성 리포트의 title이 제목형 계약과 일치하지 않습니다: "
-            f"expected='[핵심 변경]을/를 위한 {bill_name}', actual={title}"
+            f"expected='[대상·바뀌는 내용·목적]하기 위한 법안', actual={title}"
         )
 
-    prefix = match.group("prefix").strip()
-    if not prefix or len(prefix) > 80:
-        raise RuntimeError("생성 리포트의 title 핵심 변경 제목은 1~80자여야 합니다.")
-    if re.search(r"[.!?。]|(?:입니다|합니다|것입니다|하였음|하고 있음|기관임)$", prefix):
-        raise RuntimeError("생성 리포트의 title은 설명문이 아닌 짧은 명사형 제목이어야 합니다.")
+    clause = match.group("clause").strip()
+    if not TITLE_CLAUSE_MIN_CHARS <= len(clause) <= TITLE_CLAUSE_MAX_CHARS:
+        raise RuntimeError(
+            f"생성 리포트의 title '위한 법안' 앞부분은 {TITLE_CLAUSE_MIN_CHARS}~{TITLE_CLAUSE_MAX_CHARS}자여야 합니다: "
+            f"length={len(clause)}, actual={title}"
+        )
+    if re.search(r"[.!?。]|(?:입니다|합니다|것입니다|하였음|하고 있음|기관임)", clause):
+        raise RuntimeError("생성 리포트의 title은 문장이 아닌 설명형 제목이어야 합니다.")
 
 
 def _parse_batch_report_output(
@@ -1616,74 +1627,22 @@ def _dedupe_repeated_term_tooltips(text: str) -> str:
     return TERM_TOOLTIP_PATTERN.sub(replace, text)
 
 
-def _has_overlong_title_prefix(title: str | None, bill_name: str) -> bool:
-    if not title or not bill_name or not title.endswith(bill_name):
-        return False
-    topic = _title_topic_from_bill_name(bill_name)
-    if topic and not title.startswith(topic):
-        return True
-    if re.search(r"(된|를|을)(을|를)\s+위한", title):
-        return True
-    prefix = title[: -len(bill_name)].strip()
-    prefix = re.sub(r"(을|를)\s+위한$", "", prefix).strip()
-    return len(prefix) > 36
-
-
-def _object_particle(text: str) -> str:
-    if not text:
-        return "을"
-    last = text[-1]
-    if "가" <= last <= "힣":
-        return "을" if (ord(last) - ord("가")) % 28 else "를"
-    return "을"
-
-
-def _title_topic_from_bill_name(bill_name: str) -> str | None:
-    if not bill_name:
-        return None
-    if "인공지능 데이터센터" in bill_name:
-        return "전력·용수 기반과 인허가 특례로 인공지능 데이터센터 구축·운영 지원"
-    if "농지법" in bill_name:
-        return "농지 이용 실태조사와 유휴농지 관리 강화"
-    if "해운법" in bill_name:
-        return "섬 지역 항로 단절 방지와 여객선 운항 지원 강화"
-    if "연근해어업" in bill_name:
-        return "어업활동 보고와 통합관리시스템 기반 연근해어업 관리체계 구축"
-    if "국방반도체" in bill_name:
-        return "국방반도체 기술·생산 기반 확충과 안정적 공급망 조성"
-    match = re.match(r"(.+?)(?:\s+일부개정법률안|\s+전부개정법률안|\s+제정법률안|\s+법률안|\s+특별법안)", bill_name)
-    if not match:
-        return None
-    subject = match.group(1).strip()
-    subject = re.sub(r"^(.+?)에 관한$", r"\1", subject).strip()
-    if not subject:
-        return None
-    return f"{subject} 제도 정비"
-
-
-def _build_title_from_report(bill_name: str, report_body: str) -> str | None:
-    topic = _title_topic_from_bill_name(bill_name)
-    if topic:
-        return f"{topic}{_object_particle(topic)} 위한 {bill_name}"
-
+def _build_title_from_report(report_body: str) -> str | None:
+    """쉬운 요약 첫 불릿의 '...하기 위한' 목적절로 '...위한 법안' 제목을 만든다."""
     easy_summary = _markdown_section_body(report_body, "## 쉬운 요약")
     for line in easy_summary.splitlines():
         stripped = line.strip()
         if not stripped.startswith("- "):
             continue
-        prefix = _strip_markdown_for_summary(stripped[2:])
-        prefix = re.sub(r"^(이\s+법안은|법안은)\s*", "", prefix)
-        prefix = re.sub(r"(입니다|합니다|이에요|예요|해요|돼요|되요)\.?$", "", prefix).strip()
-        prefix = re.sub(r"\s+", " ", prefix)
-        prefix = re.sub(r"\s*(특별법|법안)$", "", prefix).strip()
-        prefix = re.sub(r"\s*[가-힣A-Za-z0-9·/]+기\s+위한.*$", "", prefix).strip()
-        prefix = re.sub(r"\s*(하기|하도록|할 수 있도록)\s+위한.*$", "", prefix).strip()
-        prefix = re.sub(r"\s*(위해|위한)$", "", prefix).strip()
-        if not prefix:
-            continue
-        if len(prefix) > 28:
-            prefix = prefix[:28].rstrip()
-        return f"{prefix}{_object_particle(prefix)} 위한 {bill_name}"
+        sentence = re.sub(r"\s+", " ", _strip_markdown_for_summary(stripped[2:])).strip()
+        sentence = re.sub(r"^(이\s+법안은|법안은)\s*", "", sentence)
+        match = re.match(r"(?P<clause>.+?(?:기|을|를))\s+위한\s", sentence)
+        if match is None:
+            return None
+        clause = match.group("clause").strip()
+        if len(clause) > TITLE_CLAUSE_MAX_CHARS:
+            return None
+        return f"{clause} 위한 법안"
     return None
 
 
@@ -1701,12 +1660,7 @@ def _build_db_summary_payload(
 
     gpt_summary = body.strip()
 
-    bill_name = str(bill.get("bill_name") or "").strip()
-    title = generated_title or bill.get("title")
-    if generated_title is None and (
-        not title or _has_overlong_title_prefix(str(title), bill_name)
-    ):
-        title = _build_title_from_report(bill_name, report_body) or title
+    title = generated_title or _build_title_from_report(report_body) or bill.get("title")
 
     return {
         "title": title,
