@@ -38,6 +38,8 @@ date: 2026-11-08
 
 **모바일**: `Nav.tsx`에 원래의 `is-search-open`, `is-expanded`, 말풍선, 단독 아이콘 구조를 되살린다. 현재의 다크 모드 토큰과 포커스 표시를 유지한다. 테두리 회전은 포커스 중 느리게(6s), `pending` 중 빠르게(1.1s) 돈다.
 
+**검색 중 표시**: `.search-spinner`가 쉬는 테두리 위에 원뿔형 그라디언트 `::before` 층을 겹쳐 1.1초에 한 바퀴 돌린다. 데스크톱 헤더 검색창과 모바일 하단 바가 함께 쓴다. `useSearchRingState`는 검색이 끝나면 0.6초 동안 `settling` 상태를 두어, 회전을 이어 가며 흐려진 뒤 `rest`로 멈춘다. 입력 중 느린 회전은 두지 않는다.
+
 **결과**: `SearchResultClient`에서 `SearchTypeTabs`, `SearchBillList`(`SearchBillRow` + 무한 스크롤·더 불러오기)를 쓴다. 결과가 하나도 없으면 인기 키워드 칩을 보여 준다.
 
 ## 버린 대안

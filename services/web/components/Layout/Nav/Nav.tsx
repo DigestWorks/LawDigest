@@ -7,6 +7,7 @@ import { Clock3, MessageCircle, X } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import useSearchEntry from '@/components/search/useSearchEntry';
 import useSearchSuggestions from '@/components/search/useSearchSuggestions';
+import useSearchRingState from '@/components/search/useSearchRingState';
 import { SEARCH_MAX_LENGTH } from '@/lib/search';
 
 const SHELL_PADDING_PX = 4;
@@ -34,6 +35,7 @@ function Nav() {
   const seenFocusToken = useRef(focusToken);
   const suggestions = useSearchSuggestions(isSearchOpen, 4);
   const showSuggestions = isSearchOpen && !pending && (suggestionsOpen || !isSearchRoute);
+  const searchRingState = useSearchRingState(Boolean(pending));
 
   useEffect(() => setSearchValue(routeKeyword), [routeKeyword]);
 
@@ -255,9 +257,6 @@ function Nav() {
   }, [navItems, router, setNavIndex]);
 
   const isSearchActive = pathname.startsWith('/search') || pathname.startsWith('/ask') || isSearchOpen;
-  let searchRingState = 'rest';
-  if (pending) searchRingState = 'pending';
-  else if (searchFocused) searchRingState = 'focus';
 
   const recentBubbles = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 3);
   const trendingBubbles = suggestions.trending
@@ -382,7 +381,7 @@ function Nav() {
 
           <div
             data-state={searchRingState}
-            className={`mobile-floating-nav-search-wrap${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}${isSearchOpen ? ' is-expanded' : ''}`}>
+            className={`mobile-floating-nav-search-wrap search-spinner${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}${isSearchOpen ? ' is-expanded' : ''}`}>
             <form
               role="search"
               inert={!isSearchOpen}

@@ -255,7 +255,7 @@
 /* ── 검색 버튼 wrapper ── */
 .mobile-floating-nav-search-wrap {
   --search-gradient: conic-gradient(
-    from var(--search-ring-angle) at 50% 50%,
+    from 0deg at 50% 50%,
     #FBEB59 0%,
     #FC56D8 31%,
     #10D9EF 65%,
@@ -384,13 +384,6 @@
   height: var(--mobile-nav-size);
 }
 
-.mobile-floating-nav-search-wrap[data-state='focus'] {
-  animation: search-ring-spin 6s linear infinite;
-}
-
-.mobile-floating-nav-search-wrap[data-state='pending'] {
-  animation: search-ring-spin 1.1s linear infinite;
-}
 
 .mobile-floating-nav-search-expanded-inner {
   position: absolute;
@@ -570,10 +563,6 @@
     transition-duration: 0.01s;
   }
 
-  .mobile-floating-nav-search-wrap[data-state='focus'],
-  .mobile-floating-nav-search-wrap[data-state='pending'] {
-    animation: none;
-  }
 
   .mobile-floating-nav__solo-icon,
   .mobile-floating-nav-suggestions > li,

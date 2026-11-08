@@ -17,6 +17,7 @@ import { Clock3, MessageCircle, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useSearchEntry from '@/components/search/useSearchEntry';
 import useSearchSuggestions from '@/components/search/useSearchSuggestions';
+import useSearchRingState from '@/components/search/useSearchRingState';
 import { SEARCH_MAX_LENGTH } from '@/lib/search';
 
 function isVisible(element: HTMLElement | null) {
@@ -103,6 +104,7 @@ export function HeaderSearchField() {
   const panelId = useId();
   const suggestions = useSearchSuggestions(expanded);
   const showPanel = expanded && panelOpen && !pending;
+  const ringState = useSearchRingState(Boolean(pending));
   const recent = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 5);
   const trending = suggestions.trending.filter(({ keyword }) => keyword !== routeKeyword);
 
@@ -251,8 +253,8 @@ export function HeaderSearchField() {
         role="search"
         onSubmit={onSubmit}
         style={{ opacity: 0 }}
-        className={`header-search-ring absolute${expanded ? ' pointer-events-auto' : ''}`}
-        data-state={pending ? 'pending' : 'rest'}>
+        className={`header-search-ring search-spinner absolute${expanded ? ' pointer-events-auto' : ''}`}
+        data-state={ringState}>
         <div className="header-search-ring__inner">
           <motion.div
             initial={false}
