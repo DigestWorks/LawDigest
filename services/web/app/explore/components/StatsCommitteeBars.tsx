@@ -8,6 +8,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { useGetStatisticsByCommittee } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_N = 8;
 
@@ -19,9 +20,10 @@ const chartConfig = {
 export default function StatsCommitteeBars() {
   const query = useGetStatisticsByCommittee();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const committees = data?.data ?? [];
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="위원회별 접수 현황" icon={Landmark} delay={0.15}>
         <div className="flex flex-col gap-2">

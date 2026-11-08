@@ -18,6 +18,7 @@ import {
 import { useGetStatisticsCategoryParty } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_CATEGORIES = 6;
 const TOP_PARTIES = 4;
@@ -28,6 +29,7 @@ const ETC_COLOR = '#999999';
 export default function StatsCategoryPartyStack() {
   const query = useGetStatisticsCategoryParty();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const cells = useMemo(() => data?.data ?? [], [data]);
 
@@ -72,7 +74,7 @@ export default function StatsCategoryPartyStack() {
     return { rows: pivoted, parties: topParties };
   }, [cells]);
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="분야별 정당 구성" icon={ChartColumnStacked} delay={0.2}>
         <Skeleton className="h-[240px] w-full" />

@@ -8,6 +8,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { StatisticsStage, useGetStatisticsStage } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 // Neutral First: soft assembly blue 단색의 불투명도 램프(뒤 단계일수록 진하게).
 const STAGES: { key: keyof StatisticsStage; label: string; opacity: number }[] = [
@@ -27,9 +28,10 @@ const chartConfig = {
 export default function StatsStageFunnel() {
   const query = useGetStatisticsStage();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const stage = data?.data;
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="입법 진행 단계" icon={Filter} delay={0.05}>
         <div className="flex h-[190px] flex-col justify-between py-1">

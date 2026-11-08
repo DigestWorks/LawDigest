@@ -1,6 +1,6 @@
 'use client';
 
-import { BillListSkeleton, ReportListSkeleton } from '@/components/common/Skeletons';
+import { BillListSkeleton, ReportListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { SectionError } from '@/components/common/SectionState';
 
 import { useSearchParams } from 'next/navigation';
@@ -99,6 +99,8 @@ export default function Feed() {
       : FEED_TAB.sortedByLatest;
   const viewStage = feedStage(navigation.params.get('stage'));
   const viewLatest = viewFeedType === FEED_TAB.sortedByLatest;
+  // 본문은 응답이 늦을 때만 다음 화면의 스켈레톤으로 바꾸고, 그 전까지는 지금 화면을 유지한다.
+  const bodyContent = navigation.pending ? viewContent : contentType;
   const query = useGetBillByStage(stage, assembly, contentType === 'bill' && isLatest);
   const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
   const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
@@ -121,9 +123,10 @@ export default function Feed() {
   let emptyMessage = isLatest ? '등록된 법안이 없습니다.' : '최근 7일 동안 조회하거나 스크랩한 법안이 없습니다.';
   if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
 
+  const billSkeleton = useSkeletonGate(activeQuery.isPending);
   let results;
-  if (navigation.pending || activeQuery.isPending) {
-    results = <BillListSkeleton />;
+  if (navigation.pending || billSkeleton) {
+    results = <BillListSkeleton instant={navigation.pending} />;
   } else if (activeQuery.isError && !activeQuery.data) {
     results = (
       <div className="mx-5 mt-4">
@@ -185,18 +188,18 @@ export default function Feed() {
           </button>
         ))}
       </div>
-      {viewContent === 'report' &&
-        (navigation.pending ? <ReportListSkeleton /> : <ReportFeed scrollKey={params.toString()} />)}
-      {viewContent === 'following' &&
+      {bodyContent === 'report' &&
+        (navigation.pending ? <ReportListSkeleton instant /> : <ReportFeed scrollKey={params.toString()} />)}
+      {bodyContent === 'following' &&
         (navigation.pending ? (
-          <BillListSkeleton />
+          <BillListSkeleton instant />
         ) : (
           <>
             <FollowingCongressmanStrip />
             <FollowingFeed scrollKey={params.toString()} />
           </>
         ))}
-      {viewContent === 'bill' && (
+      {bodyContent === 'bill' && (
         <>
           <NotificationTopThree />
           <section className="flex flex-wrap items-center justify-between gap-2 mx-5 mt-2">

@@ -3,7 +3,7 @@
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
-import { CategoryGridSkeleton } from '@/components/common/Skeletons';
+import { CategoryGridSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { useGetCategoryCounts } from '../apis';
 import { useExploreRetryFocus } from './useExploreRetryFocus';
@@ -14,7 +14,8 @@ export default function CategoryGrid() {
   const { resultRef, retry } = useExploreRetryFocus(Boolean(data), query.refetch);
   const counts = (data?.data ?? []).filter((c) => isCategoryCode(c.category));
 
-  if (isLoading) {
+  const showSkeleton = useSkeletonGate(isLoading);
+  if (showSkeleton) {
     return <CategoryGridSkeleton />;
   }
 

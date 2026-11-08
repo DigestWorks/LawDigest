@@ -2,16 +2,17 @@
 
 import { ExpandableList } from '@/components';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
-import { FollowedMembersSkeleton } from '@/components/common/Skeletons';
+import { FollowedMembersSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import CongressmanItem from './CongressmanItem';
 import { useGetFollowingCongressman } from '../../apis';
 
 export default function CongressmanList() {
   const query = useGetFollowingCongressman();
+  const showSkeleton = useSkeletonGate(query.isPending);
   const lawmakers = query.data?.data;
   let content = <SectionEmpty>팔로우한 의원이 없습니다.</SectionEmpty>;
 
-  if (query.isPending) {
+  if (showSkeleton) {
     content = <FollowedMembersSkeleton />;
   } else if (!lawmakers) {
     content = (

@@ -4,7 +4,7 @@ import { Flame } from 'lucide-react';
 import { SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
-import { KeywordChipsSkeleton } from '@/components/common/Skeletons';
+import { KeywordChipsSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { useGetTrendingKeywords } from '../apis';
 
 /**
@@ -16,7 +16,8 @@ export default function TrendingKeywords() {
   const { data } = query;
   const keywords = data?.data ?? [];
 
-  if (query.isPending) return <KeywordChipsSkeleton />;
+  const showSkeleton = useSkeletonGate(query.isPending);
+  if (showSkeleton) return <KeywordChipsSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError

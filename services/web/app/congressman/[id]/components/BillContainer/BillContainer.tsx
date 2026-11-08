@@ -36,7 +36,7 @@ export default function BillContainer({ id }: { id: string }) {
           navigation.push(next);
         }}
       />
-      {navigation.pending && <BillListSkeleton />}
+      {navigation.pending && <BillListSkeleton instant />}
       {!navigation.pending && query.isError && !query.data && (
         <div className="flex flex-col items-center gap-3 py-8" role="alert">
           <p>발의 법안을 불러오지 못했습니다.</p>

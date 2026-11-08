@@ -8,6 +8,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { useGetStatisticsResultBreakdown } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 /**
  * 알려진 처리 결과별 색 — 디자인 토큰 기반(Neutral First).
@@ -31,9 +32,10 @@ const EXTRA_PALETTE = ['#99999980', '#55555580', '#96BCFA80', '#E0E0E080'];
 export default function StatsResultComposition() {
   const query = useGetStatisticsResultBreakdown();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const rows = data?.data ?? [];
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="처리 결과 구성" icon={ChartPie} delay={0.1}>
         <Skeleton className="h-[52px] w-full" />

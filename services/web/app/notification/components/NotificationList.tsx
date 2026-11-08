@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { getDateStatus } from '@/utils';
 import { SectionError } from '@/components/common/SectionState';
-import { NotificationListSkeleton } from '@/components/common/Skeletons';
+import { NotificationListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Divider, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { IconKebab } from '@/public/svgs';
 import { useSetAtom } from 'jotai';
@@ -33,6 +33,8 @@ export default function NotificationList() {
   const listQuery = useGetNotification();
   const notificationCount = countQuery.data?.notification_count;
   const notifications = listQuery.data;
+  const listFailed = (notificationCount == null && countQuery.isError) || (!notifications && listQuery.isError);
+  const showSkeleton = useSkeletonGate((notificationCount == null || !notifications) && !listFailed);
   const setSnackbar = useSetAtom(snackbarState);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const manageButtonRef = useRef<HTMLButtonElement>(null);
@@ -79,9 +81,9 @@ export default function NotificationList() {
     setDeleteAllOpen(open);
   };
 
+  if (showSkeleton) return <NotificationListSkeleton />;
   if (notificationCount == null || !notifications) {
-    const failed = (notificationCount == null && countQuery.isError) || (!notifications && listQuery.isError);
-    if (!failed) return <NotificationListSkeleton />;
+    if (!listFailed) return <NotificationListSkeleton />;
     return (
       <div className="p-5">
         <SectionError

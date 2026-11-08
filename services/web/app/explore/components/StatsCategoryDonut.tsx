@@ -12,6 +12,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { useGetStatisticsByCategory } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_N = 6;
 const ETC_COLOR = '#999999';
@@ -24,11 +25,12 @@ const chartConfig = {
 export default function StatsCategoryDonut() {
   const query = useGetStatisticsByCategory();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const raw = useMemo(() => (data?.data ?? []).filter((c) => isCategoryCode(c.category)), [data]);
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="분야별 분포" icon={Donut} delay={0.15}>
         <div className="flex items-center gap-4">

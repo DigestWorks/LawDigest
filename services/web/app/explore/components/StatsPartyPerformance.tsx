@@ -9,6 +9,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '
 import { useGetStatisticsByParty, useGetStatisticsPartyPerformance } from '../apis';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_N = 8;
 
@@ -44,7 +45,8 @@ export default function StatsPartyPerformance() {
         passRate: null as number | null,
       }));
 
-  if (rows.length === 0 && (performance.isLoading || fallback.isLoading)) {
+  const showSkeleton = useSkeletonGate(rows.length === 0 && (performance.isLoading || fallback.isLoading));
+  if (showSkeleton) {
     return (
       <StatsCard title="정당별 발의·가결" icon={Flag} delay={0.1}>
         <div className="flex flex-col gap-2">

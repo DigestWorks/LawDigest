@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { animate, motion, useInView, useReducedMotion } from 'framer-motion';
 import { useGetStatisticsOverview } from '../apis';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 interface CountUpProps {
   value: number;
@@ -75,10 +76,11 @@ function PassRateRing({ rate }: { rate: number }) {
 export default function StatsOverview() {
   const query = useGetStatisticsOverview();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const reduceMotion = useReducedMotion();
   const overview = data?.data;
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (

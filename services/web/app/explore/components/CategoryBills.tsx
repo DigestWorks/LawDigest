@@ -1,7 +1,7 @@
 'use client';
 
 import BillList from '@/components/Bill/BillList/BillList';
-import { BillListSkeleton } from '@/components/common/Skeletons';
+import { BillListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useIntersect } from '@/hooks';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
@@ -17,7 +17,8 @@ export default function CategoryBills({ category }: { category: string }) {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  if (query.isPending)
+  const showSkeleton = useSkeletonGate(query.isPending);
+  if (showSkeleton)
     return (
       <div className="-mx-5">
         <BillListSkeleton />

@@ -1,14 +1,15 @@
 import { Avatar } from '@heroui/avatar';
 import { SectionError } from '@/components/common/SectionState';
-import { UserInfoSkeleton } from '@/components/common/Skeletons';
+import { UserInfoSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import Image from 'next/image';
 import { useGetUserInfo } from '../../apis';
 
 export default function UserInfo() {
   const query = useGetUserInfo();
+  const showSkeleton = useSkeletonGate(!query.data && query.isPending);
   const userInfo = query.data?.data;
 
-  if (!userInfo && query.isPending) return <UserInfoSkeleton />;
+  if (showSkeleton) return <UserInfoSkeleton />;
 
   if (!userInfo) {
     return (

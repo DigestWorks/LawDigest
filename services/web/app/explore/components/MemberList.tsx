@@ -3,7 +3,7 @@
 import { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Avatar } from '@heroui/avatar';
-import { MemberCardGridSkeleton } from '@/components/common/Skeletons';
+import { MemberCardGridSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { getPartyColor } from '@/constants/party';
 import { getImageSrc } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,8 @@ export default function MemberList() {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  if (query.isPending) return <MemberCardGridSkeleton />;
+  const showSkeleton = useSkeletonGate(query.isPending);
+  if (showSkeleton) return <MemberCardGridSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError

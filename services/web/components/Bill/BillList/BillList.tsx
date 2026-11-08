@@ -1,6 +1,6 @@
 import { BillListItem } from '@/types';
 import { RefObject } from 'react';
-import { BillListSkeleton } from '@/components/common/Skeletons';
+import { BillListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Button } from '@/components/ui/button';
 import Bill from './Bill';
 import { filterUniqueBills } from './filterUniqueBills';
@@ -25,6 +25,16 @@ export default function BillList({
   error?: boolean;
 }) {
   const uniqueBills = filterUniqueBills(bills);
+  // 첫 목록은 스켈레톤이 보였다면 최소 표시 시간을 지킨다. 다음 페이지 스켈레톤은 목록 끝에 붙으므로 그대로 둔다.
+  const firstLoad = useSkeletonGate(isFetching && uniqueBills.length === 0);
+
+  if (firstLoad) {
+    return (
+      <section className="max-w-full xl:w-[840px] pb-28">
+        <BillListSkeleton />
+      </section>
+    );
+  }
 
   return (
     <section className="max-w-full xl:w-[840px] pb-28">

@@ -1,5 +1,5 @@
 import { SectionError } from '@/components/common/SectionState';
-import { CongressmanProfileSkeleton } from '@/components/common/Skeletons';
+import { CongressmanProfileSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Card } from '@heroui/card';
 import { Avatar } from '@heroui/avatar';
 import { Divider, Button, Link as NextUILink, Accordion, AccordionItem } from '@heroui/react';
@@ -11,7 +11,9 @@ import PartyLogo from './PartyLogo';
 export default function CongressmanDetail({ congressmanId }: { congressmanId: string }) {
   const query = useGetCongressmanDetail(congressmanId);
   const profile = query.data?.data;
+  const showSkeleton = useSkeletonGate(query.isPending);
 
+  if (showSkeleton) return <CongressmanProfileSkeleton />;
   if (!profile) {
     return query.isPending ? (
       <CongressmanProfileSkeleton />

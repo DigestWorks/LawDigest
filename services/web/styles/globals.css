@@ -438,3 +438,18 @@ li {
   -webkit-mask-size: 100% 18rem;
   mask-size: 100% 18rem;
 }
+
+/* 화면에 이미 떠 있던 스켈레톤을 이어받는 스켈레톤은 등장 지연 없이 바로 보인다. (LoadingRegion의 data-skeleton-instant) */
+[data-skeleton-instant] .animate-skeleton {
+  animation: skeletonPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+[data-skeleton-instant].animate-skeleton-region {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-skeleton-instant] .animate-skeleton {
+    animation: none;
+  }
+}

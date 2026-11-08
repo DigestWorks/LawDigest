@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { BillProps, SimilarBill } from '@/types';
 import { Button } from '@/components/ui/button';
-import { LoadingRegion } from '@/components/common/Skeletons';
+import { LoadingRegion, useSkeletonGate } from '@/components/common/Skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { nextBillPage } from '@/lib/billQueries';
 import { getSimilarBills } from '../../apis/apis';
@@ -45,6 +45,7 @@ function RelatedPageList({
   let group = '';
   if (current === true) group = '현재 대수';
   if (current === false) group = '이전 대수';
+  const showSkeleton = useSkeletonGate(query.isPending);
   const seen = new Set<string>();
   const bills = (query.data?.pages ?? [])
     .flatMap(({ data }) => data.bill_list)
@@ -56,7 +57,7 @@ function RelatedPageList({
 
   return (
     <div className="flex flex-col gap-3">
-      {query.isPending && (
+      {showSkeleton && (
         <LoadingRegion label="개정안을 불러오고 있습니다" className="flex flex-col gap-3">
           {[0, 1, 2].map((key) => (
             <Skeleton key={key} className="h-16 w-full rounded-lg" />
@@ -74,9 +75,7 @@ function RelatedPageList({
       {query.isSuccess && !bills.length && (
         <p className="text-sm text-muted-foreground">관련된 다른 개정안이 없습니다.</p>
       )}
-      {bills.map((bill) => (
-        <AnotherBill key={bill.billId} {...bill} previous={current === false} />
-      ))}
+      {!showSkeleton && bills.map((bill) => <AnotherBill key={bill.billId} {...bill} previous={current === false} />)}
       {query.isFetchNextPageError && <p role="alert">다음 개정안을 불러오지 못했습니다.</p>}
       {query.hasNextPage && (
         <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>

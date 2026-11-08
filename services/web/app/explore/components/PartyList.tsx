@@ -5,7 +5,7 @@ import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { PartyCardGridSkeleton } from '@/components/common/Skeletons';
+import { PartyCardGridSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import Image from 'next/image';
 import { getPartyColor } from '@/constants/party';
 import { getPartyLogoSrc } from '@/utils';
@@ -21,7 +21,8 @@ export default function PartyList() {
     .filter((party) => party.party_id > 0)
     .sort((a, b) => b.congressman_count - a.congressman_count);
 
-  if (isLoading) {
+  const showSkeleton = useSkeletonGate(isLoading);
+  if (showSkeleton) {
     return <PartyCardGridSkeleton />;
   }
 

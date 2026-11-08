@@ -1,5 +1,5 @@
 import { SectionError } from '@/components/common/SectionState';
-import { PartyProfileSkeleton } from '@/components/common/Skeletons';
+import { PartyProfileSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Button } from '@/components/ui/button';
 import { Card } from '@heroui/card';
 import { Divider } from '@heroui/react';
@@ -22,7 +22,9 @@ function externalUrl(value: string | null | undefined) {
 export default function PartyDetail({ partyId }: { partyId: number }) {
   const query = useGetPartyDetail(partyId);
   const profile = query.data?.data;
+  const showSkeleton = useSkeletonGate(query.isPending);
 
+  if (showSkeleton) return <PartyProfileSkeleton />;
   if (!profile) {
     return query.isPending ? (
       <PartyProfileSkeleton />

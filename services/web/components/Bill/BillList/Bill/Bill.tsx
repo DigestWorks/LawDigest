@@ -359,7 +359,7 @@ export default function Bill({
                     </ActionButton>
                   </>
                 ) : (
-                  <InlineLinesSkeleton label="발의자 명단을 불러오고 있습니다" lines={2} />
+                  <InlineLinesSkeleton label="발의자 명단을 불러오고 있습니다" lines={2} className="w-56" />
                 )}
               </div>
             )}

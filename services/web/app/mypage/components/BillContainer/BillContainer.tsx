@@ -1,7 +1,7 @@
 'use client';
 
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
-import { BookmarkedBillsSkeleton } from '@/components/common/Skeletons';
+import { BookmarkedBillsSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import Image from 'next/image';
 import { useIntersect } from '@/hooks';
 import { Card } from '@heroui/card';
@@ -11,13 +11,14 @@ import BillBookmarkedList from './BillBookmaredList';
 
 export default function BillContainer() {
   const query = useGetBillBookmarked();
+  const showSkeleton = useSkeletonGate(query.isPending);
   const bills = query.data?.pages.flatMap((page) => page.data.bill_list) ?? [];
   const fetchRef = useIntersect(() => {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
   let content = <SectionEmpty>스크랩한 법안이 없습니다.</SectionEmpty>;
-  if (query.isPending) {
+  if (showSkeleton) {
     content = <BookmarkedBillsSkeleton />;
   } else if (!query.data) {
     content = (

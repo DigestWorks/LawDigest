@@ -12,7 +12,7 @@ import {
   useDeleteNotification,
   useGetNotificationCount,
 } from '../apis';
-import { NotificationPreviewSkeleton } from '@/components/common/Skeletons';
+import { NotificationPreviewSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import NotificationItem from './NotificationItem';
 
 export default function NotificationTopThree() {
@@ -23,6 +23,7 @@ export default function NotificationTopThree() {
   const { data: notificationCount } = useGetNotificationCount({
     enabled: Boolean(accessToken),
   });
+  const showSkeleton = useSkeletonGate(isLoading);
   const setSnackbar = useSetAtom(snackbarState);
 
   const mutateRead = usePutNotificationRead({
@@ -78,7 +79,7 @@ export default function NotificationTopThree() {
   );
 
   if (!accessToken) return null;
-  if (isLoading) return <NotificationPreviewSkeleton />;
+  if (showSkeleton) return <NotificationPreviewSkeleton />;
 
   return (
     <section className="mx-4 mt-6 mb-10 flex flex-col gap-4 rounded-xl border border-gray-1 p-5 dark:border-dark-l md:mx-6">

@@ -97,12 +97,14 @@ export function BillCardsBlocks({ count = 3 }: { count?: number }) {
 export function BillListSkeleton({
   count = 3,
   label = '법안을 불러오고 있습니다',
+  instant = false,
 }: {
   count?: number;
   label?: string;
+  instant?: boolean;
 }) {
   return (
-    <LoadingRegion label={label}>
+    <LoadingRegion label={label} instant={instant}>
       <BillCardsBlocks count={count} />
     </LoadingRegion>
   );
@@ -133,9 +135,9 @@ export function FeedSkeleton() {
 }
 
 /** components/Feed/Feed/ReportFeed.tsx 리포트 목록 항목. */
-export function ReportListSkeleton({ count = 3 }: { count?: number }) {
+export function ReportListSkeleton({ count = 3, instant = false }: { count?: number; instant?: boolean }) {
   return (
-    <LoadingRegion label="리포트를 불러오고 있습니다" className="pt-4">
+    <LoadingRegion label="리포트를 불러오고 있습니다" className="pt-4" instant={instant}>
       <Skeleton className="mx-5 mb-4 h-3 w-56" />
       {Array.from({ length: count }, (_, index) => (
         <div key={index} className="flex flex-col gap-4 border-b border-border px-5 py-6 md:gap-5 md:py-7">

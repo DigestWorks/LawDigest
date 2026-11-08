@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import StatsCard from './StatsCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const PERIODS = [
   { months: 6, label: '6개월' },
@@ -67,7 +68,7 @@ export default function StatsTrendArea() {
     : (fallback.data?.data ?? []).map((p) => ({ month: p.month, proposed: p.count }));
 
   const points = fillTrendCalendar(rawPoints, calendarMonths);
-  const loading = detail.isLoading || fallback.isLoading;
+  const loading = useSkeletonGate(detail.isLoading || fallback.isLoading);
   const failed = detail.isError && fallback.isError;
   const hasPoints = points.some((point) => point.proposed !== null);
   const monthKeys = points.map((p) => p.month);

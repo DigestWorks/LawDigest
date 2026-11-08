@@ -5,7 +5,7 @@ import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { CSSProperties } from 'react';
 import Link from 'next/link';
-import { MemberRankingSkeleton } from '@/components/common/Skeletons';
+import { MemberRankingSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Avatar } from '@heroui/avatar';
 import { getPartyColor } from '@/constants/party';
 import { getImageSrc } from '@/utils';
@@ -19,7 +19,8 @@ export default function MemberRanking() {
   const { data } = query;
   const ranking = data?.data ?? [];
 
-  if (query.isPending) return <MemberRankingSkeleton />;
+  const showSkeleton = useSkeletonGate(query.isPending);
+  if (showSkeleton) return <MemberRankingSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError
