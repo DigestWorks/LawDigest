@@ -1,6 +1,11 @@
 import { Fragment } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { LEGAL_OPERATOR, type LegalBlock, type LegalDocumentData, type LegalText } from '@/constants/legal';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import type { LegalBlock, LegalDocumentData, LegalText } from '@/constants/legal';
+import { getArchivedDocument } from '@/constants/legalArchive';
+
+const HISTORY_ID = 'history';
 
 const linkClass = 'underline underline-offset-4 hover:text-foreground focus-visible:text-foreground';
 
@@ -91,17 +96,81 @@ function Contents({ document }: { document: LegalDocumentData }) {
           </a>
         </li>
       ))}
+      <li>
+        <a
+          href={`#${HISTORY_ID}`}
+          className="block rounded-sm py-1.5 text-muted-foreground hover:text-foreground focus-visible:text-foreground">
+          개정 이력
+        </a>
+      </li>
     </ol>
   );
 }
 
-export default function LegalDocument({ document }: { document: LegalDocumentData }) {
+function History({ document, current }: { document: LegalDocumentData; current: LegalDocumentData }) {
+  return (
+    <section id={HISTORY_ID} aria-labelledby={`${HISTORY_ID}-title`} className="scroll-mt-6">
+      <h2 id={`${HISTORY_ID}-title`} className="mb-3 text-lg font-semibold text-foreground">
+        개정 이력
+      </h2>
+      <ol className="flex flex-col border-y border-border text-sm">
+        {current.history.map((revision, index) => {
+          const latest = index === 0;
+          const viewing = revision.effectiveDateTime === document.effectiveDateTime;
+          const href = latest
+            ? current.path
+            : getArchivedDocument(current.kind, revision.effectiveDateTime) &&
+              `${current.path}/${revision.effectiveDateTime}`;
+          const date = <time dateTime={revision.effectiveDateTime}>{revision.effectiveDate}</time>;
+          return (
+            <li
+              key={revision.effectiveDateTime}
+              aria-current={viewing ? 'page' : undefined}
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-3 last:border-b-0">
+              <span className={`min-w-[9rem] ${viewing ? 'font-semibold text-foreground' : ''}`}>
+                {href && !viewing ? (
+                  <Link href={href} className="underline underline-offset-4 hover:text-foreground">
+                    {date}
+                  </Link>
+                ) : (
+                  date
+                )}
+              </span>
+              <span className="flex-1">{revision.summary}</span>
+              {latest && <Badge variant="outline">현재 버전</Badge>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** current를 넘기면 document를 보관된 이전 버전으로 보여 준다. */
+export default function LegalDocument({
+  document,
+  current = document,
+}: {
+  document: LegalDocumentData;
+  current?: LegalDocumentData;
+}) {
+  const archived = current !== document;
   return (
     <article className="mx-auto w-full max-w-[1040px] px-5 py-8 lg:py-12">
       <header className="flex flex-col gap-2 border-b border-border pb-6">
         <h1 className="text-[26px] font-semibold leading-tight">{document.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          시행일 <time dateTime={LEGAL_OPERATOR.effectiveDateTime}>{LEGAL_OPERATOR.effectiveDate}</time>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+          <span>
+            시행일 <time dateTime={document.effectiveDateTime}>{document.effectiveDate}</time>
+          </span>
+          {archived && (
+            <>
+              <Badge variant="secondary">이전 버전</Badge>
+              <Link href={current.path} className="font-medium text-foreground underline underline-offset-4">
+                현재 버전 보기
+              </Link>
+            </>
+          )}
         </p>
       </header>
 
@@ -144,6 +213,7 @@ export default function LegalDocument({ document }: { document: LegalDocumentDat
             </section>
           ))}
           <p className="border-t border-border pt-6 text-sm">{document.closing}</p>
+          <History document={document} current={current} />
         </div>
       </div>
     </article>
