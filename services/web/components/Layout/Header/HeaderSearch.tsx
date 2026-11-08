@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { animate, AnimationPlaybackControlsWithThen, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Clock3, MessageCircle, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useSearchEntry from '@/components/search/useSearchEntry';
@@ -59,14 +59,31 @@ interface Box {
 }
 
 const FIELD_HEIGHT = 50;
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const BOX_PROPS = ['left', 'top', 'width', 'height'];
+/** 열 때: 인디케이터 자리에서 바로 보인 뒤 늘어난다. */
+const OPEN_TRANSITION = BOX_PROPS.map((prop) => `${prop} 0.46s ${EASE_OUT}`).join(', ');
+/** 닫을 때: 인디케이터 자리로 줄어든 뒤 사라진다. */
+const CLOSE_TRANSITION = [...BOX_PROPS.map((prop) => `${prop} 0.34s ${EASE_OUT}`), 'opacity 0.1s linear 0.3s'].join(
+  ', ',
+);
 
-function toPixels(box: Box) {
-  return { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` };
+function setBox(form: HTMLFormElement, box: Box, opacity: number) {
+  Object.assign(form.style, {
+    left: `${box.left}px`,
+    top: `${box.top}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+    opacity: String(opacity),
+  });
 }
 
+/** 전환 없이 바로 놓는다. 브라우저 CSS 전환만 쓰므로 인라인 값이 곧 화면 값이다. */
 function placeForm(form: HTMLFormElement, box: Box, opacity: number) {
-  Object.assign(form.style, toPixels(box), { opacity: String(opacity) });
+  form.style.transition = 'none';
+  setBox(form, box, opacity);
+  // 다음 전환이 이 자리에서 시작하도록 지금 값을 확정한다.
+  form.getBoundingClientRect();
 }
 
 /** 헤더 가운데에서 펼쳐지는 검색창과 그 아래 추천 패널(데스크톱).
@@ -81,8 +98,6 @@ export function HeaderSearchField() {
   const root = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const shownExpanded = useRef<boolean | null>(null);
-  const motionRef = useRef<AnimationPlaybackControlsWithThen[]>([]);
-  const motionRunning = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const seenFocusToken = useRef(focusToken);
   const panelId = useId();
@@ -120,21 +135,6 @@ export function HeaderSearchField() {
     return { origin, final };
   }, []);
 
-  // 진행 중인 애니메이션을 멈춘다. 애니메이션 묶음의 state는 움직일 값이 없으면 읽을 때 예외가 나므로 직접 기록한다.
-  const stopMotion = useCallback(() => {
-    motionRef.current.forEach((animation) => animation.stop());
-    motionRef.current = [];
-    motionRunning.current = false;
-  }, []);
-
-  const startMotion = useCallback((animations: AnimationPlaybackControlsWithThen[]) => {
-    motionRef.current = animations;
-    motionRunning.current = true;
-    Promise.all(animations.map((animation) => animation.then(() => undefined))).then(() => {
-      if (motionRef.current === animations) motionRunning.current = false;
-    });
-  }, []);
-
   // 사용자가 열고 닫을 때만 움직인다. 경로가 바뀌어 헤더가 새로 그려지거나 창 크기가 바뀌면 제자리에 바로 놓는다.
   useLayoutEffect(() => {
     const form = formRef.current;
@@ -144,24 +144,19 @@ export function HeaderSearchField() {
     const previous = shownExpanded.current;
     shownExpanded.current = expanded;
     if (previous === null || previous === expanded || reduceMotion) {
-      stopMotion();
       placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
       return;
     }
-    // 닫히는 중에 다시 열면 지금 자리에서 이어서 늘어난다.
-    const moving = motionRunning.current;
-    stopMotion();
     if (expanded) {
-      if (!moving) placeForm(form, next.origin, 1);
-      form.style.opacity = '1';
-      startMotion([animate(form, toPixels(next.final), { duration: 0.46, ease: EASE_OUT })]);
+      // 완전히 닫혀 있었으면 인디케이터 자리에서 시작하고, 닫히는 중이면 지금 자리에서 이어서 늘어난다.
+      if (getComputedStyle(form).opacity === '0') placeForm(form, next.origin, 1);
+      form.style.transition = OPEN_TRANSITION;
+      setBox(form, next.final, 1);
     } else {
-      startMotion([
-        animate(form, toPixels(next.origin), { duration: 0.34, ease: EASE_OUT }),
-        animate(form, { opacity: 0 }, { duration: 0.1, delay: 0.3 }),
-      ]);
+      form.style.transition = CLOSE_TRANSITION;
+      setBox(form, next.origin, 0);
     }
-  }, [expanded, measure, reduceMotion, startMotion, stopMotion]);
+  }, [expanded, measure, reduceMotion]);
 
   useEffect(() => {
     const onResize = () => {
@@ -169,12 +164,11 @@ export function HeaderSearchField() {
       const next = measure();
       if (!form || !next) return;
       setGeometry(next);
-      stopMotion();
       placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [expanded, measure, stopMotion]);
+  }, [expanded, measure]);
 
   useEffect(() => setValue(routeKeyword), [routeKeyword]);
 
