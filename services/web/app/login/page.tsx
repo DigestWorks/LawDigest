@@ -1,16 +1,22 @@
 import Image from 'next/image';
+import type { ReactNode } from 'react';
+import { FaApple } from 'react-icons/fa';
 import { Logo } from '@/components';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { loginReturnTo, oauthLoginHref } from '@/lib/loginNavigation';
+import { loginReturnTo, oauthLoginHref, oauthProviders, type OAuthProvider } from '@/lib/loginNavigation';
 
 type LoginParams = { returnTo?: string | string[]; error?: string | string[] };
 
-const providers = [
-  { id: 'kakao', label: '카카오톡으로 시작하기', image: '/images/kakao.svg' },
-  { id: 'google', label: '구글로 시작하기', image: '/images/google.svg' },
-  { id: 'naver', label: '네이버로 시작하기', image: '/images/naver.png' },
-] as const;
+const providerImage = (src: string) => <Image src={src} width={22} height={22} alt="" />;
+
+const providerButtons: Record<OAuthProvider, { label: string; icon: ReactNode }> = {
+  kakao: { label: '카카오톡으로 시작하기', icon: providerImage('/images/kakao.svg') },
+  google: { label: '구글로 시작하기', icon: providerImage('/images/google.svg') },
+  naver: { label: '네이버로 시작하기', icon: providerImage('/images/naver.png') },
+  // Apple 버튼 문구와 로고 사용은 Apple HIG의 Sign in with Apple 버튼 지침을 따른다.
+  apple: { label: 'Apple로 계속하기', icon: <FaApple aria-hidden className="!size-[22px]" /> },
+};
 
 export default async function Login({ searchParams }: { searchParams: Promise<LoginParams> }) {
   const params = await searchParams;
@@ -32,11 +38,11 @@ export default async function Login({ searchParams }: { searchParams: Promise<Lo
         </Alert>
       )}
       <div className="flex w-full flex-col gap-4">
-        {providers.map((provider) => (
-          <Button key={provider.id} asChild variant="outline" className="h-[58px] w-full rounded-full">
-            <a href={oauthLoginHref(provider.id, returnTo)}>
-              <Image src={provider.image} width={22} height={22} alt="" />
-              {provider.label}
+        {oauthProviders().map((provider) => (
+          <Button key={provider} asChild variant="outline" className="h-[58px] w-full rounded-full">
+            <a href={oauthLoginHref(provider, returnTo)}>
+              {providerButtons[provider].icon}
+              {providerButtons[provider].label}
             </a>
           </Button>
         ))}
