@@ -18,6 +18,8 @@ public class OAuth2UserInfoFactory {
             return new NaverOAuth2UserInfo(attributes);
         } else if (Objects.requireNonNull(provider) == GOOGLE) {
             return new GoogleOAuth2UserInfo(attributes);
+        } else if (Objects.requireNonNull(provider) == APPLE) {
+            return new AppleOAuth2UserInfo(attributes);
         }
         throw new IllegalArgumentException("유효하지 않은 Provider Type 입니다.");
     }

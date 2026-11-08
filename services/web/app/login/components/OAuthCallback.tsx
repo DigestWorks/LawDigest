@@ -7,6 +7,8 @@ import { ACCESS_TOKEN } from '@/constants';
 import { SectionLoading } from '@/components/common/SectionState';
 import { loginHref, loginReturnTo } from '@/lib/loginNavigation';
 
+const CANCEL_CODES = ['access_denied', 'user_cancelled_authorize'];
+
 export default function OAuthCallback() {
   const router = useRouter();
 
@@ -14,7 +16,9 @@ export default function OAuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const returnTo = loginReturnTo(params.get('returnTo'));
     if (params.has('error')) {
-      const error = params.get('error')?.toLowerCase().includes('access_denied') ? 'cancelled' : 'failed';
+      // access_denied: 카카오·구글·네이버 취소, user_cancelled_authorize: Apple 취소
+      const code = params.get('error')?.toLowerCase() ?? '';
+      const error = CANCEL_CODES.some((cancel) => code.includes(cancel)) ? 'cancelled' : 'failed';
       router.replace(loginHref(returnTo, error));
       return;
     }

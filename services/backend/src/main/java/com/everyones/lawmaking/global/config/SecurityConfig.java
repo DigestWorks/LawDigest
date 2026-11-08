@@ -1,5 +1,7 @@
 package com.everyones.lawmaking.global.config;
 
+import com.everyones.lawmaking.global.auth.apple.AppleAwareTokenRequestConverter;
+import com.everyones.lawmaking.global.auth.apple.AppleClientSecretGenerator;
 import com.everyones.lawmaking.global.config.OAuthConfig.AppProperties;
 import com.everyones.lawmaking.global.filterException.CustomAuthenticationEntryPoint;
 import com.everyones.lawmaking.global.handler.*;
@@ -17,6 +19,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -44,6 +49,7 @@ public class SecurityConfig implements WebMvcConfigurer { // WebMvcConfigurer �
     private final ClientRegistrationRepository clientRegistrationRepository;
     private final CorsConfig corsConfig;
     private final TokenService tokenService;
+    private final AppleClientSecretGenerator appleClientSecretGenerator;
 
 
     // 회원가입이랑 로그인 필요한 요청에 대해서만 시큐리티 필터를 타기
@@ -76,6 +82,9 @@ public class SecurityConfig implements WebMvcConfigurer { // WebMvcConfigurer �
                         )
                         .redirectionEndpoint(redirection -> redirection
                                 .baseUri("/v1/login/oauth2/code/*")
+                        )
+                        .tokenEndpoint(token -> token
+                                .accessTokenResponseClient(authorizationCodeTokenResponseClient())
                         )
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(oAuth2UserService)
@@ -144,6 +153,16 @@ public class SecurityConfig implements WebMvcConfigurer { // WebMvcConfigurer �
     public OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler() {
         return new OAuth2AuthenticationFailureHandler(
                 oAuth2AuthorizationRequestBasedOnCookieRepository(), oAuth2ClientTokenRepository, appProperties);
+    }
+
+    /*
+     * 토큰 교환 클라이언트
+     * Apple 요청에는 매번 서명한 client_secret JWT를 넣는다.
+     * */
+    private OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> authorizationCodeTokenResponseClient() {
+        var client = new DefaultAuthorizationCodeTokenResponseClient();
+        client.setRequestEntityConverter(new AppleAwareTokenRequestConverter(appleClientSecretGenerator));
+        return client;
     }
 
     @Bean
