@@ -85,9 +85,11 @@ def test_agentic_report_prompt_targets_user_facing_report(monkeypatch):
     assert "아직 법으로 확정된 건 아니고" not in prompt
     assert "처리 상태" in context
     assert "하기 위한 법률 개정안이에요" in context
-    assert "title은 카드용 제목형 요약" in prompt
+    assert "title은 카드용 설명형 제목" in prompt
     assert "원문 첫 문장을 복사하지 말고" in prompt
-    assert "'[핵심 변경 목적/수단]을/를 위한 [정확한 bill.bill_name]'" in prompt
+    assert "'[대상·바뀌는 내용·목적]하기 위한 법안'" in prompt
+    assert "앞부분은 25~80자" in prompt
+    assert "짧은 명사형" not in prompt
     assert "괄호 설명이나 설명 불릿으로 끼워 넣지 마세요" in context
     assert "어려운 법률·행정용어" in context
     assert '"legal_terms"' in context
@@ -1952,7 +1954,7 @@ def test_run_agentic_bill_reports_applies_tooltips_from_single_structured_output
         output_path.write_text(
             json.dumps(
                 {
-                    "title": "청문 절차 명확화를 위한 청문 절차 정비법안",
+                    "title": "행정청이 처분 전에 거치는 청문 절차를 명확히 정해 당사자 권리를 지키기 위한 법안",
                     "report_body": report_body,
                     "tooltips": [
                         {
@@ -2197,7 +2199,7 @@ def test_run_agentic_bill_reports_retries_retryable_batch_failures(tmp_path, mon
         )
         return json.dumps(
             {
-                "title": f"지원 근거 신설을 위한 {bill_name}",
+                "title": f"{bill_name}의 지원 근거를 새로 마련해 대상자 지원을 넓히기 위한 법안",
                 "report_body": report_body,
                 "tooltips": [],
                 "rejected": [],
@@ -2441,7 +2443,7 @@ def test_run_agentic_bill_reports_stops_retrying_after_retry_persistence_failure
 
     def successful_retry(self, *, bill, output_path, **kwargs):
         retry_calls.append(bill["bill_id"])
-        return {"bill_id": bill["bill_id"], "bill_name": bill["bill_name"], "status": "success", "report_path": output_path, "title": f"변화를 위한 {bill['bill_name']}", "usage": {"input_tokens": 7}}
+        return {"bill_id": bill["bill_id"], "bill_name": bill["bill_name"], "status": "success", "report_path": output_path, "title": f"{bill['bill_name']}의 핵심 변화를 담아 제도 운영을 개선하기 위한 법안", "usage": {"input_tokens": 7}}
 
     with patch("lawdigest_ai.processor.agentic_bill_report._fetch_bill_report_targets", return_value=targets), patch.object(
         CodexBillReportAgent, "write_reports_batch", return_value=batch_result
@@ -2465,7 +2467,7 @@ def test_run_agentic_bill_reports_does_not_retry_persistence_failures(tmp_path):
     def write_batch(self, *, bills, success_callback, **kwargs):
         items = []
         for bill in bills:
-            item = {"bill_id": bill["bill_id"], "bill_name": bill["bill_name"], "status": "success", "title": f"변화를 위한 {bill['bill_name']}", "report_path": str(tmp_path / f"{bill['bill_id']}.md"), "batch_index": 1}
+            item = {"bill_id": bill["bill_id"], "bill_name": bill["bill_name"], "status": "success", "title": f"{bill['bill_name']}의 핵심 변화를 담아 제도 운영을 개선하기 위한 법안", "report_path": str(tmp_path / f"{bill['bill_id']}.md"), "batch_index": 1}
             try:
                 item["db_upserted"] = success_callback(bill, item)
             except Exception as exc:
@@ -2613,7 +2615,7 @@ def test_run_agentic_bill_reports_unwraps_single_report_json_in_batch_turn(tmp_p
                 {
                     "reports": [
                         {
-                            "title": f"지원 근거 신설을 위한 {bill_name}",
+                            "title": f"{bill_name}의 지원 근거를 새로 마련해 대상자 지원을 넓히기 위한 법안",
                             "report_body": body,
                         }
                     ]
@@ -2644,8 +2646,8 @@ def test_run_agentic_bill_reports_unwraps_single_report_json_in_batch_turn(tmp_p
     assert result["stats"]["failure_count"] == 0
     assert [call.kwargs["bill_id"] for call in mock_update.call_args_list] == ["PRC_JSON_BATCH_1", "PRC_JSON_BATCH_2"]
     assert [call.kwargs["title"] for call in mock_update.call_args_list] == [
-        "지원 근거 신설을 위한 JSON 복구 테스트법안 1",
-        "지원 근거 신설을 위한 JSON 복구 테스트법안 2",
+        "JSON 복구 테스트법안 1의 지원 근거를 새로 마련해 대상자 지원을 넓히기 위한 법안",
+        "JSON 복구 테스트법안 2의 지원 근거를 새로 마련해 대상자 지원을 넓히기 위한 법안",
     ]
     for item in result["items"]:
         body = Path(item["report_path"]).read_text(encoding="utf-8")
@@ -2806,15 +2808,33 @@ def test_agentic_report_validates_generated_card_title_contract():
     from lawdigest_ai.processor.agentic_bill_report import _validate_generated_title
 
     bill = {"bill_name": "선거관리위원회법 일부개정법률안"}
+    _validate_generated_title("선거관리위원장을 상임직으로 바꾸고 감사·인사검증을 강화해 선관위 내부 통제를 높이기 위한 법안", bill, required=True)
     _validate_generated_title(
-        "선관위원장 상임화·상임위원 확대 및 감사·인사검증 강화를 위한 선거관리위원회법 일부개정법률안",
+        "중앙선거관리위원회 위원장의 상임화와 상임위원 확대를 통한 내부 통제 강화를 위한 법안",
         bill,
         required=True,
     )
 
     with pytest.raises(RuntimeError, match="제목형 계약"):
         _validate_generated_title(
+            "선관위원장 상임화·상임위원 확대 및 감사·인사검증 강화를 위한 선거관리위원회법 일부개정법률안",
+            bill,
+            required=True,
+        )
+
+    with pytest.raises(RuntimeError, match="제목형 계약"):
+        _validate_generated_title(
             "중앙선거관리위원회는 선거사무 전반을 중립적이고 책임 있게 수행하여야 하는 헌법기관임.",
+            bill,
+            required=True,
+        )
+
+    with pytest.raises(RuntimeError, match="25~80자"):
+        _validate_generated_title("의무장교 복무기간 단축을 위한 법안", bill, required=True)
+
+    with pytest.raises(RuntimeError, match="문장이 아닌"):
+        _validate_generated_title(
+            "선관위원장을 상임직으로 바꿔요. 감사와 인사검증을 강화해 내부 통제를 높이기 위한 법안",
             bill,
             required=True,
         )
@@ -2851,10 +2871,7 @@ def test_agentic_report_replaces_source_sentence_with_generated_card_title():
 - 국회 의안정보시스템
 """.strip()
 
-    generated_title = (
-        "선관위원장 상임화·상임위원 확대 및 감사·인사검증 강화를 위한 "
-        "선거관리위원회법 일부개정법률안"
-    )
+    generated_title = "선거관리위원장을 상임직으로 바꾸고 감사·인사검증을 강화해 선관위 내부 통제를 높이기 위한 법안"
     payload = _build_db_summary_payload(
         bill=bill,
         report_body=report_body,
@@ -2869,85 +2886,50 @@ def test_agentic_report_replaces_source_sentence_with_generated_card_title():
     assert "확인한 근거" not in payload["gpt_summary"]
 
 
-def test_agentic_report_rebuilds_overlong_title_prefix():
-    from lawdigest_ai.processor.agentic_bill_report import _build_db_summary_payload
-
-    bill_name = "인공지능 데이터센터 산업 진흥에 관한 특별법안(대안)"
-    bill = {
-        "bill_id": "PRC_AI_DC",
-        "bill_name": bill_name,
-        "title": (
-            "인공지능 데이터센터의 신속한 구축과 운영 지원을 위한 행정·재정적 근거를 마련하고 "
-            "인허가 절차 간소화 및 각종 특례를 규정하기 위한 "
-            "인공지능 데이터센터 산업 진흥에 관한 특별법안(대안)"
-        ),
-        "summary_tags": None,
-    }
-    report_body = """
-# 인공지능 데이터센터 산업 진흥에 관한 특별법안(대안)
-
-## 쉬운 요약
-- 인공지능 데이터센터를 **빨리 짓고 안정적으로 돌리기 위한 특별법**이에요.
-- 국가와 지자체가 전력, 용수, 도로, 통신 같은 기반부터 우선 챙기게 해요.
-
-## 주요 내용
-### 1) 빠른 구축 지원
-<mark>인허가를 묶어 처리할 수 있게 해요.</mark>
-""".strip()
-
-    payload = _build_db_summary_payload(bill=bill, report_body=report_body)
-
-    assert payload["title"] == (
-        "전력·용수 기반과 인허가 특례로 인공지능 데이터센터 구축·운영 지원을 위한 "
-        "인공지능 데이터센터 산업 진흥에 관한 특별법안(대안)"
-    )
-    assert payload["title"].endswith(bill_name)
-
-
-def test_agentic_report_rebuilds_title_without_bad_particles():
+def test_agentic_report_builds_fallback_title_from_easy_summary_purpose():
     from lawdigest_ai.processor.agentic_bill_report import _build_db_summary_payload
 
     cases = [
         (
-            "농지법 일부개정법률안(대안)",
-            "농지의 실제 이용 상태를 더 잘 파악하고, 방치된 농지를 정리하게 해요.",
-            "농지 이용 실태조사와 유휴농지 관리 강화를 위한 농지법 일부개정법률안(대안)",
+            "- 교통약자가 교통수단과 여객시설을 더 편리하게 이용하도록 서비스와 계획 점검을 강화하기 위한 법률 개정안이에요.",
+            "교통약자가 교통수단과 여객시설을 더 편리하게 이용하도록 서비스와 계획 점검을 강화하기 위한 법안",
         ),
         (
-            "해운법 일부개정법률안(대안)",
-            "섬 주민이 끊기지 않게 배를 이용할 수 있도록 지원해요.",
-            "섬 지역 항로 단절 방지와 여객선 운항 지원 강화를 위한 해운법 일부개정법률안(대안)",
+            "- 이 법안은 인공지능 데이터센터를 **빨리 짓고 안정적으로 돌리기 위한 특별법**이에요.",
+            "인공지능 데이터센터를 빨리 짓고 안정적으로 돌리기 위한 법안",
         ),
         (
-            "지속가능한 연근해어업 발전법안(대안)",
-            "연근해에서 잡고 기르는 어업을 오래 이어갈 수 있게 관리체계를 만들어요.",
-            "어업활동 보고와 통합관리시스템 기반 연근해어업 관리체계 구축을 위한 지속가능한 연근해어업 발전법안(대안)",
+            "- <mark>{{장애인학대:장애인에게 신체적·정신적 폭력을 가하는 행위를 말해요.}} 예방 체계를 더 촘촘하게 만들기 위한 법률 개정안이에요.</mark>",
+            "장애인학대 예방 체계를 더 촘촘하게 만들기 위한 법안",
         ),
     ]
-
-    malformed_titles = {
-        "농지법 일부개정법률안(대안)": "농지의 실제 이용 상태를 더 잘 파악하고, 방치된을 위한 농지법 일부개정법률안(대안)",
-        "해운법 일부개정법률안(대안)": "섬 주민이 끊기지 않게 배를을 위한 해운법 일부개정법률안(대안)",
-        "지속가능한 연근해어업 발전법안(대안)": (
-            "불법어업 예방을 위한 어업활동 보고 의무화 및 통합관리시스템 구축을 위한 "
-            "지속가능한 연근해어업 발전법안(대안)"
-        ),
-    }
-
-    for bill_name, first_bullet, expected in cases:
+    for first_bullet, expected in cases:
         payload = _build_db_summary_payload(
             bill={
                 "bill_id": "PRC_CASE",
-                "bill_name": bill_name,
-                "title": malformed_titles[bill_name],
+                "bill_name": "예시법 일부개정법률안",
+                "title": "기존 제목을 위한 예시법 일부개정법률안",
                 "summary_tags": None,
             },
-            report_body=f"## 쉬운 요약\n- {first_bullet}\n\n## 주요 내용\n### 1) 변화\n본문",
+            report_body=f"# 예시법 일부개정법률안\n\n## 쉬운 요약\n{first_bullet}\n- 두 번째 불릿이에요.\n\n## 주요 내용\n본문",
         )
-
         assert payload["title"] == expected
-        assert "된을 위한" not in payload["title"]
-        assert "를을 위한" not in payload["title"]
+
+
+def test_agentic_report_keeps_existing_title_when_easy_summary_has_no_purpose():
+    from lawdigest_ai.processor.agentic_bill_report import _build_db_summary_payload
+
+    payload = _build_db_summary_payload(
+        bill={
+            "bill_id": "PRC_CASE",
+            "bill_name": "해운법 일부개정법률안(대안)",
+            "title": "기존 제목",
+            "summary_tags": None,
+        },
+        report_body="## 쉬운 요약\n- 섬 주민이 끊기지 않게 배를 이용할 수 있도록 지원해요.\n\n## 주요 내용\n본문",
+    )
+
+    assert payload["title"] == "기존 제목"
 
 
 def test_run_agentic_bill_reports_upserts_successful_items(tmp_path, monkeypatch):
@@ -2972,7 +2954,7 @@ def test_run_agentic_bill_reports_upserts_successful_items(tmp_path, monkeypatch
         return {
             "bill_id": bill["bill_id"],
             "bill_name": bill["bill_name"],
-            "title": "지원 근거 명확화를 위한 업서트 테스트법 일부개정법률안",
+            "title": "업서트 테스트법의 지원 근거를 명확히 정해 대상자 지원을 안정적으로 하기 위한 법안",
             "report_path": str(report_path),
             "finished_at": "2026-11-03T10:00:00+09:00",
             "status": "success",
@@ -2994,7 +2976,7 @@ def test_run_agentic_bill_reports_upserts_successful_items(tmp_path, monkeypatch
     assert result["stats"]["db_upserted_count"] == 1
     mock_update.assert_called_once()
     assert mock_update.call_args.kwargs["title"] == (
-        "지원 근거 명확화를 위한 업서트 테스트법 일부개정법률안"
+        "업서트 테스트법의 지원 근거를 명확히 정해 대상자 지원을 안정적으로 하기 위한 법안"
     )
     assert "쉬운 요약" in mock_update.call_args.kwargs["gpt_summary"]
     assert mock_update.call_args.kwargs["report_published_at"].isoformat() == "2026-11-03T01:00:00"
