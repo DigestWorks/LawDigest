@@ -187,6 +187,8 @@ export function HeaderSearchField() {
       return undefined;
     }
     const onPointerDown = (event: PointerEvent) => {
+      // 모바일 화면에서는 이 검색창이 숨겨져 있다. 보이지 않을 때는 하단 내비의 클릭을 바깥 클릭으로 보지 않는다.
+      if (!isVisible(root.current)) return;
       const target = event.target as Element | null;
       if (!target || root.current?.contains(target) || target.closest('[data-search-toggle]')) return;
       setPanelOpen(false);

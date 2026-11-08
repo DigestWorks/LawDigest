@@ -111,8 +111,10 @@ function Nav() {
       return undefined;
     }
     const onPointerDown = (event: PointerEvent) => {
+      // 데스크톱 화면에서는 하단 내비가 숨겨져 있다. 보이지 않을 때는 헤더 검색창의 클릭을 바깥 클릭으로 보지 않는다.
+      if (!wrapperRef.current || wrapperRef.current.getClientRects().length === 0) return;
       const target = event.target as Element | null;
-      if (!target || wrapperRef.current?.contains(target) || target.closest('[data-search-toggle]')) return;
+      if (!target || wrapperRef.current.contains(target) || target.closest('[data-search-toggle]')) return;
       searchInputRef.current?.blur();
       setSuggestionsOpen(false);
       if (!isSearchRoute && !pending) closeEntry();
