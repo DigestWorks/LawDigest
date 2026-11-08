@@ -16,8 +16,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params) {
   const { version } = await params;
   const document = getArchivedDocument('terms', version);
+  if (!document) notFound();
   return getMetadata({
-    title: `${TERMS_DOCUMENT.title}(${document?.effectiveDate ?? version} 시행)`,
+    title: `${TERMS_DOCUMENT.title}(${document.effectiveDate} 시행)`,
     description: TERMS_DOCUMENT.description,
     asPath: `${TERMS_DOCUMENT.path}/${version}`,
     noIndex: true,
