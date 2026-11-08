@@ -515,3 +515,44 @@ def test_parse_likms_alternative_fragment_excludes_alternative_bill():
         {"bill_id": "ORG-1", "bill_name": "원안 법안 1"},
         {"bill_id": "ORG-2", "bill_name": "원안 법안 2"},
     ]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "제안이유",
+        "주요내용",
+        "제안이유 및 주요내용",
+        "제안이유 및 주요 내용",
+        "제안이유 및 제안이유",
+        "대안의 제안이유",
+        "대안의 제안이유 및 주요내용",
+        "1. 대안의 제안이유",
+        "2. 대안의 제안이유",
+        "■ 제안이유 및 주요내용",
+        "[제안이유]",
+        "제안이유:",
+    ],
+)
+def test_summary_headings_are_recognized(line):
+    from lawdigest_data.core.WorkFlowManager import is_summary_heading
+
+    assert is_summary_heading(line)
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["제안이유 및 주요내용을 정비하려는 것임", "농협 조합장·주요임원 임기 12년 제한법", "현행법은 제안이유를 정함", ""],
+)
+def test_content_lines_are_not_headings(line):
+    from lawdigest_data.core.WorkFlowManager import is_summary_heading
+
+    assert not is_summary_heading(line)
+
+
+def test_derive_title_skips_alternative_bill_headings():
+    from lawdigest_data.core.WorkFlowManager import WorkFlowManager
+
+    summary = "대안의 제안이유 및 주요내용\n\n  가. 선원의 근로조건을 개선하려는 것임.\n"
+
+    assert WorkFlowManager._derive_title(summary, "선원법(대안)", None) == "가. 선원의 근로조건을 개선하려는 것임."
