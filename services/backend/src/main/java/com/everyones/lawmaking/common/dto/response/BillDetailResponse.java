@@ -3,6 +3,7 @@ package com.everyones.lawmaking.common.dto.response;
 import com.everyones.lawmaking.common.dto.*;
 import com.everyones.lawmaking.common.dto.bill.BillDto;
 import com.everyones.lawmaking.common.dto.proposer.RepresentativeProposerDto;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import jakarta.validation.constraints.NotNull;
@@ -16,15 +17,26 @@ import java.util.List;
 @JsonNaming(value = PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class BillDetailResponse extends BillDto {
     private List<SimilarBill> similarBills;
+    private long similarBillsCount;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Long previousSimilarBillsCount;
     private VoteResultResponse voteResultResponse;
 
 
     public BillDetailResponse(@NotNull BillInfoDto billInfoDto, @NotNull List<RepresentativeProposerDto> representativeProposerDto, @NotNull List<PublicProposerDto> publicProposerDtoList, @NotNull Boolean isBookMarked) {
-        super(billInfoDto, representativeProposerDto, publicProposerDtoList, isBookMarked);
+        super(billInfoDto, representativeProposerDto, publicProposerDtoList, isBookMarked, null);
     }
 
     public void setSimilarBills(List<SimilarBill> similarBills) {
         this.similarBills = similarBills;
+    }
+
+    public void setSimilarBillsCount(long count) {
+        this.similarBillsCount = count;
+    }
+
+    public void setPreviousSimilarBillsCount(long count) {
+        this.previousSimilarBillsCount = count;
     }
 
     public void setVoteResultResponse(VoteResultResponse voteResultResponse) {

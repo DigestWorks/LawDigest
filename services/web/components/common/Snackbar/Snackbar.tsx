@@ -1,16 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, useEffect } from 'react';
-import { useRecoilValue, useResetRecoilState } from 'recoil';
+import { Fragment, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { loginHref } from '@/lib/loginNavigation';
+import { useAtomValue } from 'jotai';
+import { useResetAtom } from 'jotai/utils';
 import { Transition } from '@headlessui/react';
-import { Button } from '@nextui-org/react';
+import { Button } from '@/components/ui/button';
 import { snackbarState } from '@/store';
 import { IconCancel } from '@/public/svgs';
 
 export default function Snackbar() {
-  const snackbar = useRecoilValue(snackbarState);
-  const resetSnackbar = useResetRecoilState(snackbarState);
+  const snackbar = useAtomValue(snackbarState);
+  const pathname = usePathname();
+  const [loginUrl, setLoginUrl] = useState('/login');
+
+  useEffect(() => {
+    setLoginUrl(loginHref(window.location.pathname + window.location.search + window.location.hash));
+  }, [pathname, snackbar.show]);
+  const resetSnackbar = useResetAtom(snackbarState);
 
   // eslint-disable-next-line consistent-return
   useEffect(() => {
@@ -31,7 +40,7 @@ export default function Snackbar() {
   return (
     <section
       aria-live="assertive"
-      className="fixed inset-0 flex items-end justify-center w-full px-4 py-20 pointer-events-none">
+      className="floating-snackbar fixed inset-0 z-[45] flex items-end justify-center w-full px-4 py-20 pointer-events-none">
       <Transition
         show={snackbar.show}
         as={Fragment}
@@ -48,14 +57,16 @@ export default function Snackbar() {
           <div className="flex items-center px-4 py-3">
             <p className="flex-1 w-0 text-sm font-semibold text-white lg:text-base">{snackbar.message}</p>
             {snackbar.message === '로그인이 필요한 서비스입니다.' && (
-              <Link href="/login" className="mr-2">
+              <Link href={loginUrl} className="mr-2">
                 <p className="text-xs font-medium text-white underline lg:text-sm ">로그인 하기</p>
               </Link>
             )}
             <Button
-              isIconOnly
-              size="sm"
-              className="flex flex-shrink-0 bg-transparent focus:outline-none"
+              type="button"
+              variant="ghost"
+              aria-label="알림 닫기"
+              size="icon"
+              className="size-8 flex-shrink-0 text-white hover:bg-white/15 hover:text-white focus-visible:ring-white"
               onClick={resetSnackbar}>
               <IconCancel />
             </Button>

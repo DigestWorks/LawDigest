@@ -72,13 +72,14 @@ CONTAINER_NAME="${CONTAINER_NAME:-lawdigest-backend-test}"
 IMAGE_NAME="${IMAGE_NAME:-lawdigest-backend-test}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-law_prod_network}"
 ACTIVE="${ACTIVE:-test}"
+BACKEND_DEPLOY_LABEL="${BACKEND_DEPLOY_LABEL:-테스트}"
 STAGING_PORT="${STAGING_PORT:-$((HOST_PORT + 10000))}"
 STAGING_CONTAINER_NAME="${STAGING_CONTAINER_NAME:-${CONTAINER_NAME}.staging}"
 ROLLBACK_CONTAINER_NAME="${ROLLBACK_CONTAINER_NAME:-${CONTAINER_NAME}.rollback}"
 HEALTHCHECK_PATH="${HEALTHCHECK_PATH:-/actuator/health}"
 
 container_exists() {
-  docker inspect "$1" >/dev/null 2>&1
+  docker container inspect "$1" >/dev/null 2>&1
 }
 
 remove_container_if_exists() {
@@ -120,7 +121,7 @@ check_health() {
 BRANCH_NAME="$(git -C "$TARGET_ROOT" branch --show-current)"
 COMMIT_SHA="$(git -C "$TARGET_ROOT" rev-parse --short HEAD)"
 
-echo "▶ 테스트 백엔드 배포 시작 (docker)"
+echo "▶ $BACKEND_DEPLOY_LABEL 백엔드 배포 시작 (docker)"
 echo "  target: $TARGET_ROOT"
 echo "  branch: $BRANCH_NAME"
 echo "  commit: $COMMIT_SHA"

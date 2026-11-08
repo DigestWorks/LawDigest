@@ -25,10 +25,10 @@ public class BillException extends CustomException {
 
     public static class SearchParameterInvalid extends BillException {
         public SearchParameterInvalid() {
-            super(ErrorCode.INVALID_QUERY_PARAMETER);
+            super(ErrorCode.SEARCH_PARAMETER_INVALID);
         }
         public SearchParameterInvalid(Map<String, String> inputValueProperties) {
-            super(ErrorCode.INVALID_QUERY_PARAMETER, inputValueProperties);
+            super(ErrorCode.SEARCH_PARAMETER_INVALID, inputValueProperties);
         }
     }
 }

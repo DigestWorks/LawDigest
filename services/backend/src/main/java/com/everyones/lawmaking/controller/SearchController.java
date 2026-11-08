@@ -1,12 +1,14 @@
 package com.everyones.lawmaking.controller;
 
-import com.everyones.lawmaking.common.dto.response.SearchBillResponse;
+import com.everyones.lawmaking.common.dto.bill.BillCardDto;
 import com.everyones.lawmaking.common.dto.response.SearchDataResponse;
 import com.everyones.lawmaking.common.dto.response.SearchKeywordResponse;
 import com.everyones.lawmaking.facade.SearchFacade;
 import com.everyones.lawmaking.global.BaseResponse;
 import com.everyones.lawmaking.global.error.BillException;
 import com.everyones.lawmaking.global.error.CongressmanException;
+import com.everyones.lawmaking.global.error.RequestParameterException;
+import com.everyones.lawmaking.global.util.SearchQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -111,11 +113,11 @@ public class SearchController {
             @Parameter(example = "국민", description = "국민의 힘 정당 노리는 검색어")
             @RequestParam("search_word") String searchWord){
 
-        if(searchWord == null || searchWord.trim().isEmpty()) {
+        if(searchWord == null || searchWord.isBlank() || searchWord.length() > SearchQuery.MAX_LENGTH) {
             throw new CongressmanException.SearchParameterInvalid(Map.of("searchWord", searchWord));
         }
 
-        var result = searchFacade.searchCongressmanAndParty(searchWord);
+        var result = searchFacade.searchCongressmanAndParty(searchWord.strip());
         return BaseResponse.ok(result);
 
     }
@@ -135,16 +137,18 @@ public class SearchController {
             ),
     })
     @GetMapping("/bill")
-    public BaseResponse<SearchBillResponse> searchBill (
+    public BaseResponse<?> searchBill (
             @Parameter(example = "소방", description = "소방 관련 법안을 검색하려는 검색어")
             @RequestParam("search_word") String searchWord,
             @Parameter(example = "0", description = "검색 결과 페이징을 위한 페이지 넘버")
-            @RequestParam("page") int page) {
-        if (searchWord.trim().length()<2){
-            throw new BillException.SearchParameterInvalid(Map.of("searchWord", searchWord));
+            @RequestParam("page") int page,
+            @RequestParam(name = "compact", defaultValue = "false") boolean compact) {
+        if (page < 0) {
+            throw new RequestParameterException();
         }
-        var result = searchFacade.searchBill(searchWord,page);
-        return BaseResponse.ok(result);
+        var query = SearchQuery.from(searchWord);
+        var result = searchFacade.searchBill(query.text(), page);
+        return BaseResponse.ok(compact ? BillCardDto.searchPage(result) : result);
 
     }
 

@@ -1,8 +1,6 @@
 package com.everyones.lawmaking.repository;
 
 import com.everyones.lawmaking.domain.entity.AuthInfo;
-import com.everyones.lawmaking.domain.entity.Provider;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +19,6 @@ public interface AuthInfoRepository extends JpaRepository<AuthInfo, Long> {
     Optional<AuthInfo> findAuthInfoByUserId(@Param("userId") Long userId);
 
     @Modifying(clearAutomatically = true)
-    int deleteBySocialId(@Param("userId") String socialId);
+    int deleteAuthInfoById(Long authInfoId);
 
 }

@@ -84,19 +84,19 @@ WEB_PORT=3020 PM2_NAME=lawdigest-web-test ./deploy/deploy-test-web.sh /home/ubun
 - `NEXT_PUBLIC_DOMAIN`
   - 기본값: `https://test.lawdigest.kr`
 
-테스트 배포 기준 브랜치는 `dev`다. 자동 배포 워크플로우는 `origin/dev`를 동기화한 worktree를 넘겨준다.
+테스트 배포 기준 브랜치는 `dev`다. 서버 로컬 셸에서 `origin/dev`를 동기화한 worktree를 준비한 뒤 스크립트에 넘긴다.
 
 ## 배포 확인
 배포 후 아래 순서로 확인한다.
 
 ```bash
 pm2 list
-curl -sSI https://test.lawdigest.kr/election | sed -n '1,20p'
+curl -sSI https://test.lawdigest.kr/ | sed -n '1,20p'
 ```
 
 정상이라면:
 - `lawdigest-web-test` 프로세스가 `online`
-- `https://test.lawdigest.kr/election` 응답이 `200 OK`
+- `https://test.lawdigest.kr/` 응답이 `200 OK`
 
 ## 현재 release 확인
 현재 심링크 대상 확인:

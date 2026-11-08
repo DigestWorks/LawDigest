@@ -1,4 +1,4 @@
 import snackbarState from './SnackbarState';
-import searchModalState from './SearchModalState';
+import searchEntryState from './SearchEntryState';
 
-export { snackbarState, searchModalState };
+export { snackbarState, searchEntryState };

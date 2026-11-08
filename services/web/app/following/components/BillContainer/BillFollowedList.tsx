@@ -1,6 +1,6 @@
 import { BillResponse } from '@/types';
 import { RefObject } from 'react';
-import { Spinner } from '@nextui-org/spinner';
+import { Spinner } from '@heroui/spinner';
 import { Bill } from '@/components';
 
 export default function BillFollowedList({
@@ -10,7 +10,7 @@ export default function BillFollowedList({
 }: {
   bills: BillResponse[];
   isFetching: boolean;
-  fetchRef: RefObject<HTMLDivElement>;
+  fetchRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
     <ul className="flex flex-col gap-4">

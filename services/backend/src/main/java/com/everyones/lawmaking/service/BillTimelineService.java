@@ -1,6 +1,7 @@
 package com.everyones.lawmaking.service;
 
 import com.everyones.lawmaking.common.dto.projection.CommitteeBillDto;
+import com.everyones.lawmaking.common.dto.projection.PlenaryEvent;
 import com.everyones.lawmaking.repository.BillTimelineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -26,8 +27,8 @@ public class BillTimelineService {
         return billTimelineRepository.findBillTimelineBetweenProposeDateAndStage(localDate, "공포");
     }
 
-    public List<String> findPlenaryBillIds(LocalDate localDate) {
-        return billTimelineRepository.findBillTimelineBetweenProposeDateAndStage(localDate, "본회의 심의");
+    public List<PlenaryEvent> findPlenaryHistoryForDate(LocalDate date) {
+        return billTimelineRepository.findPlenaryHistoryForDate(date);
     }
 
     public List<CommitteeBillDto> findCommitteesWithMultipleBillIds(LocalDate proposeDate) {

@@ -1,46 +1,53 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { IconNotification } from '@/public/svgs';
-import { Badge } from '@nextui-org/badge';
+import { Badge } from '@heroui/badge';
 import { useGetNotificationCount } from '@/app/notification/apis';
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
-import { useSetRecoilState } from 'recoil';
+import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 
 export default function NotificationButton() {
-  const accessToken = getCookie(ACCESS_TOKEN);
-  const setSnackbar = useSetRecoilState(snackbarState);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const accessToken = mounted ? getCookie(ACCESS_TOKEN) : undefined;
+  const setSnackbar = useSetAtom(snackbarState);
+
+  const { data: notificationCount } = useGetNotificationCount({ enabled: Boolean(accessToken) });
+  const unread = notificationCount?.notification_count ?? 0;
 
   if (!accessToken) {
     return (
-      // eslint-disable-next-line jsx-a11y/anchor-is-valid
-      <Link
-        href="#"
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="[&_svg]:size-6"
+        aria-label="알림"
+        disabled={!mounted}
         onClick={() =>
           setSnackbar({ show: true, type: 'ERROR', message: '로그인이 필요한 서비스입니다.', duration: 3000 })
         }>
         <IconNotification />
-      </Link>
-    );
-  }
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { data: notificationCount } = useGetNotificationCount();
-
-  if (notificationCount && notificationCount.notification_count === 0) {
-    return (
-      <Link href="/notification">
-        <IconNotification />
-      </Link>
+      </Button>
     );
   }
 
   return (
-    <Link href="/notification">
-      <Badge shape="circle" content="" color="danger" size="sm">
-        <IconNotification />
-      </Badge>
-    </Link>
+    <Button asChild variant="ghost" size="icon" className="[&_svg]:size-6">
+      <Link href="/notification" aria-label={unread > 0 ? `알림, 읽지 않은 알림 ${unread}개` : '알림'}>
+        {unread > 0 ? (
+          <Badge shape="circle" content="" color="danger" size="sm">
+            <IconNotification />
+          </Badge>
+        ) : (
+          <IconNotification />
+        )}
+      </Link>
+    </Button>
   );
 }

@@ -2,19 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Navbar, NavbarContent, NavbarItem, NavbarBrand } from '@nextui-org/navbar';
-import { useCallback, useState } from 'react';
-import { siteConfig } from '@/config/site';
-import { IconNavBorder } from '@/public/svgs';
-import {
-  SearchBarButton,
-  GoBackButton,
-  SettingButton,
-  SearchButton,
-  NotificationButton,
-  ThemeSwitchButton,
-} from '@/components/common';
+import { Navbar, NavbarContent, NavbarItem, NavbarBrand } from '@heroui/navbar';
+import GoBackButton from '@/components/common/Button/GoBackButton';
+import SettingButton from '@/components/common/Button/SettingButton';
+import NotificationButton from '@/components/common/Button/NotifcationButton';
+import ThemeSwitchButton from '@/components/common/Button/ThemeSwitchButton';
 import Logo from './Logo';
+import { HeaderSearchField, HeaderSearchToggle } from './HeaderSearch';
+import HeaderNavTabs from './HeaderNavTabs';
+import useSearchEntry from '@/components/search/useSearchEntry';
 
 export default function Header({
   logo,
@@ -34,19 +30,14 @@ export default function Header({
   theme?: boolean;
 }) {
   const pathname = usePathname();
-  const { navItems } = siteConfig;
-  const [toggleSearch, setToggleSearch] = useState(false);
   const isTimelineOrFollowing = pathname.startsWith('/timeline') || pathname.startsWith('/following');
-
-  const onClickSearch = useCallback(() => {
-    setToggleSearch(!toggleSearch);
-  }, [toggleSearch]);
+  const { expanded: searchExpanded } = useSearchEntry();
 
   return (
-    <section className="w-full">
+    <section className="relative z-30 w-full">
       <Navbar
         position="static"
-        className={`dark:bg-dark-b dark:lg:bg-dark-pb lg:shadow-md md:h-[98px] dark:border-dark-l ${isTimelineOrFollowing ? 'md:border-b' : 'border-b'}`}>
+        className={`dark:bg-dark-b dark:lg:bg-dark-pb md:h-[98px] dark:border-dark-l ${isTimelineOrFollowing ? 'md:border-b' : 'border-b'}`}>
         <NavbarBrand className="hidden xl:absolute xl:left-[-100px] lg:block">
           <Link href="/">
             <Logo width={106} height={18} />
@@ -69,25 +60,11 @@ export default function Header({
           </NavbarContent>
         )}
 
-        <NavbarContent justify="center" className="hidden mx-auto md:block">
-          <ul className="flex justify-between md:min-w-[430px] w-full gap-2 px-10 lg:gap-20">
-            {navItems.map(({ label, href }) => {
-              const isActive = pathname === '/' ? pathname?.endsWith(href) : href !== '/' && pathname?.startsWith(href);
-
-              return (
-                <NavbarItem key={label} className="flex items-center justify-center ">
-                  <div className={`${isActive ? 'z-10' : '-z-10'} absolute`}>
-                    <IconNavBorder />
-                  </div>
-                  <Link
-                    className={`${isActive ? 'text-black dark:text-white font-semibold bg-transparent' : 'text-gray-2'} flex flex-col items-center justify-center text-sm lg:text-base font-medium lg:px-5 lg:py-3 bg-white lg:dark:bg-dark-pb dark:bg-dark-b w-[110px] h-[60px] leading-[60px]`}
-                    href={href}>
-                    {label}
-                  </Link>
-                </NavbarItem>
-              );
-            })}
-          </ul>
+        <NavbarContent justify="center" data-header-center className="relative hidden mx-auto md:block">
+          <NavbarItem className="contents">
+            <HeaderSearchField />
+          </NavbarItem>
+          <HeaderNavTabs hidden={searchExpanded} />
         </NavbarContent>
 
         {title && (
@@ -96,49 +73,27 @@ export default function Header({
           </NavbarContent>
         )}
 
-        {setting && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+        <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
+          <NavbarItem>
+            <HeaderSearchToggle />
+          </NavbarItem>
+          {(setting || search || notification || theme) && (
             <NavbarItem>
               <ThemeSwitchButton />
             </NavbarItem>
+          )}
+          {setting && (
             <NavbarItem>
               <SettingButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {search && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-            <NavbarItem>
-              <SearchButton onClick={onClickSearch} />
-            </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {notification && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-            <NavbarItem>
+          )}
+          {(notification || search) && (
+            <NavbarItem className={notification ? '' : 'hidden md:list-item'}>
               <NotificationButton />
             </NavbarItem>
-          </NavbarContent>
-        )}
-
-        {theme && (
-          <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
-            <NavbarItem>
-              <ThemeSwitchButton />
-            </NavbarItem>
-          </NavbarContent>
-        )}
+          )}
+        </NavbarContent>
       </Navbar>
-
-      <div>{toggleSearch && <SearchBarButton />}</div>
     </section>
   );
 }

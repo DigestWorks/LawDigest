@@ -23,7 +23,8 @@ import java.util.List;
 @JsonNaming(value = PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Table(name = "Bill", indexes = {
         @Index(name = "idx_bill_id_propose_date", columnList = "propose_date DESC"),
-        @Index(name = "idx_propose_date_id", columnList = "propose_date, bill_id")
+        @Index(name = "idx_propose_date_id", columnList = "propose_date, bill_id"),
+        @Index(name = "idx_bill_ingest_status_propose_date_id", columnList = "ingest_status, propose_date, bill_id")
 })public class Bill extends BaseEntity{
     @Id
     @Column(name = "bill_id")
@@ -62,6 +63,9 @@ import java.util.List;
 
     private String committee;
 
+    @Column(name = "category")
+    private String category;
+
     @Column(name = "propose_date")
     private LocalDate proposeDate;
 
@@ -76,6 +80,11 @@ import java.util.List;
     @Enumerated(EnumType.STRING)
     private ProposerKindType proposerKind;
 
+    @Column(name = "ingest_status")
+    @ColumnDefault("'PENDING'")
+    @Enumerated(EnumType.STRING)
+    private IngestStatusType ingestStatus;
+
     @Column(columnDefinition = "TEXT")
     private String summary;
 
@@ -86,8 +95,8 @@ import java.util.List;
     @Column(name = "bill_pdf_url")
     private String billPdfUrl; // PDF 파일의 경로 또는 식별자
 
-    @Column(name = "brief_summary", columnDefinition = "TEXT")
-    private String briefSummary;
+    @Column(name = "title", columnDefinition = "TEXT")
+    private String title;
 
     @Column(name ="bill_link")
     private String billLink;
@@ -111,8 +120,16 @@ import java.util.List;
                 .stage(billDfRequest.getStage())
                 .gptSummary(billDfRequest.getGptSummary())
                 .summary(billDfRequest.getSummary())
-                .briefSummary(billDfRequest.getBriefSummary())
+                .title(billDfRequest.getTitle())
                 .proposerKind(ProposerKindType.from(billDfRequest.getProposerKind()))
+                .ingestStatus(resolveIngestStatus(
+                        billDfRequest.getBillName(),
+                        billDfRequest.getProposeDate(),
+                        billDfRequest.getStage(),
+                        billDfRequest.getSummary(),
+                        billDfRequest.getTitle(),
+                        billDfRequest.getGptSummary()
+                ))
                 .build();
     }
 
@@ -126,8 +143,16 @@ import java.util.List;
         this.setStage(billDfRequest.getStage());
         this.setGptSummary(billDfRequest.getGptSummary());
         this.setSummary(billDfRequest.getSummary());
-        this.setBriefSummary(billDfRequest.getBriefSummary());
+        this.setTitle(billDfRequest.getTitle());
         this.setProposerKind(ProposerKindType.from(billDfRequest.getProposerKind()));
+        this.setIngestStatus(resolveIngestStatus(
+                billDfRequest.getBillName(),
+                billDfRequest.getProposeDate(),
+                billDfRequest.getStage(),
+                billDfRequest.getSummary(),
+                billDfRequest.getTitle(),
+                billDfRequest.getGptSummary()
+        ));
 
     }
 
@@ -140,6 +165,31 @@ import java.util.List;
             this.setStage(billStageDfRequest.getStage());
             this.setCommittee(billStageDfRequest.getCommittee());
         }
+    }
+
+    private static IngestStatusType resolveIngestStatus(
+            String billName,
+            LocalDate proposeDate,
+            String stage,
+            String summary,
+            String title,
+            String gptSummary
+    ) {
+        if (hasText(billName) && proposeDate != null && hasText(stage)
+                && hasText(summary) && hasText(title) && hasText(gptSummary)) {
+            return IngestStatusType.READY;
+        }
+
+        if (hasText(billName) || proposeDate != null || hasText(stage)
+                || hasText(summary) || hasText(title) || hasText(gptSummary)) {
+            return IngestStatusType.PARTIAL;
+        }
+
+        return IngestStatusType.PENDING;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
 }

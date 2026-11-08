@@ -1,0 +1,36 @@
+'use client';
+
+import { CalendarDays } from 'lucide-react';
+import StatsOverview from './StatsOverview';
+import StatsTrendArea from './StatsTrendArea';
+import StatsStageFunnel from './StatsStageFunnel';
+import StatsResultComposition from './StatsResultComposition';
+import StatsPartyPerformance from './StatsPartyPerformance';
+import StatsCategoryDonut from './StatsCategoryDonut';
+import StatsCategoryPartyStack from './StatsCategoryPartyStack';
+import StatsCommitteeBars from './StatsCommitteeBars';
+
+/** 통계 패널 — 제22대 국회 입법 데이터 대시보드. */
+export default function StatsPanel() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1.5">
+        <CalendarDays aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
+        <span className="text-[13px] font-medium text-gray-3 dark:text-gray-1">제22대 국회</span>
+      </div>
+
+      <StatsOverview />
+
+      <StatsTrendArea />
+
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+        <StatsStageFunnel />
+        <StatsResultComposition />
+        <StatsPartyPerformance />
+        <StatsCategoryDonut />
+        <StatsCategoryPartyStack />
+        <StatsCommitteeBars />
+      </div>
+    </div>
+  );
+}

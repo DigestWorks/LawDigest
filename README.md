@@ -1,195 +1,42 @@
-<div align="center">
-
 # 모두의입법
 
-**복잡한 국회 법안, AI가 쉽게 읽어드립니다**
+모두의입법은 국회에 발의된 법안의 요약, 처리 단계와 의원·정당의 입법 활동을 제공하는 서비스입니다. [운영 웹](https://lawdigest.kr/)
 
-[![Next.js](https://img.shields.io/badge/Next.js-13-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.1-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--5-412991?style=flat-square&logo=openai&logoColor=white)](https://openai.com/)
-[![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-3.1-017CEE?style=flat-square&logo=apacheairflow&logoColor=white)](https://airflow.apache.org/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
+- 피드에서 법안의 AI 요약을 보고 상세에서 국회 원문과 발의자를 확인할 수 있습니다.
+- 타임라인과 탐색에서 법안 처리 기록, 분야별 법안, 국회와 정당 통계를 볼 수 있습니다.
+- 검색은 법안·의원·정당을 대상으로 합니다. 스크랩, 팔로우와 알림에는 로그인이 필요합니다.
 
-</div>
+## 운영 상태
 
----
+2026년 11월 3일 기준 운영 DB의 최신 발의일은 11월 2일이고 공개 피드의 첫 법안은 7월 9일 발의입니다. 운영 피드는 AI 요약이 있는 법안을 표시합니다. 수집·스케줄 복구와 실제 계정 검증의 진행 상태는 운영 검증 체크리스트에서 확인할 수 있습니다. [운영 검증 체크리스트](docs/audit/2026-11-03-ux-polish-production-checklist.md)
 
-## 소개
-
-**모두의 입법**은 국회에서 매일 쏟아지는 수백 건의 법률개정안을 AI가 핵심만 골라 요약해주는 서비스입니다.
-
-어려운 법률 용어와 긴 원문 없이, 피드 형식의 친숙한 UI로 법안이 내 삶에 어떤 영향을 미치는지 한눈에 확인할 수 있습니다.
-
-<br>
-
-## 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| **AI 법안 요약** | GPT-5 기반으로 법안 핵심 내용을 한 문장 + 항목별 상세 요약 제공 |
-| **태그 분류** | 법안별 주제 태그 자동 생성으로 관심 분야 빠른 탐색 |
-| **의원 / 정당 팔로우** | 관심 의원·정당의 법안 활동을 실시간으로 구독 |
-| **법안 타임라인** | 발의 → 위원회 → 본회의까지 처리 단계 시각화 |
-| **좋아요 & 알림** | 관심 법안 저장 및 상태 변경 알림 |
-| **RAG 챗봇** | 법안 내용 기반 벡터 검색 + LLM 질의응답 |
-
-<br>
-
-## 기술 스택
-
-### Frontend
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-
-### Backend
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![Java](https://img.shields.io/badge/Java_17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-FF4438?style=for-the-badge&logo=redis&logoColor=white)
-
-### AI / Data
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
-![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)
-![Qdrant](https://img.shields.io/badge/Qdrant-FF4785?style=for-the-badge)
-
-### Infrastructure
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
-
-<br>
-
-## 아키텍처
-
-```mermaid
-graph LR
-    subgraph CLIENT["Client"]
-        Browser["🌐 Browser"]
-    end
-
-    subgraph FRONTEND["services/web"]
-        Web["Next.js 13"]
-    end
-
-    subgraph BACKEND["services/backend"]
-        API["Spring Boot 3.1 | 법안 · 의원 · 유저 API"]
-    end
-
-    subgraph AI_SERVICE["services/ai"]
-        Processor["processor | AI 요약 배치"]
-        RAG["rag | RAG 챗봇"]
-    end
-
-    subgraph PIPELINE["services/data"]
-        Data["데이터 수집 | DataFetcher · DataProcessor"]
-    end
-
-    subgraph STORAGE["Storage"]
-        DB[("MySQL RDS")]
-        Redis[("Redis")]
-        Qdrant[("Qdrant\n벡터 DB")]
-    end
-
-    subgraph EXTERNAL["External"]
-        OpenAPI["🏛️ 국회 Open API"]
-        OpenAI["🤖 OpenAI GPT-5"]
-        Airflow["⚙️ Airflow 3.1"]
-    end
-
-    %% --- 보이지 않는 연결로 수직 순서 고정 ---
-    Processor ~~~ Data
-    OpenAI ~~~ DB
-
-    %% --- 실제 관계 정의 ---
-    Browser --> Web
-    Web -->|"REST"| API
-    API --> DB
-    API --> Redis
-
-    Airflow -->|"수집 DAG"| Data
-    Airflow -->|"요약 DAG"| Processor
-
-    OpenAPI -->|"법안 데이터"| Data
-
-    Processor -->|"GPT 호출"| OpenAI
-    RAG -->|"임베딩 / 생성"| OpenAI
-
-    Processor -->|"요약 결과"| DB
-    RAG <-->|"벡터 검색"| Qdrant
-    Data -->|"적재"| DB
-```
-
-<br>
+리포트 전용 피드와 최근 7일 기준 인기 순위는 PR 검토 중입니다. 법안 질의응답도 출시 준비 중이며, 임베딩과 답변 생성을 별도로 검증합니다. [피드 변경 PR](https://github.com/DigestWorks/LawDigest/pull/159) · [법안 질의응답 PR](https://github.com/DigestWorks/LawDigest/pull/155)
 
 ## 서비스 구성
 
-### `services/web` — 프론트엔드
-피드 기반 법안 브라우저. 법안 상세, 의원·정당 프로필, 검색, 팔로우, 마이페이지 등을 제공합니다.
+| 경로 | 역할 |
+| --- | --- |
+| `services/web` | Next.js 15와 TypeScript로 웹 화면을 제공합니다. |
+| `services/backend` | Spring Boot 3.1과 Java 17로 법안·프로필·계정 API를 제공합니다. MySQL과 Redis를 사용합니다. |
+| `services/data` | 국회 자료를 수집·정제하고 `lawdigest-pipeline`으로 적재와 상태 동기화를 실행합니다. |
+| `services/ai` | 법안 요약·리포트 생성과 법안 질의응답 개발을 담당합니다. |
 
-### `services/backend` — API 서버
-법안·의원·정당·유저 도메인의 REST API를 제공합니다. OAuth2 소셜 로그인, JWT 인증, Redis 캐싱을 포함합니다.
-
-### `services/data` — 데이터 파이프라인
-국회 의안 Open API에서 법안 데이터를 주기적으로 수집하여 DB에 적재합니다. AI 요약은 담당하지 않습니다.
-
-### `services/ai` — AI 서비스
-두 가지 책임을 가집니다.
-- **`processor/`**: DB에 적재된 법안을 GPT로 요약 (즉시 요약 / OpenAI Batch API)
-- **`rag/`**: Qdrant 벡터 DB와 LLM을 결합한 법안 RAG 챗봇
-
-<br>
+개발 환경 실행은 각 서비스 문서를 따릅니다. [웹 실행](services/web/README.md) · [백엔드 실행](services/backend/README.md)
 
 ## 데이터 파이프라인
 
-| DAG | 주기 | 역할 |
-|-----|------|------|
-| `bill_ingest_dag` | 매시간 | 국회 API → DB 법안 수집 |
-| `bill_status_sync_dag` | 매시간 | 의원·타임라인·결과·표결 동기화 |
-| `manual_bill_collect_dag` | 수동 | 기간 지정 법안 수집 |
-| `ai_batch_submit_dag` | 매시간 10분 | OpenAI Batch 요약 제출 |
-| `ai_batch_ingest_dag` | 10분마다 | 배치 요약 결과 반영 |
-| `db_backup_dag` | 매일 | DB 백업 |
+| 명령 | 역할 |
+| --- | --- |
+| `bill-ingest` | 국회 법안 데이터를 수집하고 발의자 관계와 함께 적재합니다. |
+| `bill-status-sync` | 의원 명부, 법안 처리 단계와 표결을 동기화합니다. |
+| `ai-summary` | 기본 Codex 에이전트 경로에서 법안 요약과 리포트를 생성합니다. Gemini CLI는 별도 옵션으로 실행합니다. |
 
-<br>
+실행 이력은 `pipeline-runs.jsonl`에 기록합니다. 운영 DB 쓰기와 서버 timer 등록은 각 실행 전에 승인받습니다. [파이프라인 런북](docs/data/pipeline_restart_runbook.md)
 
-## 로컬 실행
+## 배포
 
-### 인프라 (Docker)
-
-```bash
-docker-compose up -d mysql redis
-```
-
-### 백엔드
-
-```bash
-cd services/backend
-./gradlew bootRun
-```
-
-### 프론트엔드
-
-```bash
-cd services/web
-npm install
-npm run dev
-```
-
-### AI 서비스
-
-```bash
-cd services/ai
-pip install -e .
-```
-
-> 환경변수 설정이 필요합니다. OpenAI API 키, DB 접속 정보, Qdrant 호스트 등을 `.env` 파일에 설정하세요.
-
-<br>
+운영 웹은 `main` 기준의 프로덕션 빌드를 배포합니다. 테스트·개발 웹과 운영 API의 실행 절차는 배포 문서를 따릅니다. [웹 배포 환경](deploy/WEB_DEPLOY_ENVIRONMENTS.md) · [운영 API 배포](deploy/PROD_BACKEND_DEPLOY.md)
 
 ## 라이선스
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+이 프로젝트에는 MIT 라이선스가 적용됩니다.

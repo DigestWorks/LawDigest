@@ -13,8 +13,8 @@ PORT="${WEB_PORT:-3021}"
 APP_HOST="${APP_HOST:-0.0.0.0}"
 PM2_NAME="${PM2_NAME:-lawdigest-web-dev}"
 NEXT_PUBLIC_URL="${NEXT_PUBLIC_URL:-https://api.lawdigest.kr/}"
-NEXT_PUBLIC_IMAGE_URL="${NEXT_PUBLIC_IMAGE_URL:-https://api.lawdigest.kr}"
-NEXT_PUBLIC_HOSTNAME="${NEXT_PUBLIC_HOSTNAME:-api.lawdigest.kr}"
+NEXT_PUBLIC_IMAGE_URL="${NEXT_PUBLIC_IMAGE_URL:-https://objectstorage.ap-chuncheon-1.oraclecloud.com/n/axv8wzohklg1/b/lawDigestBucket/o}"
+NEXT_PUBLIC_HOSTNAME="${NEXT_PUBLIC_HOSTNAME:-objectstorage.ap-chuncheon-1.oraclecloud.com}"
 INTERNAL_API_ORIGIN="${INTERNAL_API_ORIGIN:-http://127.0.0.1:808}"
 NEXT_PUBLIC_DOMAIN="${NEXT_PUBLIC_DOMAIN:-https://dev.lawdigest.kr}"
 
@@ -48,12 +48,13 @@ RESOLVED_REF="$(load_ref "$REF_INPUT")" || {
   echo "✗ git ref를 찾을 수 없습니다: $REF_INPUT"
   exit 1
 }
+RESOLVED_COMMIT="$(git -C "$REPO_ROOT" rev-parse --verify "$RESOLVED_REF^{commit}")"
 
 if [ ! -d "$DEV_WORKTREE_PATH/.git" ] && [ ! -f "$DEV_WORKTREE_PATH/.git" ]; then
-  git -C "$REPO_ROOT" worktree add --detach "$DEV_WORKTREE_PATH" "$RESOLVED_REF"
+  git -C "$REPO_ROOT" worktree add --detach "$DEV_WORKTREE_PATH" "$RESOLVED_COMMIT"
 else
   git -C "$DEV_WORKTREE_PATH" fetch origin --prune
-  git -C "$DEV_WORKTREE_PATH" checkout --detach "$RESOLVED_REF"
+  git -C "$DEV_WORKTREE_PATH" checkout --detach "$RESOLVED_COMMIT"
 fi
 
 mkdir -p "$RUNTIME_ROOT"
@@ -73,24 +74,20 @@ ln -sfn "$DEV_WORKTREE_PATH" "$TMP_LINK"
 mv -Tf "$TMP_LINK" "$CURRENT_LINK"
 
 echo "▶ PM2 개발 서버 재기동"
-if pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
-  pm2 delete "$PM2_NAME"
-fi
-
-cd "$CURRENT_LINK/services/web"
-NODE_ENV=development \
-PORT="$PORT" \
-HOSTNAME="$APP_HOST" \
+WEB_PORT="$PORT" \
+APP_HOST="$APP_HOST" \
+PM2_NAME="$PM2_NAME" \
 NEXT_PUBLIC_URL="$NEXT_PUBLIC_URL" \
 NEXT_PUBLIC_IMAGE_URL="$NEXT_PUBLIC_IMAGE_URL" \
 NEXT_PUBLIC_HOSTNAME="$NEXT_PUBLIC_HOSTNAME" \
 INTERNAL_API_ORIGIN="$INTERNAL_API_ORIGIN" \
 NEXT_PUBLIC_DOMAIN="$NEXT_PUBLIC_DOMAIN" \
-pm2 start npm --name "$PM2_NAME" -- run dev -- --hostname "$APP_HOST" --port "$PORT"
-pm2 save
+DEV_WEB_COMMIT="$RESOLVED_COMMIT" \
+"$SCRIPT_DIR/ensure-dev-web-pm2.sh"
 
 echo "✓ 개발모드 배포 완료"
 echo "  ref: $RESOLVED_REF"
+echo "  resolved: ${RESOLVED_COMMIT:0:7}"
 echo "  commit: $(git -C "$DEV_WORKTREE_PATH" rev-parse --short HEAD)"
 echo "  runtime: $CURRENT_LINK"
 echo "  url: $NEXT_PUBLIC_DOMAIN"

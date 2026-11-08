@@ -1,12 +1,16 @@
 package com.everyones.lawmaking.service;
 
 
+import com.everyones.lawmaking.common.dto.CongressmanRankingDto;
 import com.everyones.lawmaking.common.dto.PartyCongressmanDto;
 import com.everyones.lawmaking.common.dto.SearchCongressmanDto;
 import com.everyones.lawmaking.common.dto.response.*;
 import com.everyones.lawmaking.domain.entity.Congressman;
 import com.everyones.lawmaking.global.error.CongressmanException;
+import com.everyones.lawmaking.global.util.PaginationUtil;
+import com.everyones.lawmaking.global.util.SearchQuery;
 import com.everyones.lawmaking.repository.CongressmanRepository;
+import com.everyones.lawmaking.repository.CongressmanRepositoryCustom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 
 
 @Service
@@ -23,7 +28,20 @@ import java.util.Map;
 @Slf4j
 public class CongressmanService {
     private final CongressmanRepository congressmanRepository;
+    private final CongressmanRepositoryCustom congressmanRepositoryCustom;
     private static final String CONGRESSMAN_ID_KEY_STRING = "congressmanId";
+
+    public List<CongressmanRankingDto> getCongressmanRanking(int size) {
+        return congressmanRepositoryCustom.findCongressmanRanking(null, 0, size);
+    }
+
+    public CongressmanListResponse getCongressmanList(Long partyId, Pageable pageable) {
+        var congressmanList = congressmanRepositoryCustom.findCongressmanRanking(
+                partyId, pageable.getOffset(), pageable.getPageSize() + 1L);
+        var isLastPage = PaginationUtil.hasNextPage(congressmanList, pageable.getPageSize());
+        var paginationResponse = PaginationResponse.of(isLastPage, pageable.getPageNumber());
+        return CongressmanListResponse.of(paginationResponse, congressmanList);
+    }
 
     public Congressman findById(String congressmanId) {
         return congressmanRepository.findByIdWithParty(congressmanId)
@@ -52,8 +70,14 @@ public class CongressmanService {
     }
 
     public SearchDataResponse searchCongressman(String searchWord) {
-        var congressmanList = congressmanRepository.findBySearchWord(searchWord);
+        var congressmanList = congressmanRepository.findBySearchWord(
+                SearchQuery.escapeLike(searchWord));
         var searchResponse =  congressmanList.stream()
+                .sorted(Comparator
+                        .comparing((Congressman person) -> !searchWord.equals(person.getName()))
+                        .thenComparing(person -> !Boolean.TRUE.equals(person.getState()))
+                        .thenComparing(Congressman::getName, Comparator.nullsLast(String::compareTo))
+                        .thenComparing(Congressman::getId))
                 .map(SearchCongressmanDto::from)
                 .toList();
 

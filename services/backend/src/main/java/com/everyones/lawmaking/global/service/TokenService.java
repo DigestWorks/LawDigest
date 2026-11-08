@@ -163,14 +163,18 @@ public class TokenService {
         if(userId.isPresent()){
             invalidateToken(userId.get());
         }
-        HttpSession session = httpServletRequest.getSession(false); // 기존 세션 가져오기
+        clearSession(httpServletRequest, httpServletResponse);
+    }
+
+    public void clearSession(HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        HttpSession session = httpRequest.getSession(false);
         if (session != null) {
             session.invalidate();
         }
         var cookieDomain = appProperties.getCookieDomain();
-        CookieUtil.deleteCookieForClient(httpServletRequest, httpServletResponse, ACCESS_TOKEN, cookieDomain);
-        CookieUtil.deleteCookie(httpServletRequest, httpServletResponse, REFRESH_TOKEN);
-        CookieUtil.deleteCookie(httpServletRequest, httpServletResponse, JSESSIONID);
+        CookieUtil.deleteCookieForClient(httpRequest, httpResponse, ACCESS_TOKEN, cookieDomain);
+        CookieUtil.deleteCookie(httpRequest, httpResponse, REFRESH_TOKEN);
+        CookieUtil.deleteCookie(httpRequest, httpResponse, JSESSIONID);
 
         SecurityContext context = SecurityContextHolder.getContext();
         context.setAuthentication(null);

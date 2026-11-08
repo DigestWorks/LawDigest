@@ -84,14 +84,28 @@ x-airflow-common:
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: 'airflow:ADMIN'
     AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: '/opt/airflow/config/simple_auth_manager_passwords.json'
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
-    PYTHONPATH: /opt/airflow/project:/opt/airflow/project/services/data:/opt/airflow/project/services/ai/src
+    PYTHONPATH: /opt/airflow/project:/opt/airflow/project/services/data:/opt/airflow/project/services/data/src:/opt/airflow/project/services/ai/src
     AIRFLOW_DOTENV_PATH: /opt/airflow/project/services/data/.env
+    GEMINI_CLI_BIN: /opt/airflow/project/services/ai/scripts/gemini_host_wrapper.sh
+    CODEX_CLI_BIN: /opt/airflow/project/services/ai/scripts/codex_host_wrapper.sh
+    CLAUDE_CLI_BIN: /opt/airflow/project/services/ai/scripts/claude_host_wrapper.sh
+    LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+    LANGFUSE_HOST: ${LANGFUSE_HOST:-https://langfuse.lawdigest.cloud}
+    LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+    LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+    LANGFUSE_DEBUG: ${LANGFUSE_DEBUG:-false}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-    - /home/ubuntu/project/Lawdigest:/opt/airflow/project
+    - ${LAWDIGEST_PROJECT_DIR:-/home/ubuntu/project/Lawdigest}:/opt/airflow/project
+    - ${LAWDIGEST_DATA_ENV_FILE:-/home/ubuntu/project/Lawdigest/services/data/.env}:/opt/airflow/project/services/data/.env:ro
+    - /home/ubuntu/.nvm:/opt/host-home/.nvm:ro
+    - /home/ubuntu/.gemini:/opt/host-home/.gemini:ro
+    - /home/ubuntu/.codex:/opt/host-home/.codex:ro
+    - /home/ubuntu/.claude:/opt/host-home/.claude:ro
+    - /home/ubuntu/.local:/opt/host-home/.local:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -134,7 +148,7 @@ services:
     ports:
       - "8081:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -227,7 +241,7 @@ services:
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "${AIRFLOW_UID:-50000}:0" /sources/{logs,dags,plugins}
-        exec /entrypoint airflow db migrate
+        exec su -s /bin/bash airflow -c 'exec /home/airflow/.local/bin/airflow db migrate'
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'

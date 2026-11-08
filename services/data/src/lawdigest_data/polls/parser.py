@@ -802,7 +802,30 @@ class _DailyResearchParser(BaseTableParser):
     TOTAL_MARKERS = ("전체",)
     META_COLS = 4
     TITLE_RE = re.compile(r"(?m)^(\d+)\s{2,}(.+)$")
-    SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS
+    _TABLE_TITLE_RE = re.compile(r"(?m)^【표\s*\d+(?:-\d+)?】\s*([^\n]+)")
+    _PAREN_TITLE_RE = re.compile(r"(?m)^\s*(\d+)\)\s+([^\n]+)")
+    SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS + (
+        re.compile(r"^투표함$"),
+        re.compile(r"^투표안함$"),
+        re.compile(r"^투표의향\s*(?:있음|없음)$"),
+    )
+
+    def _extract_title(self, page_text: str, full_text: str) -> str:
+        for source in (page_text, full_text):
+            m = self._TABLE_TITLE_RE.search(source or "")
+            if m:
+                return re.sub(r"\s+", " ", m.group(1)).strip()
+
+        for pattern in (self._PAREN_TITLE_RE, self.TITLE_RE):
+            if pattern is None:
+                continue
+            m = pattern.search(page_text) or pattern.search(full_text)
+            if not m:
+                continue
+            title = m.group(2)
+            title = re.split(r"\s{2,}", title, maxsplit=1)[0]
+            return re.sub(r"\s+", " ", title).strip()
+        return ""
 
     def _process_table(self, table, page_text, full_text):
         # 가중값 통계표: 헤더에 '배율' 포함 시 스킵
@@ -816,7 +839,7 @@ class _DailyResearchParser(BaseTableParser):
         results: List[QuestionResult] = []
         q_counter = 0
         pending_title = ""
-        seen_titles: set = set()
+        seen_titles: dict[str, int] = {}
 
         for page_text, page_tables, full_text in pages_data:
             if not page_tables:
@@ -830,15 +853,30 @@ class _DailyResearchParser(BaseTableParser):
                 if result is None:
                     continue
                 title = result.question_title or pending_title
-                # 동일 제목 중복 방지 (멀티페이지 크로스탭)
+                # 동일 제목 중복 방지. 다만 표N-1/표N-2처럼 한 문항이
+                # 여러 페이지로 나뉜 경우에는 같은 표본수와 정상 합계 범위에서 병합한다.
                 if title and title in seen_titles:
+                    prev = results[seen_titles[title]]
+                    combined_pcts = (
+                        list(prev.overall_percentages)
+                        + list(result.overall_percentages)
+                    )
+                    same_sample = (
+                        prev.overall_n_completed is not None
+                        and prev.overall_n_completed == result.overall_n_completed
+                    )
+                    if same_sample and sum(combined_pcts) <= 115.0:
+                        prev.response_options = (
+                            list(prev.response_options)
+                            + list(result.response_options)
+                        )
+                        prev.overall_percentages = combined_pcts
                     continue
-                if title:
-                    seen_titles.add(title)
                 q_counter += 1
                 result.question_number = q_counter
-                if not result.question_title:
-                    result.question_title = pending_title
+                if title:
+                    result.question_title = title
+                    seen_titles[title] = len(results)
                 results.append(result)
 
         return results
@@ -858,16 +896,24 @@ class _KoreanResearchParser(BaseTableParser):
     _META_COLS: int = 3
 
     _TABLE_TITLE_RE = re.compile(r"\[표\s*(\d+)\]\s+(.+)")
+    _SPLIT_TABLE_TITLE_RE = re.compile(r"(?ms)^표\s*\n\s*([^\n\[]+?)\s*\n\s*\[\s*\n?\s*(\d+)\s*\]")
     _Q_TEXT_RE = re.compile(r"\[문\s*\d+\]\s+(.+?)(?:\?|？)", re.DOTALL)
 
     def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
         result_map: dict = {}
 
-        for page_text, page_tables, _full_text in pages_data:
-            title_match = self._TABLE_TITLE_RE.search(page_text)
-            if not title_match:
-                continue
-            q_num = int(title_match.group(1))
+        for page_text, page_tables, full_text in pages_data:
+            text = f"{page_text or ''}\n{full_text or ''}"
+            title_match = self._TABLE_TITLE_RE.search(text)
+            if title_match:
+                q_num = int(title_match.group(1))
+                q_title = title_match.group(2).strip()
+            else:
+                split_title_match = self._SPLIT_TABLE_TITLE_RE.search(text)
+                if not split_title_match:
+                    continue
+                q_title = re.sub(r"\s+", " ", split_title_match.group(1)).strip()
+                q_num = int(split_title_match.group(2))
 
             for table in page_tables:
                 if not table or len(table) < 3:
@@ -889,6 +935,10 @@ class _KoreanResearchParser(BaseTableParser):
                 pcts = extract_percentages_from_cells(
                     total_row, start_col=self._META_COLS
                 )
+                if not pcts:
+                    pcts = extract_percentages_from_bunched_cell(
+                        str(total_row[self._META_COLS] or "")
+                    )
                 if not pcts:
                     continue
 
@@ -915,8 +965,7 @@ class _KoreanResearchParser(BaseTableParser):
                     )
                     break
 
-                q_title = title_match.group(2).strip()
-                q_text_match = self._Q_TEXT_RE.search(page_text)
+                q_text_match = self._Q_TEXT_RE.search(text)
                 q_text = (
                     re.sub(r"\s+", " ", q_text_match.group(1)).strip() + "?"
                     if q_text_match
@@ -1157,46 +1206,102 @@ class _RealMeterParser(BaseTableParser):
 
     _Q_SECTION_RE = re.compile(r"(?m)^[^\S\n\u2013-]*[\u2013-]?\s*(\d+)\.\s+(.+)$")
     _Q_TEXT_RE = re.compile(r"Q\d+\.\s+(.+?)(?:\?|？)", re.DOTALL)
+    _Q_CONTEXT_RE = re.compile(r"Q\s*(\d+)\.\s+(.+?)(?:\?|？)", re.DOTALL)
+    _TABLE_TITLE_RE = re.compile(r"(?m)^\s*표\s*[^:\n：]+[:：]\s*(.+?)\s*$")
     _N_PAIR_RE = re.compile(r"\((\d[\d,]*)\)")
     _HEADER_META_COLS = 4
     _SUMMARY_OPT_RE = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]\s*\+\s*[①②③④⑤⑥⑦⑧⑨⑩]")
-    QUESTION_PAGE_RE = re.compile(r"(?ms)^\d+\.\s+.+?Q\d+\.")
+    QUESTION_PAGE_RE = re.compile(r"(?ms)(?:^\d+\.\s+.+?Q\d+\.|Q\s*\d+\.|전\s*체)")
 
     def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
         results: List[QuestionResult] = []
-        seen_q_nums: set = set()
+        seen_q_nums: dict[int, int] = {}
+        title_q_nums: dict[str, int] = {}
+        pending_title = ""
 
-        for page_text, page_tables, _full_text in pages_data:
-            q_section_match = self._Q_SECTION_RE.search(page_text)
-            if not q_section_match:
-                continue
-            q_num = int(q_section_match.group(1))
-            if q_num in seen_q_nums:
-                continue
+        for page_text, page_tables, full_text in pages_data:
+            page_title = self._extract_pending_title(f"{page_text or ''}\n{full_text or ''}")
+            if page_title:
+                pending_title = page_title
 
-            result = self._extract_from_tables(page_tables, q_section_match, page_text)
+            question_context = self._extract_question_context(page_text, full_text)
+            if question_context is None:
+                if not pending_title or not page_tables:
+                    continue
+                q_num = title_q_nums.setdefault(
+                    pending_title,
+                    max([*seen_q_nums.keys(), 0]) + 1,
+                )
+                q_title = pending_title
+                q_text = pending_title
+            else:
+                q_num, q_title, q_text = question_context
+                if q_title:
+                    title_q_nums.setdefault(q_title, q_num)
+
+            result = self._extract_from_tables(page_tables, q_title, q_text)
             if result is None:
                 continue
 
-            seen_q_nums.add(q_num)
+            if q_num in seen_q_nums:
+                prev = results[seen_q_nums[q_num]]
+                combined_pcts = (
+                    list(prev.overall_percentages)
+                    + list(result.overall_percentages)
+                )
+                same_sample = (
+                    prev.overall_n_completed is not None
+                    and prev.overall_n_completed == result.overall_n_completed
+                )
+                if same_sample and sum(combined_pcts) <= 115.0:
+                    prev.response_options = (
+                        list(prev.response_options) + list(result.response_options)
+                    )
+                    prev.overall_percentages = combined_pcts
+                continue
+
             result.question_number = q_num
+            seen_q_nums[q_num] = len(results)
             results.append(result)
 
         return results
 
+    @staticmethod
+    def _extract_pending_title(text: str) -> str:
+        for raw_line in text.splitlines():
+            line = re.sub(r"\s+", " ", raw_line).strip()
+            if not line or len(line) > 40:
+                continue
+            if any(keyword in line for keyword in ("적합도", "지지도", "정책의제")):
+                if "결과 보고서" in line or "여론조사" in line:
+                    continue
+                return line
+        return ""
+
     def _extract_from_tables(
         self,
         page_tables: List,
-        q_section_match: re.Match,
-        page_text: str,
+        q_title: str,
+        q_text: str,
     ) -> Optional[QuestionResult]:
         for table in page_tables:
             if not table or len(table) < 2:
                 continue
-            if "구" not in str(table[0][0] or ""):
+
+            header_idx = None
+            for idx, row in enumerate(table[:3]):
+                if row and "구" in str(row[0] or ""):
+                    header_idx = idx
+                    break
+            if header_idx is None:
                 continue
 
-            found = find_total_row(table, markers=("전체",))
+            header_row = table[header_idx]
+            found = find_total_row(
+                table,
+                markers=("전체", "전 체"),
+                start_row=header_idx + 1,
+            )
             if found is None:
                 continue
             _, total_row = found
@@ -1204,23 +1309,43 @@ class _RealMeterParser(BaseTableParser):
             if len(total_row) < self._HEADER_META_COLS + 1:
                 continue
 
-            # col2: '(N완료) (N가중)' 두 값이 한 셀에 있음
-            n_vals = self._N_PAIR_RE.findall(str(total_row[2] or ""))
+            # 신규 포맷은 col2/col3에 각각 '(N완료)'/'(N가중)'을 두고,
+            # 기존 포맷은 col2 한 셀에 두 값을 함께 둔다.
+            n_vals = self._N_PAIR_RE.findall(
+                " ".join(str(cell or "") for cell in total_row[: self._HEADER_META_COLS])
+            )
             if len(n_vals) < 2:
                 continue
             n_completed = int(n_vals[0].replace(",", ""))
             n_weighted = int(n_vals[1].replace(",", ""))
 
-            options = extract_options_from_row(
-                table[0], start_col=self._HEADER_META_COLS
-            )
+            first_option = ""
+            first_percentage: Optional[float] = None
+            if header_idx > 0 and len(header_row) > 3 and len(total_row) > 3:
+                prefix_text = re.sub(r"\s+", " ", str(header_row[2] or ""))
+                prefix_match = re.search(r"적용\s*([가-힣A-Za-z]+)\s*사례수", prefix_text)
+                suffix = re.sub(r"\s+", "", str(header_row[3] or ""))
+                pct_prefix = re.search(r"\)\s*(\d+)$", str(total_row[2] or ""))
+                pct_suffix = str(total_row[3] or "").strip()
+                if (
+                    prefix_match
+                    and suffix
+                    and pct_prefix
+                    and re.match(r"^\d+(?:\.\d+)?$", pct_suffix)
+                ):
+                    first_option = f"{prefix_match.group(1)}{suffix}"
+                    first_percentage = float(f"{pct_prefix.group(1)}{pct_suffix}")
+
+            option_start_col = 4
+            options = extract_options_from_row(header_row, start_col=option_start_col)
             if not options:
                 continue
+            if first_option and first_percentage is not None:
+                options = [first_option] + options
 
-            percentages = extract_percentages_from_cells(
-                total_row,
-                start_col=self._HEADER_META_COLS,
-            )
+            percentages = extract_percentages_from_cells(total_row, start_col=option_start_col)
+            if first_percentage is not None:
+                percentages = [first_percentage] + percentages
             if not percentages:
                 continue
 
@@ -1233,14 +1358,6 @@ class _RealMeterParser(BaseTableParser):
             if min_len == 0:
                 continue
 
-            q_title = q_section_match.group(2).strip()
-            q_text_match = self._Q_TEXT_RE.search(page_text)
-            q_text = (
-                re.sub(r"\s+", " ", q_text_match.group(1)).strip() + "?"
-                if q_text_match
-                else q_title
-            )
-
             return QuestionResult(
                 question_number=0,
                 question_title=q_title,
@@ -1251,6 +1368,50 @@ class _RealMeterParser(BaseTableParser):
                 overall_percentages=percentages[:min_len],
             )
         return None
+
+    def _extract_question_context(
+        self,
+        page_text: str,
+        full_text: str,
+    ) -> Optional[Tuple[int, str, str]]:
+        text = page_text or full_text or ""
+
+        q_section_match = self._Q_SECTION_RE.search(text)
+        if q_section_match:
+            q_num = int(q_section_match.group(1))
+            q_title = q_section_match.group(2).strip()
+            q_text_match = self._Q_TEXT_RE.search(text)
+            q_text = (
+                re.sub(r"\s+", " ", q_text_match.group(1)).strip() + "?"
+                if q_text_match
+                else q_title
+            )
+            return q_num, q_title, q_text
+
+        q_context = self._Q_CONTEXT_RE.search(text)
+        if q_context is None:
+            bare_q = re.search(r"Q\s*(\d+)\.", text)
+            if bare_q is None:
+                return None
+            q_num = int(bare_q.group(1))
+            title = ""
+            for line in reversed(text[: bare_q.start()].splitlines()):
+                candidate = re.sub(r"\s+", " ", line).strip(" .:：'‘’\"")
+                if not candidate or len(candidate) < 5:
+                    continue
+                if candidate.startswith(("제장", "조사결과", "구 분")):
+                    continue
+                title = candidate
+                break
+            if not title:
+                return None
+            return q_num, title, title
+
+        q_num = int(q_context.group(1))
+        q_text = re.sub(r"\s+", " ", q_context.group(2)).strip() + "?"
+        title_matches = list(self._TABLE_TITLE_RE.finditer(text[: q_context.start()]))
+        q_title = title_matches[-1].group(1).strip() if title_matches else q_text[:-1]
+        return q_num, q_title, q_text
 
 
 class _FlowerResearchParser(BaseTableParser):
@@ -1274,7 +1435,11 @@ class _FlowerResearchParser(BaseTableParser):
     TOTAL_MARKERS = ("전체",)
     META_COLS = 3
     END_COL = -1  # 마지막 컬럼('가중값적용사례수') 제외
-    SUMMARY_PATS = (re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]\s*\+\s*[①②③④⑤⑥⑦⑧⑨⑩]"),)
+    SUMMARY_PATS = (
+        re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]\s*\+\s*[①②③④⑤⑥⑦⑧⑨⑩]"),
+        re.compile(r"^(?:필요|공감|동의)\s*(?:한다|하다|하지\s*않는다|하지\s*않다)$"),
+        re.compile(r"^잘\s*(?:못\s*)?하고\s*있다$"),
+    )
 
     _Q_SECTION_RE = re.compile(r"(?m)^(\d+)\.\s+(.+)$")
     _Q_TEXT_RE = re.compile(r"Q[\s\n]+(.+?)(?:\?|？)", re.DOTALL)
@@ -1320,6 +1485,8 @@ class _FlowerResearchParser(BaseTableParser):
 
             n_completed = extract_sample_count(str(total_row[2] or ""))
             n_weighted = extract_sample_count(str(total_row[-1] or ""))
+            if n_completed is None or n_weighted is None:
+                continue
 
             # 비율: col3에 뭉침
             percentages = extract_percentages_from_bunched_cell(str(total_row[3] or ""))
@@ -2697,12 +2864,18 @@ class _AceResearchParser(BaseTableParser):
     SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS + (
         re.compile(r"긍정층"),  # 국정수행 평가 소계 열
         re.compile(r"부정층"),  # 국정수행 평가 소계 열
+        re.compile(r"^잘\s*하고\s*있다$"),
+        re.compile(r"^잘\s*못\s*하고\s*있다$"),
     )
 
     _Q_RE = re.compile(
         r"<표\s*(\d+)(?:-\d+)?>\s*([^\n]+)\nQ\d+\.\s+([^\n]+)", re.MULTILINE
     )
     _Q_FALLBACK_RE = re.compile(r"<표\s*(\d+)(?:-\d+)?>\s*([^\n]+)")
+    _Q_SPLIT_RE = re.compile(
+        r"(?ms)^표\s*\n\s*([^\n<]+?)\s*\n\s*<\s*\n?\s*(\d+)\s*>"
+    )
+    _Q_TEXT_RE = re.compile(r"Q\d+\.\s+(.+?)(?:\?|？)", re.DOTALL)
 
     def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
         results: List[QuestionResult] = []
@@ -2717,10 +2890,21 @@ class _AceResearchParser(BaseTableParser):
             if not m:
                 m = self._Q_FALLBACK_RE.search(full_text)
                 if not m:
-                    continue
-                q_num = int(m.group(1))
-                q_title = m.group(2).strip()
-                q_text = q_title
+                    m_split = self._Q_SPLIT_RE.search(full_text)
+                    if not m_split:
+                        continue
+                    q_title = re.sub(r"\s+", " ", m_split.group(1)).strip()
+                    q_num = int(m_split.group(2))
+                    q_text_match = self._Q_TEXT_RE.search(full_text)
+                    q_text = (
+                        re.sub(r"\s+", " ", q_text_match.group(1)).strip() + "?"
+                        if q_text_match
+                        else q_title
+                    )
+                else:
+                    q_num = int(m.group(1))
+                    q_title = m.group(2).strip()
+                    q_text = q_title
             else:
                 q_num = int(m.group(1))
                 q_title = m.group(2).strip()
@@ -2765,6 +2949,9 @@ class _AceResearchParser(BaseTableParser):
                 options, percentages = filter_summary_columns(
                     options, percentages, summary_patterns=self.SUMMARY_PATS
                 )
+                options, percentages = self._drop_repeated_option_tail(
+                    options, percentages
+                )
                 min_len = min(len(options), len(percentages))
                 if min_len == 0:
                     continue
@@ -2786,6 +2973,23 @@ class _AceResearchParser(BaseTableParser):
         for i, r in enumerate(results):
             r.question_number = i + 1
         return results
+
+    @staticmethod
+    def _drop_repeated_option_tail(
+        options: List[str],
+        percentages: List[float],
+    ) -> tuple[List[str], List[float]]:
+        kept_options: List[str] = []
+        kept_percentages: List[float] = []
+        seen: set[str] = set()
+        for option, percentage in zip(options, percentages):
+            normalized = re.sub(r"\s+", "", option)
+            if normalized in seen:
+                break
+            seen.add(normalized)
+            kept_options.append(option)
+            kept_percentages.append(percentage)
+        return kept_options, kept_percentages
 
 
 class _MediaTomatoParser(BaseTableParser):
@@ -2934,8 +3138,8 @@ class _KopraParser(BaseTableParser):
     """
 
     PARSER_KEY = "_KopraParser"
-    TOTAL_MARKERS = ("▣ 전체 ▣",)
-    META_COLS = 5
+    TOTAL_MARKERS = ("▣ 전체 ▣", "전체")
+    META_COLS = 4
     SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS
 
     # 'N. 제목' 패턴 (1~9로 시작, 마침표 뒤 한글 제목)
@@ -2956,41 +3160,58 @@ class _KopraParser(BaseTableParser):
                 if not table or len(table) < 2:
                     continue
 
-                # row[1]에서 '▣ 전체 ▣' 탐색
-                total_row = None
-                for row in table[1:4]:
-                    cell1 = str(row[1] if len(row) > 1 else row[0] or "").strip()
-                    if "▣ 전체 ▣" in cell1:
-                        total_row = row
-                        break
-                if total_row is None:
+                found = find_total_row(
+                    table,
+                    markers=self.TOTAL_MARKERS,
+                    col_index=0,
+                    start_row=1,
+                )
+                if found is None:
                     continue
+                total_row_idx, total_row = found
 
-                # 선택지: 헤더 row[0] col5~
+                # 선택지: 헤더 row[0] col4~
                 header_row = table[0]
                 options = extract_options_from_row(header_row, start_col=self.META_COLS)
                 if not options:
                     continue
 
-                # 사례수: col3, col4
-                n_completed = extract_sample_count(
-                    str(total_row[3] if len(total_row) > 3 else "")
-                )
-                n_weighted = extract_sample_count(
-                    str(total_row[4] if len(total_row) > 4 else "")
-                )
+                # 신규 포맷은 col2 한 셀에 '(N완료) (N가중)'이 같이 들어갈 수 있다.
+                n_vals: List[int] = []
+                for cell in total_row[2:self.META_COLS]:
+                    cell_text = str(cell or "")
+                    matches = re.findall(r"\((\d[\d,]*)\)", cell_text)
+                    if matches:
+                        n_vals.extend(int(m.replace(",", "")) for m in matches)
+                        continue
+                    n_val = extract_sample_count(cell_text)
+                    if n_val is not None:
+                        n_vals.append(n_val)
+                if len(n_vals) < 2:
+                    continue
+                n_completed, n_weighted = n_vals[:2]
 
-                # 비율: col5~ (정수형 퍼센트)
-                percentages = extract_percentages_from_cells(
-                    total_row, start_col=self.META_COLS
-                )
+                # 비율: col4~. 일부 PDF는 여러 비율이 한 셀에 뭉쳐 추출된다.
+                percentages: List[float] = []
+                for cell in total_row[self.META_COLS :]:
+                    cell_text = str(cell or "").strip()
+                    bunched = extract_percentages_from_bunched_cell(cell_text)
+                    if bunched:
+                        percentages.extend(bunched)
+                        continue
+                    percentages.extend(extract_percentages_from_cells([cell], start_col=0))
                 if not percentages:
                     continue
 
                 # 질문 번호/제목: 페이지 텍스트에서 추출
                 section_m = self._SECTION_RE.search(full_text)
-                q_num = int(section_m.group(1)) if section_m else len(results) + 1
-                q_title = section_m.group(2).strip() if section_m else f"Q{q_num}"
+                bullet_title = self._extract_bullet_title(full_text)
+                if bullet_title:
+                    q_num = len(results) + 1
+                    q_title = bullet_title
+                else:
+                    q_num = int(section_m.group(1)) if section_m else len(results) + 1
+                    q_title = section_m.group(2).strip() if section_m else f"Q{q_num}"
                 q_text_m = self._Q_TEXT_RE.search(full_text)
                 q_text = (
                     re.sub(r"\s+", " ", q_text_m.group(1)).strip()
@@ -3025,6 +3246,15 @@ class _KopraParser(BaseTableParser):
         for i, r in enumerate(results):
             r.question_number = i + 1
         return results
+
+    def _extract_bullet_title(self, text: str) -> Optional[str]:
+        for line in text.splitlines():
+            normalized = line.strip()
+            if normalized.startswith("●"):
+                title = re.sub(r"^[●\s]+", "", normalized).strip()
+                if title:
+                    return title
+        return None
 
 
 class _KSOIParser(BaseTableParser):
@@ -4066,7 +4296,7 @@ class _ResearchViewParser:
     PARSER_KEY = "_ResearchViewParser"
     _Q_TITLE_RE = re.compile(r"^(\d+)\.\s+(.+?)(?:\n|\s*\(%\)|\s*$)", re.DOTALL)
     _TOTAL_MARKER = "전 체"
-    _DATE_ROW_RE = re.compile(r"^\d{4}년")  # "2026년 3월..." 패턴
+    _DATE_ROW_RE = re.compile(r"^(?:\d{4}년|\d{6}(?:-\d{2})?)")
     _DEMO_KEYS = {"성별", "연령", "남성", "여성", "지역", "직업", "학력"}
     META_COLS = 4
     _SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS + (
@@ -4575,7 +4805,7 @@ class _EveryResearchParser:
                 for c in range(4, len(row0)):
                     opt_raw = self._cell(row0[c] if c < len(row0) else None)
                     opt = self._clean_option(opt_raw)
-                    pct_raw = self._cell(row2[c] if c < len(row2) else None)
+                    pct_raw = self._cell(row2[c] if c < len(row2) else None).rstrip("%")
                     try:
                         pct = float(pct_raw)
                     except (ValueError, TypeError):
@@ -4625,6 +4855,7 @@ class _RNRParser:
 
     PARSER_KEY = "_RNRParser"
     _TABLE_TITLE_RE = re.compile(r"표(\d+)\.\s+(.+?)(?:\n|$)")
+    _Q_TITLE_RE = re.compile(r"Q\s*(\d+)\)\s*(.+?)(?:\?|$)", re.DOTALL)
     SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS
 
     @staticmethod
@@ -4632,15 +4863,16 @@ class _RNRParser:
         return (str(val) if val is not None else "").strip()
 
     def _is_result_table(self, table: List) -> bool:
-        """결과 크로스탭 테이블 식별: row[1][4:]이 '%' 셀로 구성."""
+        """결과 크로스탭 테이블 식별: 헤더 하단에 '%' 셀이 있는지 확인."""
         if len(table) < 3:
             return False
-        row1 = table[1]
-        if not row1 or len(row1) < 5:
-            return False
-        # row[1][4:] 이 '%' 셀인지 확인
-        pct_cells = [self._cell(row1[c]) for c in range(4, len(row1))]
-        return bool(pct_cells) and all(c in ("%", "") for c in pct_cells)
+        for row in table[1:3]:
+            if not row or len(row) < 5:
+                continue
+            pct_cells = [self._cell(row[c]) for c in range(4, len(row))]
+            if pct_cells and all(c in ("%", "") for c in pct_cells):
+                return True
+        return False
 
     def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
         results: List[QuestionResult] = []
@@ -4650,46 +4882,48 @@ class _RNRParser:
             if not full_text:
                 continue
 
-            # '표N. 제목' 마커가 있는 페이지만 처리 (중복 연속 페이지 자동 스킵)
-            title_match = self._TABLE_TITLE_RE.search(full_text)
-            if not title_match:
-                continue
-
-            q_num = int(title_match.group(1))
-            q_title = title_match.group(2).strip()
-
-            if q_num in seen_q or not page_tables:
+            if not page_tables:
                 continue
 
             for table in page_tables:
                 if not self._is_result_table(table):
                     continue
-                row0 = table[0]
-                row2 = table[2]
-                if not row0 or not row2:
+
+                layout = self._find_layout(table)
+                if layout is None:
                     continue
-                if self._cell(row2[0]) != "전체":
-                    continue
-                if len(row0) < 5:
+                options_row, total_row = layout
+
+                q_num, q_title = self._extract_question_context(
+                    full_text,
+                    table,
+                    len(results) + 1,
+                )
+                if q_num in seen_q:
                     continue
 
                 # N 추출
-                n_completed = extract_sample_count(
-                    self._cell(row2[2]) if len(row2) > 2 else ""
-                )
-                if n_completed is None:
+                n_vals: List[int] = []
+                for cell in total_row[2:4]:
+                    cell_text = self._cell(cell)
+                    matches = re.findall(r"\((\d[\d,]*)\)", cell_text)
+                    if matches:
+                        n_vals.extend(int(m.replace(",", "")) for m in matches)
+                        continue
+                    n_val = extract_sample_count(cell_text)
+                    if n_val is not None:
+                        n_vals.append(n_val)
+                if len(n_vals) < 2:
                     continue
-                n_weighted = extract_sample_count(
-                    self._cell(row2[3]) if len(row2) > 3 else ""
-                )
+                n_completed, n_weighted = n_vals[:2]
 
                 # 선택지·비율 추출 (col[4:])
                 options: List[str] = []
                 percentages: List[float] = []
-                for c in range(4, len(row0)):
-                    opt_raw = self._cell(row0[c] if c < len(row0) else None)
+                for c in range(4, len(options_row)):
+                    opt_raw = self._cell(options_row[c] if c < len(options_row) else None)
                     opt = " ".join(opt_raw.replace("\n", " ").split())
-                    pct_raw = self._cell(row2[c] if c < len(row2) else None)
+                    pct_raw = self._cell(total_row[c] if c < len(total_row) else None)
                     try:
                         pct = float(pct_raw)
                     except (ValueError, TypeError):
@@ -4722,6 +4956,43 @@ class _RNRParser:
                 break
 
         return sorted(results, key=lambda r: r.question_number)
+
+    def _find_layout(self, table: List[List]) -> Optional[Tuple[List, List]]:
+        for pct_row_idx in (1, 2):
+            if len(table) <= pct_row_idx + 1:
+                continue
+            pct_row = table[pct_row_idx]
+            total_row = table[pct_row_idx + 1]
+            if not pct_row or not total_row:
+                continue
+            pct_cells = [self._cell(pct_row[c]) for c in range(4, len(pct_row))]
+            if not pct_cells or not all(c in ("%", "") for c in pct_cells):
+                continue
+            if self._cell(total_row[0]) != "전체":
+                continue
+            options_row = table[pct_row_idx - 1]
+            return options_row, total_row
+        return None
+
+    def _extract_question_context(
+        self,
+        full_text: str,
+        table: List[List],
+        fallback_num: int,
+    ) -> Tuple[int, str]:
+        title_match = self._TABLE_TITLE_RE.search(full_text)
+        if title_match:
+            return int(title_match.group(1)), title_match.group(2).strip()
+
+        q_match = self._Q_TITLE_RE.search(full_text)
+        if q_match:
+            return int(q_match.group(1)), re.sub(r"\s+", " ", q_match.group(2)).strip()
+
+        title = ""
+        if table and table[0] and len(table[0]) > 4:
+            title = self._cell(table[0][4]).replace("\n", " ")
+            title = re.sub(r"\s+", " ", title).strip()
+        return fallback_num, title or f"Q{fallback_num}"
 
 
 class _ResearchwelParser:
@@ -4898,7 +5169,7 @@ class _KPOParser:
                 for c in range(4, len(row0)):
                     opt_raw = self._cell(row0[c] if c < len(row0) else None)
                     opt = " ".join(opt_raw.replace("\n", " ").split())
-                    pct_raw = self._cell(row2[c] if c < len(row2) else None)
+                    pct_raw = self._cell(row2[c] if c < len(row2) else None).rstrip("%")
                     try:
                         pct = float(pct_raw)
                     except (ValueError, TypeError):
@@ -5512,9 +5783,13 @@ class _GyeongnamStatParser:
 
     PARSER_KEY = "_GyeongnamStatParser"
     _Q_NUM_RE = re.compile(r"\[\s*(\d+)\.\s*\]")
-    _Q_TITLE_RE = re.compile(r"질문\)\s+(.+?)(?:\n|$)")
+    _Q_TITLE_RE = re.compile(r"질문\s*\)?\s*(.+?)(?:\n|$)")
     _TOTAL_MARKER = "전체"
-    SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS
+    SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS + (
+        re.compile(r"^투표함$"),
+        re.compile(r"^투표안함$"),
+        re.compile(r"^투표의향\s*(?:있음|없음)$"),
+    )
 
     @staticmethod
     def _cell(val: object) -> str:
@@ -5567,7 +5842,7 @@ class _GyeongnamStatParser:
                 for c in range(4, len(row0)):
                     opt_raw = self._cell(row0[c] if c < len(row0) else None)
                     opt = " ".join(opt_raw.replace("\n", " ").split())
-                    pct_raw = self._cell(row2[c] if c < len(row2) else None)
+                    pct_raw = self._cell(row2[c] if c < len(row2) else None).rstrip("%")
                     try:
                         pct = float(pct_raw)
                     except (ValueError, TypeError):
@@ -6046,6 +6321,177 @@ class _PMIParser:
         return sorted(results, key=lambda r: r.question_number)
 
 
+class _J2InsightParser:
+    """제이투인사이트랩 결과보고서 파서.
+
+    포맷:
+    - 각 결과 테이블 row[0][0]에 "[질문명]\nQn. 질문문" 포함
+    - row[1] col4+가 선택지, row[2]가 전 체 행
+    - col2=조사완료 사례수, col3=가중값 적용 사례수, col4+=비율
+    """
+
+    PARSER_KEY = "_J2InsightParser"
+    _META_COLS = 4
+    _Q_TITLE_RE = re.compile(
+        r"\[(?P<title>[^\]]+)\]\s*Q\s*(?P<num>\d+)\.\s*(?P<text>.+)",
+        re.DOTALL,
+    )
+
+    def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
+        results: List[QuestionResult] = []
+        seen_q_nums: set = set()
+
+        for _page_text, page_tables, _full_text in pages_data:
+            for table in page_tables:
+                result = self._parse_table(table, seen_q_nums)
+                if result is not None:
+                    results.append(result)
+
+        return sorted(results, key=lambda r: r.question_number)
+
+    def _parse_table(
+        self,
+        table: List[List],
+        seen_q_nums: set,
+    ) -> Optional[QuestionResult]:
+        if not table or len(table) < 3:
+            return None
+
+        title_cell = str(table[0][0] or "")
+        q_match = self._Q_TITLE_RE.search(title_cell)
+        if q_match is None:
+            return None
+
+        q_num = int(q_match.group("num"))
+        if q_num in seen_q_nums:
+            return None
+
+        found = find_total_row(table, markers=("전 체", "전체"), col_index=0)
+        if found is None:
+            return None
+        total_idx, total_row = found
+        if total_idx < 1 or len(total_row) < self._META_COLS + 1:
+            return None
+
+        n_completed = extract_sample_count(str(total_row[2] or ""))
+        n_weighted = extract_sample_count(str(total_row[3] or ""))
+        percentages = extract_percentages_from_cells(
+            total_row,
+            start_col=self._META_COLS,
+        )
+        options = extract_options_from_row(
+            table[total_idx - 1],
+            start_col=self._META_COLS,
+        )
+
+        options, percentages = filter_summary_columns(
+            options,
+            percentages,
+            summary_patterns=DEFAULT_SUMMARY_PATTERNS,
+        )
+        min_len = min(len(options), len(percentages))
+        if min_len == 0:
+            return None
+
+        seen_q_nums.add(q_num)
+        q_title = re.sub(r"\s+", " ", q_match.group("title")).strip()
+        q_text = re.sub(r"\s+", " ", q_match.group("text")).strip()
+
+        return QuestionResult(
+            question_number=q_num,
+            question_title=q_title,
+            question_text=q_text,
+            response_options=options[:min_len],
+            overall_n_completed=n_completed,
+            overall_n_weighted=n_weighted,
+            overall_percentages=percentages[:min_len],
+        )
+
+
+class _SETInnovationParser:
+    """에스티이노베이션 결과보고서 파서.
+
+    포맷:
+    - 결과표 페이지에 "[ 표N ] 제목 [단위:%]" 마커가 있고 테이블 순서와 1:1 대응
+    - [표1]은 응답자 특성이므로 제외, [표2]부터 실제 Q1
+    - row[0] col4+가 선택지, row[2]가 전체 행
+    """
+
+    PARSER_KEY = "_SETInnovationParser"
+    _META_COLS = 4
+    _TITLE_RE = re.compile(
+        r"\[\s*표\s*(?P<num>\d+)\s*\]\s*(?P<title>.+?)(?:\s*\[단위|$)",
+        re.MULTILINE,
+    )
+
+    def parse(self, pages_data: List[PageData]) -> List[QuestionResult]:
+        results: List[QuestionResult] = []
+        seen_q_nums: set = set()
+
+        for _page_text, page_tables, full_text in pages_data:
+            title_matches = list(self._TITLE_RE.finditer(full_text or ""))
+            if not title_matches:
+                continue
+
+            for table, title_match in zip(page_tables, title_matches):
+                result = self._parse_table(table, title_match, seen_q_nums)
+                if result is not None:
+                    results.append(result)
+
+        return sorted(results, key=lambda r: r.question_number)
+
+    def _parse_table(
+        self,
+        table: List[List],
+        title_match: re.Match,
+        seen_q_nums: set,
+    ) -> Optional[QuestionResult]:
+        table_num = int(title_match.group("num"))
+        if table_num <= 1:
+            return None
+
+        q_num = table_num - 1
+        if q_num in seen_q_nums:
+            return None
+
+        found = find_total_row(table, markers=("전체",), col_index=0)
+        if found is None:
+            return None
+        _, total_row = found
+        if len(total_row) < self._META_COLS + 1:
+            return None
+
+        n_completed = extract_sample_count(str(total_row[2] or ""))
+        n_weighted = extract_sample_count(str(total_row[3] or ""))
+        percentages = extract_percentages_from_cells(
+            total_row,
+            start_col=self._META_COLS,
+        )
+        options = extract_options_from_row(table[0], start_col=self._META_COLS)
+
+        options, percentages = filter_summary_columns(
+            options,
+            percentages,
+            summary_patterns=DEFAULT_SUMMARY_PATTERNS,
+        )
+        min_len = min(len(options), len(percentages))
+        if min_len == 0:
+            return None
+
+        seen_q_nums.add(q_num)
+        q_title = re.sub(r"\s+", " ", title_match.group("title")).strip()
+
+        return QuestionResult(
+            question_number=q_num,
+            question_title=q_title,
+            question_text=q_title,
+            response_options=options[:min_len],
+            overall_n_completed=n_completed,
+            overall_n_weighted=n_weighted,
+            overall_percentages=percentages[:min_len],
+        )
+
+
 class _ResearchJParser:
     """리서치제이 결과보고서 파서.
 
@@ -6060,28 +6506,14 @@ class _ResearchJParser:
     _Q_RE = re.compile(r"Q(\d+)\.\s+(.+?)\s*\n")
     SUMMARY_PATS = DEFAULT_SUMMARY_PATTERNS
 
-    def parse(self, path: str) -> list:
-        import fitz
-
-        doc = fitz.open(path)
+    def parse(self, pages_data: List[PageData]) -> list:
         results = []
+        seen_q_nums: set = set()
 
-        for page in doc:
-            text = page.get_text()
-            tables = page.find_tables()
-            if not tables.tables:
-                continue
-
-            t = tables.tables[0]
-            rows = t.extract()
-
-            # 전체 행 탐색 (항상 row[2]=='전체')
-            total_row = None
-            for row in rows:
-                if len(row) > 2 and row[2] == "전체":
-                    total_row = row
-                    break
-            if total_row is None:
+        for page_text, page_tables, full_text in pages_data:
+            text = full_text or page_text or ""
+            tables = page_tables
+            if not tables:
                 continue
 
             # Q 번호·제목 추출
@@ -6089,7 +6521,25 @@ class _ResearchJParser:
             if not m:
                 continue
             q_num = int(m.group(1))
+            if q_num in seen_q_nums:
+                continue
             q_title = m.group(2).strip()
+
+            rows = tables[0]
+            if not rows:
+                continue
+
+            # 전체 행 탐색: 구버전 row[2], 신규 리서치제이 row[1] 모두 허용
+            total_row = None
+            for row in rows:
+                normalized_cells = {
+                    re.sub(r"\s+", "", str(cell or "")) for cell in row
+                }
+                if "전체" in normalized_cells:
+                    total_row = row
+                    break
+            if total_row is None:
+                continue
 
             # N, WN 추출 (전체 행의 첫/두 번째 (N) 패턴)
             n_re = re.compile(r"^\((\d[\d,]*)\)\s*$")
@@ -6139,8 +6589,8 @@ class _ResearchJParser:
                     overall_percentages=pcts,
                 )
             )
+            seen_q_nums.add(q_num)
 
-        doc.close()
         return sorted(results, key=lambda r: r.question_number)
 
     def _extract_options(self, rows: list, pct_cols: list) -> list:

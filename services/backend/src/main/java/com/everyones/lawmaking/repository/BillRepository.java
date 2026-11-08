@@ -1,8 +1,8 @@
 package com.everyones.lawmaking.repository;
 
-import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
 import com.everyones.lawmaking.domain.entity.Bill;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,11 +19,13 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     // 특정 의원이 대표 발의한 법안들
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select rp FROM b.representativeProposer rp where rp.congressman.id = :congressmanId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY b.proposeDate desc, b.id desc")
     Slice<Bill> findByRepresentativeProposer(String congressmanId, Pageable pageable);
 
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select rp FROM b.representativeProposer rp where rp.congressman.id = :congressmanId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "AND b.stage = :stage " +
             "ORDER BY b.proposeDate desc, b.id desc")
     Slice<Bill> findByRepresentativeProposer(String congressmanId, Pageable pageable, String stage);
@@ -36,11 +38,13 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             "    FROM BillProposer bp " +
             "    WHERE bp.congressman.id = :congressmanId" +
             ") " +
-            "ORDER BY b.proposeDate DESC")
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
+            "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findBillByPublicProposer(String congressmanId, Pageable pageable);
 
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select bp FROM b.publicProposer bp where bp.congressman.id = :congressmanId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "AND b.stage = :stage " +
             "ORDER BY b.proposeDate desc, b.id desc")
     Slice<Bill> findBillByPublicProposer(String congressmanId, Pageable pageable, String stage);
@@ -48,11 +52,13 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     // 정당 소속 의원들이 대표 발의한 법안
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select rp FROM b.representativeProposer rp where rp.congressman.party.id = :partyId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findRepresentativeBillsByParty(Pageable pageable, @Param("partyId") long partyId);
 
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select rp FROM b.representativeProposer rp where rp.congressman.party.id = :partyId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "AND b.stage = :stage " +
             "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findRepresentativeBillsByParty(Pageable pageable, @Param("partyId") long partyId,@Param("stage") String stage);
@@ -62,12 +68,14 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
     @Query("SELECT distinct b FROM Bill b " +
             "JOIN b.publicProposer bp " +
             "WHERE bp.congressman.party.id = :partyId " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findPublicBillsByParty(Pageable pageable, @Param("partyId") long partyId);
 
 
     @Query("SELECT b FROM Bill b " +
             "WHERE exists (select bp FROM b.publicProposer bp where bp.congressman.party.id = :partyId) " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "AND b.stage = :stage " +
             "ORDER BY b.proposeDate DESC, b.id DESC")
     Slice<Bill> findPublicBillsByParty(Pageable pageable, @Param("partyId") long partyId,@Param("stage") String stage);
@@ -77,6 +85,7 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             "JOIN b.billLike bl " +
             "JOIN bl.user u " +
             "WHERE u.id = :userId " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY bl.createdDate DESC, b.id desc")
     Slice<Bill> findByUserId(Pageable pageable, @Param("userId") long userId);
 
@@ -91,26 +100,65 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
 
     @Query("SELECT b FROM Bill b " +
             "WHERE b.id in :billList " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY b.proposeDate desc, b.id desc")
     List<Bill> findBillInfoByIdList(List<String> billList);
 
-    // 유사한 법안 조회 법안과 같은 이름을 가진 법안 조회
     @Query("SELECT b FROM Bill b " +
-            "WHERE b.billName = :billName " +
-            "AND b.id != :billId ")
-    List<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId);
+            "WHERE b.id in :billList " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
+            "AND b.title IS NOT NULL " +
+            "AND length(trim(b.title)) > 0 " +
+            "AND b.gptSummary IS NOT NULL " +
+            "AND length(trim(b.gptSummary)) > 0 " +
+            "ORDER BY b.proposeDate desc, b.id desc")
+    List<Bill> findFeedBillInfoByIdList(List<String> billList);
 
-    @Query(value = "select bill_id\n" +
-            "from\n" +
-            "(select bill_id, propose_date, match(bill_name) against(concat('*',:keyword,'*') in boolean mode) as bill_name_rel,\n" +
-            "match(brief_summary) against(concat('*',:keyword,'*') in boolean mode) as brief_summary_rel,\n" +
-            "match(gpt_summary) against(concat('*',:keyword,'*') in boolean mode) as gpt_summary_rel,\n" +
-            "match(summary) against(concat('*',:keyword,'*') in boolean mode) as summary_rel\n" +
-            "from Bill) search\n" +
-            "where bill_name_rel >0 or brief_summary_rel>0 or gpt_summary_rel>0 or summary_rel > 0\n" +
-            "order by propose_date desc, bill_name_rel desc, brief_summary_rel desc, gpt_summary_rel desc, summary_rel desc ;"
-            , nativeQuery = true)
-    Slice<String> findBillByKeyword(Pageable pageable,@Param("keyword") String keyword);
+    // 유사한 법안 조회 법안과 같은 이름을 가진 법안 조회
+    String SIMILAR_BILL_FILTER = " FROM Bill b WHERE b.billName = :billName " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
+            "AND b.id != :billId " +
+            "AND (:current IS NULL OR (:current = true AND b.assemblyNumber = :assembly) " +
+            "OR (:current = false AND b.assemblyNumber > 0 AND b.assemblyNumber < :assembly))";
+
+    @Query("SELECT b" + SIMILAR_BILL_FILTER + " ORDER BY b.proposeDate DESC, b.id DESC")
+    Page<Bill> findSimilarBills(@Param("billName") String billName, @Param("billId") String billId,
+                                @Param("current") Boolean current, @Param("assembly") int assembly, Pageable pageable);
+
+    @Query("SELECT COUNT(b)" + SIMILAR_BILL_FILTER)
+    long countSimilarBills(@Param("billName") String billName, @Param("billId") String billId,
+                           @Param("current") Boolean current, @Param("assembly") int assembly);
+
+    @Query(value = """
+            SELECT candidate.bill_id
+            FROM (
+              SELECT b.bill_id, b.propose_date,
+                CASE
+                  WHEN b.bill_number = :billNumber THEN -1
+                  WHEN b.bill_name = :keyword OR b.title = :keyword THEN 0
+                  WHEN b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!' THEN 1
+                  ELSE 2
+                END AS match_rank,
+                0 AS relevance
+              FROM Bill b
+              WHERE b.ingest_status = 'READY'
+                AND (b.bill_number = :billNumber OR b.bill_name LIKE CONCAT('%', :namePattern, '%') ESCAPE '!'
+                  OR b.title LIKE CONCAT('%', :namePattern, '%') ESCAPE '!')
+              UNION ALL
+              SELECT b.bill_id, b.propose_date, 3 AS match_rank,
+                MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) AS relevance
+              FROM BillSearchDocument bsd
+              JOIN Bill b ON b.bill_id = bsd.bill_id
+              WHERE b.ingest_status = 'READY'
+                AND MATCH(bsd.search_text) AGAINST(:expression IN BOOLEAN MODE) > 0
+            ) candidate
+            GROUP BY candidate.bill_id, candidate.propose_date
+            ORDER BY MIN(candidate.match_rank), MAX(candidate.relevance) DESC,
+              candidate.propose_date DESC, candidate.bill_id DESC
+            """, nativeQuery = true)
+    Slice<String> findBillByKeyword(Pageable pageable, @Param("keyword") String keyword,
+            @Param("namePattern") String namePattern, @Param("expression") String expression,
+            @Param("billNumber") Integer billNumber);
 
 
 
@@ -119,22 +167,27 @@ public interface BillRepository extends JpaRepository<Bill, String>, BillReposit
             "JOIN rp.congressman c " +
             "JOIN c.congressmanLike cl " +
             "where cl.user.id = :userId " +
+            "and b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
             "ORDER BY b.proposeDate desc, b.id desc")
     Slice<Bill> findByUserAndCongressmanLike(Pageable pageable, long userId);
 
     @Query("SELECT DISTINCT b FROM Bill b " +
-            "JOIN FETCH b.representativeProposer rp " +
-            "JOIN FETCH rp.congressman c " +
-            "JOIN FETCH c.party " +
-            "WHERE b.id IN :billIds")
+            "LEFT JOIN FETCH b.representativeProposer rp " +
+            "LEFT JOIN FETCH rp.congressman c " +
+            "LEFT JOIN FETCH c.party " +
+            "WHERE b.id IN :billIds " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY")
     List<Bill> findBillsWithPartiesByIds(@Param("billIds") List<String> billIds);
 
-    @Query("SELECT new com.everyones.lawmaking.common.dto.response.BillStateCountResponse(" +
-            "COUNT(b), " +
-            "SUM(CASE WHEN b.stage IN ('위원회 심사', '본회의 심의', '체계자구 심사', '정부이송', '공포') THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN b.stage IN ('정부이송', '공포') THEN 1 ELSE 0 END)) " +
-            "FROM Bill b "+
-            "where b.assemblyNumber = :currentAssemblyNumber")
-    BillStateCountResponse findStateCount(@Param("currentAssemblyNumber") int currentAssemblyNumber);
+    @Query(value = "SELECT jt.tag AS keyword, COUNT(*) AS cnt " +
+            "FROM Bill b, " +
+            "JSON_TABLE(b.summary_tags, '$[*]' COLUMNS (tag VARCHAR(255) PATH '$')) jt " +
+            "WHERE b.summary_tags IS NOT NULL " +
+            "AND b.ingest_status = 'READY' " +
+            "AND jt.tag IS NOT NULL AND jt.tag <> '' " +
+            "GROUP BY jt.tag " +
+            "ORDER BY cnt DESC, keyword " +
+            "LIMIT :size", nativeQuery = true)
+    List<Object[]> findTopTrendingKeywords(@Param("size") int size);
 
 }

@@ -1,43 +1,23 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useSetRecoilState } from 'recoil';
-import { Input, Button } from '@nextui-org/react';
-import { searchModalState } from '@/store';
-import { IconSearchbar } from '@/public/svgs';
+import { Search } from 'lucide-react';
+import useSearchEntry from '@/components/search/useSearchEntry';
 
+/** 본문에 놓는 검색 입구. 누르면 헤더(데스크톱)나 하단 내비(모바일)의 검색창이 펼쳐진다. */
 export default function SearchBarButton() {
-  const setSearchModal = useSetRecoilState(searchModalState);
-
-  const onClickSearchBar = useCallback(() => {
-    setSearchModal({ show: true });
-  }, []);
-
+  const { openEntry } = useSearchEntry();
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
-    <form
-      onClick={onClickSearchBar}
-      className="w-full px-5 rounded-2xl flex justify-center items-center gap-[10px] md:w-[600px] mx-auto my-5">
-      <Input
-        isReadOnly
-        radius="lg"
-        classNames={{
-          input: ['bg-transparent', 'text-black/90', 'truncate'],
-          inputWrapper: [
-            'h-[40px]',
-            'w-full',
-            'shadow-sm',
-            'group-data-[focused=true]:bg-default-200/50',
-            '!cursor-text',
-          ],
-        }}
-        placeholder="법안, 의원, 정당명으로 검색"
-        endContent={
-          <Button size="sm" isIconOnly className="bg-transparent">
-            <IconSearchbar />
-          </Button>
-        }
-      />
-    </form>
+    <div className="w-full max-w-[600px] px-5 mx-auto my-5">
+      <button
+        type="button"
+        data-search-toggle
+        onClick={openEntry}
+        className="search-ring flex h-12 w-full rounded-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <span className="search-ring__inner flex w-full items-center gap-2.5 px-4 text-[15px] text-muted-foreground">
+          <Search aria-hidden="true" className="size-[18px] shrink-0" />
+          <span className="truncate">법안·의안번호·의원·정당 검색</span>
+        </span>
+      </button>
+    </div>
   );
 }

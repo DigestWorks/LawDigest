@@ -15,7 +15,12 @@
 - 도메인: `https://dev.lawdigest.kr`
 - PM2 프로세스: `lawdigest-web-dev`
 - 포트: `3021`
+- API 기준 URL: `https://api.lawdigest.kr/`
+- 이미지 기준 URL: `https://objectstorage.ap-chuncheon-1.oraclecloud.com/n/axv8wzohklg1/b/lawDigestBucket/o`
+- Next Image 허용 호스트: `objectstorage.ap-chuncheon-1.oraclecloud.com`
 - 배포 스크립트: [`deploy-dev-web.sh`](./deploy-dev-web.sh)
+- PM2 복구 스크립트: [`ensure-dev-web-pm2.sh`](./ensure-dev-web-pm2.sh)
+- watchdog 설치 스크립트: [`install-dev-web-watchdog.sh`](./install-dev-web-watchdog.sh)
 - 런타임 심링크: `/home/ubuntu/project/Lawdigest/.runtime/dev-web/current`
 - 기본 worktree 경로: `/home/ubuntu/project/Lawdigest/.worktrees/dev-web-live`
 
@@ -25,7 +30,8 @@
 2. 전용 worktree를 해당 ref로 `detach checkout`한다.
 3. `npm install`을 수행한다.
 4. `.runtime/dev-web/current` 심링크를 해당 worktree로 전환한다.
-5. PM2에서 `npm run dev -- --hostname 0.0.0.0 --port 3021`로 재기동한다.
+5. `ensure-dev-web-pm2.sh`가 현재 심링크를 기준으로 PM2 프로세스를 재기동하거나 복구한다.
+6. watchdog cron이 등록되어 있으면 PM2 데몬 재시작 후에도 1분 안에 `lawdigest-web-dev`를 다시 올린다.
 
 즉, `dev.lawdigest.kr`은 빌드 산출물 고정 배포가 아니라, 선택한 소스 트리를 개발모드로 직접 서비스한다.
 
@@ -43,11 +49,17 @@
 ./deploy/deploy-dev-web.sh 49e57ea
 ```
 
+watchdog 등록:
+
+```bash
+./deploy/install-dev-web-watchdog.sh
+```
+
 ## 확인 방법
 
 ```bash
 pm2 list
-curl -sSI https://dev.lawdigest.kr/election | sed -n '1,20p'
+curl -sSI https://dev.lawdigest.kr/ | sed -n '1,20p'
 ```
 
 정상이라면:
@@ -55,8 +67,24 @@ curl -sSI https://dev.lawdigest.kr/election | sed -n '1,20p'
 - `lawdigest-web-dev` 프로세스가 `online`
 - `dev.lawdigest.kr` 응답이 `200 OK`
 
+watchdog까지 확인하려면:
+
+```bash
+crontab -l | rg ensure-dev-web-pm2
+tail -n 20 /home/ubuntu/project/Lawdigest/.runtime/dev-web/watchdog.log
+```
+
 ## 주의사항
 
 - 개발모드이므로 production build보다 자원 사용량이 클 수 있다.
 - 현재 서비스 대상은 `.runtime/dev-web/current` 심링크가 가리키는 worktree다.
 - dev용 worktree를 지우기 전에 다른 ref로 재배포하거나 심링크를 옮겨야 한다.
+- PM2의 `dump.pm2`는 다른 프로젝트 배포에서 덮어써질 수 있으므로, dev 웹은 watchdog cron으로 복구 경로를 하나 더 유지한다.
+
+## watchdog 실행 제한
+
+watchdog는 같은 런타임에서 한 번만 실행되도록 `watchdog.lock`을 사용한다.
+PM2 응답이 멈추면 자식 프로세스를 포함해 45초 후 종료하고, 종료에 응답하지 않으면 5초 뒤 강제 종료한다.
+이미 정상 실행 중이면 `pm2 save`를 반복하지 않는다. 복구로 앱을 새로 시작했을 때 저장한다.
+cron의 Node/PM2 경로 설정은 복구 스크립트에 직접 전달한다.
+watchdog만 수정한 경우 운영 웹을 다시 빌드하거나 배포하지 않는다.

@@ -1,5 +1,8 @@
 package com.everyones.lawmaking.facade;
 
+import com.everyones.lawmaking.common.dto.BillDetailInfo;
+import com.everyones.lawmaking.common.dto.CategoryCountDto;
+import com.everyones.lawmaking.common.dto.TrendingKeywordDto;
 import com.everyones.lawmaking.common.dto.PartyVoteDto;
 import com.everyones.lawmaking.common.dto.VoteResultResponse;
 import com.everyones.lawmaking.common.dto.bill.BillDto;
@@ -8,10 +11,10 @@ import com.everyones.lawmaking.common.dto.response.BillListResponse;
 import com.everyones.lawmaking.common.dto.response.BillStateCountResponse;
 import com.everyones.lawmaking.common.dto.response.BillViewCountResponse;
 import com.everyones.lawmaking.common.dto.response.CountDto;
+import com.everyones.lawmaking.common.dto.response.SimilarBillListResponse;
 import com.everyones.lawmaking.global.util.AuthenticationUtil;
 import com.everyones.lawmaking.service.BillService;
 import com.everyones.lawmaking.service.LikeService;
-import com.everyones.lawmaking.service.RedisService;
 import com.everyones.lawmaking.service.VotePartyService;
 import com.everyones.lawmaking.service.VoteRecordService;
 import java.util.List;
@@ -29,17 +32,23 @@ public class BillFacade {
     private final LikeService likeService;
     private final VoteRecordService voteRecordService;
     private final VotePartyService votePartyService;
-    private final RedisService redisService;
 
-    public BillDetailResponse getBillByBillId(String billId) {
-        var billDto =  billService.getBillWithDetail(billId);
+    public BillDetailResponse getBillByBillId(String billId, boolean currentOnly) {
+        var billDto = billService.getBillWithDetail(billId, currentOnly);
         var userId = AuthenticationUtil.getUserId();
         var voteRecord = voteRecordService.getVoteRecordByBillId(billId);
-        var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
-                .map(PartyVoteDto::from)
-                .toList();
-        var voteResultResponse = VoteResultResponse.of(voteRecord, votePartyList);
-        billDto.setVoteResultResponse(voteResultResponse);
+        var decisionDate = voteRecord == null ? null : voteRecord.getDecisionDate();
+        var finalVote = billDto.getBillInfoDto() instanceof BillDetailInfo detail
+                ? detail.getFinalPlenaryVote() : null;
+        if (finalVote != null && (decisionDate == null || !decisionDate.isAfter(finalVote.date()))) {
+            billDto.setVoteResultResponse(VoteResultResponse.fromEvent(finalVote));
+        } else {
+            var votePartyList = votePartyService.getVotePartyListWithPartyByBillId(billId).stream()
+                    .filter(vote -> vote.matchesDecisionDate(decisionDate))
+                    .map(PartyVoteDto::from)
+                    .toList();
+            billDto.setVoteResultResponse(VoteResultResponse.of(voteRecord, votePartyList));
+        }
         if (userId.isEmpty()) {
             return billDto;
         }
@@ -49,8 +58,13 @@ public class BillFacade {
     }
 
     public BillViewCountResponse updateViewCount(String billId) {
-        redisService.addToViewsQueue(billId);
         return billService.updateViewCount(billId);
+    }
+
+    @Transactional(readOnly = true)
+    public SimilarBillListResponse getSimilarBills(
+            String billId, Boolean current, Pageable pageable) {
+        return billService.getSimilarBills(billId, current, pageable);
     }
 
     public BillListResponse getBillsFromRepresentativeProposer(String congressmanId, Pageable pageable, String stage) {
@@ -83,8 +97,7 @@ public class BillFacade {
     }
 
     public List<BillDto> getPopularBills() {
-        var popularBillIds = redisService.getPopularBills();
-        var billList = billService.getBillListResponse(popularBillIds);
+        var billList = billService.getPopularBills();
         var userIdOptional = AuthenticationUtil.getUserId();
         return userIdOptional.map(userId -> billList.stream()
                 .map(billDto -> {
@@ -120,8 +133,20 @@ public class BillFacade {
         return billService.getBillStateCount();
     }
     @Transactional(readOnly = true)
-    public BillListResponse getBillList(Pageable pageable, String stage) {
-        return billService.getBillList(pageable, stage);
+    public BillListResponse getBillList(Pageable pageable, String stage, String assembly) {
+        return billService.getBillList(pageable, stage, assembly);
+    }
+    @Transactional(readOnly = true)
+    public BillListResponse getBillListByCategory(Pageable pageable, String category) {
+        return billService.getBillListByCategory(pageable, category);
+    }
+    @Transactional(readOnly = true)
+    public List<CategoryCountDto> getCategoryCounts() {
+        return billService.getCategoryCounts();
+    }
+    @Transactional(readOnly = true)
+    public List<TrendingKeywordDto> getTrendingKeywords(int size) {
+        return billService.getTrendingKeywords(size);
     }
     public CountDto getBookmarkedBillCount() {
         var userId = AuthenticationUtil.getUserId();

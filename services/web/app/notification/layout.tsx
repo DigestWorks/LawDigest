@@ -1,10 +1,12 @@
 import { Layout } from '@/components';
-import { Metadata } from 'next';
+import getMetadata from '@/utils/getMetadata';
 
-export const metadata: Metadata = {
-  title: '알림 페이지',
-  description: '알림을 자세히 확인할 수 있는 페이지',
-};
+export const metadata = getMetadata({
+  title: '알림',
+  description: '팔로우한 의원과 법안의 새 소식을 확인합니다.',
+  asPath: '/notification',
+  noIndex: true,
+});
 
 export default function NotificationLayout({ children }: { children: React.ReactNode }) {
   return (
