@@ -5,7 +5,11 @@
  * - 개인정보 보호법 제30조 제1항, 시행령 제31조 제1항: https://www.law.go.kr/법령/개인정보보호법
  * - 국외 이전 공개 사항(제28조의8 제2항): https://www.law.go.kr/법령/개인정보보호법
  * - 아동 개인정보(제22조의2): 만 14세 미만 가입을 제한한다.
- * - OpenAI API 데이터 보관(최대 30일, 학습 미사용): https://developers.openai.com/api/docs/guides/your-data
+ * - 질의응답 답변은 ChatGPT 계정으로 로그인한 Codex CLI가 만든다. 개인 플랜의 학습 사용 여부는 계정 데이터 통제
+ *   ("Improve the model for everyone")를 따른다: https://help.openai.com/en/articles/7730893-data-controls-faq
+ *   API 키 방식으로 바꾸면 보유 기간 문구를 API 정책(https://developers.openai.com/api/docs/guides/your-data)에 맞춘다.
+ * - 운영자 확인 사항(2026-11-08): 서버 춘천 리전, DB 백업의 탈퇴 회원 정보 30일 보관,
+ *   nginx 접속 기록 90일 회전(/etc/logrotate.d/nginx rotate 90).
  *
  * 처리 사실 근거(코드)
  * - 소셜 로그인 수집 항목: services/backend/src/main/resources/application.properties (oauth2 scope)
@@ -337,6 +341,7 @@ export const PRIVACY_DOCUMENT: LegalDocumentData = {
             ],
             ['질의응답 질문 내용', '저장하지 않습니다. 답변을 만든 뒤 바로 폐기합니다.'],
             ['요청 횟수 제한용 식별값', '서버 메모리에만 두며, 날짜가 바뀌면 삭제합니다.'],
+            ['데이터베이스 백업에 남은 탈퇴 회원 정보', '탈퇴일로부터 최대 30일. 백업이 교체되면 함께 삭제됩니다.'],
             ['서버 접속 기록', '생성일로부터 최대 3개월'],
           ],
         },
@@ -351,6 +356,7 @@ export const PRIVACY_DOCUMENT: LegalDocumentData = {
           items: [
             '보유 기간이 끝나거나 처리 목적을 달성한 개인정보는 지체 없이 파기합니다.',
             '회원이 탈퇴하면 회원 정보와 이용 기록을 데이터베이스에서 삭제하고, 소셜 로그인 제공자에 연결 해제를 요청합니다.',
+            '장애 복구용 데이터베이스 백업에 남은 탈퇴 회원 정보는 서비스에서 조회하거나 이용하지 않으며, 탈퇴일로부터 30일 안에 백업과 함께 삭제됩니다.',
             '운영자는 개인정보를 종이 문서로 보관하지 않습니다.',
           ],
         },
@@ -412,7 +418,7 @@ export const PRIVACY_DOCUMENT: LegalDocumentData = {
             ['이용 목적', '질문에 대한 답변 생성'],
             [
               '보유 기간',
-              'OpenAI는 API로 받은 데이터를 오남용 감시를 위해 최대 30일 보관한 뒤 삭제하며, 모델 학습에 사용하지 않습니다.',
+              'OpenAI의 개인정보 처리방침에서 정한 기간 동안 보관됩니다. 운영자는 OpenAI 계정의 데이터 통제에서 모델 학습 사용을 꺼 두어, 전송된 질문이 OpenAI 모델 학습에 쓰이지 않게 합니다.',
             ],
             [
               '거부 방법과 효과',

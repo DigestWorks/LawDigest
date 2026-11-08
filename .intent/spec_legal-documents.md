@@ -25,7 +25,7 @@ date: 2026-11-08
 - 재사용: 페이지 틀은 `app/about/page.tsx`의 `Layout` + `article` 구조와 `getMetadata`를 그대로 쓴다. 하단 링크는 `components/Layout/SiteFooter.tsx`의 `linkClass`를 쓴다. 로그인 안내는 `app/login/page.tsx`의 기존 섹션 안에 둔다.
 - 새로 만듦: `constants/legal.ts`에 `LEGAL_OPERATOR`(운영자, 책임자, 이메일, 시행일)와 두 문서의 본문 데이터(`TERMS_DOCUMENT`, `PRIVACY_DOCUMENT`)를 둔다. 본문은 `{ id, title, blocks }` 배열이고, block은 문단(`p`), 목록(`ul`/`ol`), 표(`table`) 중 하나다.
 - 새로 만듦: `components/Legal/LegalDocument.tsx` 서버 컴포넌트가 제목, 시행일, 목차(앵커 링크), 조항을 그린다. 조항 제목은 `h2`, 목차는 `nav aria-label="목차"`. 본문 폭은 `max-w-prose`, 표는 모바일에서 가로 스크롤 컨테이너에 넣는다.
-- 문서 문구 근거: 법 제30조·시행령 제31조·제28조의8 조문 구성(itwiki 전사본, 국가법령정보센터 원문 대조 권장), OpenAI API 데이터 보관 정책(developers.openai.com/api/docs/guides/your-data, 최대 30일, 학습 미사용). 근거 URL은 `constants/legal.ts` 주석에 남긴다.
+- 문서 문구 근거: 법 제30조·시행령 제31조·제28조의8 조문 구성(itwiki 전사본, 국가법령정보센터 원문 대조 권장), OpenAI 데이터 통제(help.openai.com 7730893, ChatGPT 계정 로그인 Codex는 계정의 모델 학습 설정을 따름). 근거 URL은 `constants/legal.ts` 주석에 남긴다.
 - 처리 사실 근거: OAuth scope(`application.properties`), 탈퇴 삭제 범위(`UserFacade.withdraw`), 질의응답 질문 미저장(`RagConversationState`, Codex `--ephemeral`), 요청 한도 식별값(일 단위 HMAC, 메모리 보관, `limits.py`), 쿠키(`CookieUtil` httpOnly, refresh 7일), 브라우저 저장소(`lib/search.ts` 최근 검색어, 테마).
 
 ```mermaid
