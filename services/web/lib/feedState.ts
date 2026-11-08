@@ -3,7 +3,7 @@ import { STAGE_TAB_KO } from '@/constants';
 export type FeedContent = 'report' | 'bill' | 'following';
 
 export function feedContent(value: string | null | undefined): FeedContent {
-  return value === 'bill' || value === 'following' ? value : 'report';
+  return value === 'report' || value === 'following' ? value : 'bill';
 }
 
 export type FeedAssembly = '21' | '22' | 'all';

@@ -29,6 +29,17 @@ const ASSEMBLY_FILTERS: { label: string; value: FeedAssembly }[] = [
 
 const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }[] = [
   {
+    label: '법안',
+    value: 'bill',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M4 9.5H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M4 13.5H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     label: '리포트',
     value: 'report',
     icon: (
@@ -49,17 +60,6 @@ const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-      </svg>
-    ),
-  },
-  {
-    label: '법안',
-    value: 'bill',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 5.5H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M4 9.5H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M4 13.5H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -168,7 +168,7 @@ export default function Feed() {
             key={value}
             type="button"
             aria-pressed={contentType === value}
-            onClick={() => update('tab', value)}
+            onClick={() => update('tab', value === 'bill' ? '' : value)}
             className={`feed-content-tab${contentType === value ? ' is-active' : ''}`}>
             {icon}
             <span>{label}</span>
