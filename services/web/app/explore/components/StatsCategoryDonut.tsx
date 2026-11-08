@@ -11,7 +11,8 @@ import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByCategory } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_N = 6;
 const ETC_COLOR = '#999999';
@@ -24,18 +25,19 @@ const chartConfig = {
 export default function StatsCategoryDonut() {
   const query = useGetStatisticsByCategory();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const raw = useMemo(() => (data?.data ?? []).filter((c) => isCategoryCode(c.category)), [data]);
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="분야별 분포" icon={Donut} delay={0.15}>
         <div className="flex items-center gap-4">
-          <SkeletonBar className="h-[168px] w-[168px] shrink-0 rounded-full" />
+          <Skeleton className="h-[168px] w-[168px] shrink-0 rounded-full" />
           <div className="grid flex-1 grid-cols-1 gap-2">
             {Array.from({ length: 5 }, (_, i) => (
-              <SkeletonBar key={i} className="h-3 w-full" />
+              <Skeleton key={i} className="h-3 w-full" />
             ))}
           </div>
         </div>

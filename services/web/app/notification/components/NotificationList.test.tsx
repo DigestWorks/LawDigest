@@ -25,7 +25,7 @@ vi.mock('../apis', () => ({
 it('다크 모드에서 첫 알림 응답을 받으면 알림과 메뉴를 표시한다', () => {
   query.mockReturnValue({ data: undefined });
   const { rerender } = render(<NotificationList />);
-  expect(screen.getByRole('status')).toHaveTextContent('알림을 불러오는 중입니다.');
+  expect(screen.getByRole('status')).toHaveTextContent('알림을 불러오고 있습니다');
   expect(screen.queryByRole('button', { name: '전체 알림 관리' })).not.toBeInTheDocument();
 
   query.mockReturnValue({

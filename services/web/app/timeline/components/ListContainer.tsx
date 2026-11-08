@@ -6,7 +6,7 @@ import { convertDateFormat } from '@/utils';
 import { Divider } from '@heroui/react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { TimelineEntriesSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { BillSection, CommitteeSection, PlenarySection } from './TimelineEntries';
 import { useGetTimelineFeed } from '../apis/queries';
@@ -22,6 +22,7 @@ type Filter = (typeof FILTERS)[number][0];
 
 export default function ListContainer() {
   const query = useGetTimelineFeed();
+  const showSkeleton = useSkeletonGate(query.isPending);
   const [filter, setFilter] = useState<Filter>('all');
   const timeline = query.data?.pages.flatMap(({ data }) => data.timeline_response_list) ?? [];
   const dates = Array.from(new Map(timeline.map((day) => [day.date, day])).values());
@@ -52,7 +53,7 @@ export default function ListContainer() {
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-      {query.isPending && <ContentSkeleton />}
+      {showSkeleton && <TimelineEntriesSkeleton />}
       {query.isError && !query.data && (
         <SectionError
           message="타임라인을 불러오지 못했습니다."
@@ -60,41 +61,44 @@ export default function ListContainer() {
           onRetry={() => void query.refetch()}
         />
       )}
-      {query.data && !visibleDates.length && <SectionEmpty>불러온 날짜에 이 단계의 기록이 없습니다.</SectionEmpty>}
+      {!showSkeleton && query.data && !visibleDates.length && (
+        <SectionEmpty>불러온 날짜에 이 단계의 기록이 없습니다.</SectionEmpty>
+      )}
       <div className="flex flex-col">
         <div className="absolute w-[2px] h-5 bg-white dark:bg-dark-b dark:lg:bg-dark-pb" />
-        {visibleDates.map(({ date, plenary_list, promulgation_list, committee_audit_list, submitted_list }) => {
-          const [month, day, weekday] = convertDateFormat(date);
-          return (
-            <article key={date} className="flex gap-6">
-              <Divider orientation="vertical" className="w-[2px] h-auto" />
-              <div className="w-full min-w-0 pb-10">
-                <div className="relative">
-                  <div className="w-[25px] h-[25px] bg-gray-1 dark:bg-gray-3 absolute rounded-full border-black border top-5 -left-[38px]" />
-                  <h2 className="flex items-baseline gap-2 font-normal">
-                    <time dateTime={isoDateOnly(date) ?? undefined} aria-label={koreanDateLabel(date) ?? undefined}>
-                      <span className="text-[42px]">
-                        {month}.{day}
-                      </span>{' '}
-                      <span className="text-[22px]">{weekday}</span>{' '}
-                      <span className="text-xs text-muted-foreground">{isoDateOnly(date)?.slice(0, 4)}</span>
-                    </time>
-                  </h2>
+        {!showSkeleton &&
+          visibleDates.map(({ date, plenary_list, promulgation_list, committee_audit_list, submitted_list }) => {
+            const [month, day, weekday] = convertDateFormat(date);
+            return (
+              <article key={date} className="flex gap-6">
+                <Divider orientation="vertical" className="w-[2px] h-auto" />
+                <div className="w-full min-w-0 pb-10">
+                  <div className="relative">
+                    <div className="w-[25px] h-[25px] bg-gray-1 dark:bg-gray-3 absolute rounded-full border-black border top-5 -left-[38px]" />
+                    <h2 className="flex items-baseline gap-2 font-normal">
+                      <time dateTime={isoDateOnly(date) ?? undefined} aria-label={koreanDateLabel(date) ?? undefined}>
+                        <span className="text-[42px]">
+                          {month}.{day}
+                        </span>{' '}
+                        <span className="text-[22px]">{weekday}</span>{' '}
+                        <span className="text-xs text-muted-foreground">{isoDateOnly(date)?.slice(0, 4)}</span>
+                      </time>
+                    </h2>
+                  </div>
+                  <div className="flex flex-col gap-5">
+                    {show('plenary') && <PlenarySection entries={plenary_list} />}
+                    {show('promulgation') && (
+                      <BillSection title="법안 공포" countLabel="공포한 법안" bills={promulgation_list} />
+                    )}
+                    {show('committee') && <CommitteeSection committees={committee_audit_list} />}
+                    {show('submitted') && (
+                      <BillSection title="법안 접수" countLabel="접수된 법안" bills={submitted_list} />
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-col gap-5">
-                  {show('plenary') && <PlenarySection entries={plenary_list} />}
-                  {show('promulgation') && (
-                    <BillSection title="법안 공포" countLabel="공포한 법안" bills={promulgation_list} />
-                  )}
-                  {show('committee') && <CommitteeSection committees={committee_audit_list} />}
-                  {show('submitted') && (
-                    <BillSection title="법안 접수" countLabel="접수된 법안" bills={submitted_list} />
-                  )}
-                </div>
-              </div>
-            </article>
-          );
-        })}
+              </article>
+            );
+          })}
       </div>
       {query.hasNextPage && (
         <div className="mt-6 flex flex-col items-center gap-2">

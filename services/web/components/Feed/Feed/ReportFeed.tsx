@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { ReportListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
@@ -15,8 +15,9 @@ export default function ReportFeed({ scrollKey }: { scrollKey: string }) {
   const query = useInfiniteQuery(reportQueryOptions());
   const reports = query.data?.pages.flatMap(({ data }) => data.report_list) ?? [];
   useListScrollRestoration(scrollKey, Boolean(query.data));
+  const showSkeleton = useSkeletonGate(query.isPending);
 
-  if (query.isPending) return <ContentSkeleton />;
+  if (showSkeleton) return <ReportListSkeleton />;
   if (query.isError && !query.data) {
     return (
       <div className="mx-5 mt-4">

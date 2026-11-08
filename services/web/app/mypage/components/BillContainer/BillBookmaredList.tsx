@@ -1,6 +1,6 @@
 import { BillResponse } from '@/types';
 import { RefObject } from 'react';
-import { Spinner } from '@heroui/spinner';
+import { BookmarkedBillsSkeleton } from '@/components/common/Skeletons';
 import BillBookmarked from './BillBookmarked';
 
 export default function BillBookmarkedList({
@@ -18,9 +18,9 @@ export default function BillBookmarkedList({
         <BillBookmarked {...bill} key={`${bill.bill_info_dto.bill_id + index}`} />
       ))}
       {isFetching && (
-        <div className="flex justify-center w-full my-4">
-          <Spinner color="default" />
-        </div>
+        <li className="list-none">
+          <BookmarkedBillsSkeleton count={1} className="mx-0" />
+        </li>
       )}
       <div ref={fetchRef} />
     </ul>

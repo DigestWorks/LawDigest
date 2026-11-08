@@ -2,10 +2,13 @@
 
 import { Divider, Card, CardBody } from '@heroui/react';
 import { getDDay } from '@/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingRegion, useSkeletonGate } from '@/components/common/Skeletons';
 import { useGetTimelineBillState } from '../apis/queries';
 
 export default function TimelineBoard() {
-  const { data } = useGetTimelineBillState();
+  const { data, isPending: loading } = useGetTimelineBillState();
+  const isPending = useSkeletonGate(loading);
   const billState = data?.data;
 
   return (
@@ -35,7 +38,12 @@ export default function TimelineBoard() {
             <div key={label} className="flex flex-col items-center gap-2">
               <dt className="order-2 text-sm font-medium text-gray-2 md:whitespace-nowrap">{label}</dt>
               <dd className="text-2xl font-semibold tabular-nums">
-                {typeof count === 'number' ? count.toLocaleString('ko-KR') : '—'}
+                {isPending && (
+                  <LoadingRegion label={`${label} 집계를 불러오고 있습니다`}>
+                    <Skeleton className="mx-auto h-8 w-16" />
+                  </LoadingRegion>
+                )}
+                {!isPending && (typeof count === 'number' ? count.toLocaleString('ko-KR') : '—')}
               </dd>
             </div>
           ))}

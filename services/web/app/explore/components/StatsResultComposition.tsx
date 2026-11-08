@@ -7,7 +7,8 @@ import { Bar, BarChart, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsResultBreakdown } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 /**
  * 알려진 처리 결과별 색 — 디자인 토큰 기반(Neutral First).
@@ -31,15 +32,16 @@ const EXTRA_PALETTE = ['#99999980', '#55555580', '#96BCFA80', '#E0E0E080'];
 export default function StatsResultComposition() {
   const query = useGetStatisticsResultBreakdown();
   const { data, isLoading } = query;
+  const showSkeleton = useSkeletonGate(isLoading);
   const rows = data?.data ?? [];
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <StatsCard title="처리 결과 구성" icon={ChartPie} delay={0.1}>
-        <SkeletonBar className="h-[52px] w-full" />
+        <Skeleton className="h-[52px] w-full" />
         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
           {Array.from({ length: 4 }, (_, i) => (
-            <SkeletonBar key={i} className="h-3 w-full" />
+            <Skeleton key={i} className="h-3 w-full" />
           ))}
         </div>
       </StatsCard>

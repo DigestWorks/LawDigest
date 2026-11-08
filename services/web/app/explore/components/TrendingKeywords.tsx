@@ -4,6 +4,7 @@ import { Flame } from 'lucide-react';
 import { SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
+import { KeywordChipsSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { useGetTrendingKeywords } from '../apis';
 
 /**
@@ -15,12 +16,8 @@ export default function TrendingKeywords() {
   const { data } = query;
   const keywords = data?.data ?? [];
 
-  if (query.isPending)
-    return (
-      <p role="status" className="py-4 text-sm text-muted-foreground">
-        인기 키워드 불러오는 중…
-      </p>
-    );
+  const showSkeleton = useSkeletonGate(query.isPending);
+  if (showSkeleton) return <KeywordChipsSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError

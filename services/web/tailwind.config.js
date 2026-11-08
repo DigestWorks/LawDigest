@@ -31,6 +31,14 @@ module.exports = {
           '0%': { transform: 'scaleX(0)' },
           '100%': { transform: 'scaleX(1)' },
         },
+        skeletonIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        skeletonPulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        },
       },
       animation: {
         'fade-in': 'fadeIn 0.35s ease-out both',
@@ -38,6 +46,12 @@ module.exports = {
         'slide-in-left': 'slideInLeft 0.3s ease-out both',
         'slide-in-right': 'slideInRight 0.3s ease-out both',
         'bar-grow': 'barGrow 0.4s ease-out 0.28s both',
+        // 짧은 로딩에서 스켈레톤이 번쩍이지 않도록 300ms 동안 투명하게 두었다가 나타난다.
+        // hooks/useSearchParamsTransition.ts의 PENDING_DELAY_MS와 같은 값이다.
+        skeleton: 'skeletonIn 200ms ease-in 300ms both, skeletonPulse 2s cubic-bezier(0.4, 0, 0.6, 1) 500ms infinite',
+        'skeleton-static': 'skeletonIn 1ms linear 300ms both',
+        // 스켈레톤 묶음의 테두리·구분선도 블록과 같은 시점에 나타나게 묶음 전체에 건다.
+        'skeleton-region': 'skeletonIn 200ms ease-in 300ms both',
       },
       // Legacy gray-2 text follows the reading color without changing gray fills or borders.
       textColor: {

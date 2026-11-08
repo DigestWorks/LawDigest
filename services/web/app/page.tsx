@@ -1,6 +1,6 @@
 import { dehydrate } from '@tanstack/react-query';
 import { Suspense } from 'react';
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { FeedSkeleton } from '@/components/common/Skeletons';
 import ListHydrationBoundary from '@/lib/ListHydrationBoundary';
 import getQueryClient from '@/lib/getQueryClient';
 import { Feed, Layout } from '@/components';
@@ -35,7 +35,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
   return (
     <Layout nav logo notification>
-      <Suspense fallback={<ContentSkeleton />}>
+      <Suspense fallback={<FeedSkeleton />}>
         <HomeFeed params={params} />
       </Suspense>
     </Layout>

@@ -1,14 +1,16 @@
-import { SectionEmpty, SectionError, SectionLoading } from '@/components/common/SectionState';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { FollowedPartiesSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import PartyItem from './PartyItem';
 import { useGetFollowingParty } from '../../apis';
 
 export default function PartyList() {
   const query = useGetFollowingParty();
+  const showSkeleton = useSkeletonGate(query.isPending);
   const parties = query.data?.data;
   let content = <SectionEmpty>팔로우한 정당이 없습니다.</SectionEmpty>;
 
-  if (query.isPending) {
-    content = <SectionLoading>팔로우한 정당을 불러오는 중입니다.</SectionLoading>;
+  if (showSkeleton) {
+    content = <FollowedPartiesSkeleton />;
   } else if (!parties) {
     content = (
       <SectionError

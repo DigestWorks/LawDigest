@@ -1,1 +1,1 @@
-export { default } from '@/components/common/ContentSkeleton';
+export { TimelineSkeleton as default } from '@/components/common/Skeletons';

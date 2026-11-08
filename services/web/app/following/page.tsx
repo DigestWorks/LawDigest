@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCookie } from 'cookies-next';
 import { ACCESS_TOKEN } from '@/constants';
 import { loginHref } from '@/lib/loginNavigation';
-import { SectionLoading } from '@/components/common/SectionState';
+import { FollowingSkeleton } from '@/components/common/Skeletons';
 import { useSetAtom } from 'jotai';
 import { snackbarState } from '@/store';
 import { SearchBarButton } from '@/components';
@@ -27,10 +27,10 @@ export default function Following() {
 
   if (!sessionReady) {
     return (
-      <section className="mx-auto w-full max-w-xl p-6">
+      <>
         <h1 className="sr-only">팔로잉</h1>
-        <SectionLoading>로그인 상태를 확인하는 중입니다.</SectionLoading>
-      </section>
+        <FollowingSkeleton />
+      </>
     );
   }
 

@@ -1,24 +1,24 @@
 import { Avatar } from '@heroui/avatar';
-import { SectionError, SectionLoading } from '@/components/common/SectionState';
+import { SectionError } from '@/components/common/SectionState';
+import { UserInfoSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import Image from 'next/image';
 import { useGetUserInfo } from '../../apis';
 
 export default function UserInfo() {
   const query = useGetUserInfo();
+  const showSkeleton = useSkeletonGate(!query.data && query.isPending);
   const userInfo = query.data?.data;
+
+  if (showSkeleton) return <UserInfoSkeleton />;
 
   if (!userInfo) {
     return (
       <section className="mx-5 w-full lg:mx-0 lg:w-[200px]">
-        {query.isPending ? (
-          <SectionLoading>회원 정보를 불러오는 중입니다.</SectionLoading>
-        ) : (
-          <SectionError
-            message="회원 정보를 불러오지 못했습니다."
-            onRetry={() => void query.refetch()}
-            pending={query.isFetching}
-          />
-        )}
+        <SectionError
+          message="회원 정보를 불러오지 못했습니다."
+          onRetry={() => void query.refetch()}
+          pending={query.isFetching}
+        />
       </section>
     );
   }

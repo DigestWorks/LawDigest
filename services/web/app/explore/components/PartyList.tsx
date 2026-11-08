@@ -5,6 +5,7 @@ import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
+import { PartyCardGridSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import Image from 'next/image';
 import { getPartyColor } from '@/constants/party';
 import { getPartyLogoSrc } from '@/utils';
@@ -20,8 +21,9 @@ export default function PartyList() {
     .filter((party) => party.party_id > 0)
     .sort((a, b) => b.congressman_count - a.congressman_count);
 
-  if (isLoading) {
-    return <div className="py-10 text-center text-[14px] text-gray-2">정당을 불러오는 중…</div>;
+  const showSkeleton = useSkeletonGate(isLoading);
+  if (showSkeleton) {
+    return <PartyCardGridSkeleton />;
   }
 
   if (query.isError && !query.data) {

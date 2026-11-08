@@ -8,7 +8,8 @@ import { getPartyColor } from '@/constants/party';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByParty, useGetStatisticsPartyPerformance } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSkeletonGate } from '@/components/common/Skeletons';
 
 const TOP_N = 8;
 
@@ -44,12 +45,13 @@ export default function StatsPartyPerformance() {
         passRate: null as number | null,
       }));
 
-  if (rows.length === 0 && (performance.isLoading || fallback.isLoading)) {
+  const showSkeleton = useSkeletonGate(rows.length === 0 && (performance.isLoading || fallback.isLoading));
+  if (showSkeleton) {
     return (
       <StatsCard title="정당별 발의·가결" icon={Flag} delay={0.1}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
-            <SkeletonBar key={i} className="h-[18px] w-full" />
+            <Skeleton key={i} className="h-[18px] w-full" />
           ))}
         </div>
       </StatsCard>

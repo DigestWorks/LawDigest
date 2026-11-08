@@ -2,18 +2,22 @@
 
 import { useId, useState } from 'react';
 import { useGetPartyCongressman } from '@/app/party/[id]/apis';
-import { Spinner, Divider } from '@heroui/react';
+import { Divider } from '@heroui/react';
+import { PartyMembersSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Button } from '@/components/ui/button';
 import { IconArrowDown, IconArrowUp } from '@/public/svgs';
 import PartyCongressmanItem from './PartyCongressmanItem';
 
 export default function PartyCongressmanList({ id }: { id: number }) {
-  const { data, isFetching } = useGetPartyCongressman(id);
+  const { data, isPending } = useGetPartyCongressman(id);
+  const showSkeleton = useSkeletonGate(isPending);
   const [isOpened, setIsOpened] = useState(false);
 
   const listId = useId();
   const members = data?.data.party_congressman ?? [];
   const visibleMembers = isOpened ? members : members.slice(0, 8);
+
+  if (showSkeleton) return <PartyMembersSkeleton />;
 
   return (
     <section className="flex flex-col gap-5 mx-5 my-10">
@@ -22,11 +26,7 @@ export default function PartyCongressmanList({ id }: { id: number }) {
           <PartyCongressmanItem key={`${congressman.congressman_id}:${index}`} {...congressman} />
         ))}
       </div>
-      {isFetching && (
-        <div className="flex justify-center w-full my-4">
-          <Spinner color="default" />
-        </div>
-      )}
+
       {members.length > 8 && (
         <div className="flex justify-center">
           <Button

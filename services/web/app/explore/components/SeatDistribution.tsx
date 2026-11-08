@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { SeatDistributionSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 
 import { useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -37,6 +38,7 @@ export default function SeatDistribution() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const partiesQuery = useGetParliamentaryParties();
+  const showSkeleton = useSkeletonGate(partiesQuery.isPending);
   const { data } = partiesQuery;
   const { data: billStats } = useGetStatisticsByParty();
 
@@ -100,13 +102,7 @@ export default function SeatDistribution() {
     return { positions, r };
   }, [seats, total]);
 
-  if (partiesQuery.isPending) {
-    return (
-      <p role="status" className="py-4 text-sm text-muted-foreground">
-        의석 분포 불러오는 중…
-      </p>
-    );
-  }
+  if (showSkeleton) return <SeatDistributionSkeleton />;
   if (partiesQuery.isError && !data) {
     return (
       <SectionError

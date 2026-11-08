@@ -2,7 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { getDateStatus } from '@/utils';
-import { SectionError, SectionLoading } from '@/components/common/SectionState';
+import { SectionError } from '@/components/common/SectionState';
+import { NotificationListSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Divider, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
 import { IconKebab } from '@/public/svgs';
 import { useSetAtom } from 'jotai';
@@ -32,6 +33,8 @@ export default function NotificationList() {
   const listQuery = useGetNotification();
   const notificationCount = countQuery.data?.notification_count;
   const notifications = listQuery.data;
+  const listFailed = (notificationCount == null && countQuery.isError) || (!notifications && listQuery.isError);
+  const showSkeleton = useSkeletonGate((notificationCount == null || !notifications) && !listFailed);
   const setSnackbar = useSetAtom(snackbarState);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const manageButtonRef = useRef<HTMLButtonElement>(null);
@@ -78,22 +81,19 @@ export default function NotificationList() {
     setDeleteAllOpen(open);
   };
 
+  if (showSkeleton) return <NotificationListSkeleton />;
   if (notificationCount == null || !notifications) {
-    const failed = (notificationCount == null && countQuery.isError) || (!notifications && listQuery.isError);
+    if (!listFailed) return <NotificationListSkeleton />;
     return (
       <div className="p-5">
-        {failed ? (
-          <SectionError
-            message="알림을 불러오지 못했습니다."
-            pending={countQuery.isFetching || listQuery.isFetching}
-            onRetry={() => {
-              if (notificationCount == null) void countQuery.refetch();
-              if (!notifications) void listQuery.refetch();
-            }}
-          />
-        ) : (
-          <SectionLoading>알림을 불러오는 중입니다.</SectionLoading>
-        )}
+        <SectionError
+          message="알림을 불러오지 못했습니다."
+          pending={countQuery.isFetching || listQuery.isFetching}
+          onRetry={() => {
+            if (notificationCount == null) void countQuery.refetch();
+            if (!notifications) void listQuery.refetch();
+          }}
+        />
       </div>
     );
   }

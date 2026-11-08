@@ -4,7 +4,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { BillList, SearchBarButton } from '@/components';
 import { useIntersect } from '@/hooks';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PeopleRowsSkeleton, useSkeletonGate } from '@/components/common/Skeletons';
 import { Separator } from '@/components/ui/separator';
 import { canSearchBills } from '@/lib/search';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
@@ -27,6 +27,7 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
   const showPeople = selected !== 'bill';
   const showBills = selected === 'all' || selected === 'bill';
   const people = useGetSearchCongressmanParty(keyword);
+  const peopleSkeleton = useSkeletonGate(people.isPending);
   const bill = useGetSearchBill(keyword);
   const peopleResults = people.data?.data.search_response ?? [];
   const members = peopleResults.filter((result) => result.search_type === 'CONGRESSMAN');
@@ -94,12 +95,7 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
             </Button>
           ))}
         </div>
-        {showPeople && people.isPending && (
-          <div className="flex flex-col gap-3 mx-5 mb-6" role="status" aria-label="의원·정당 검색 중">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </div>
-        )}
+        {showPeople && peopleSkeleton && <PeopleRowsSkeleton />}
         {showPeople && people.isError && (
           <div className="flex flex-col items-center gap-3 py-6" role="alert">
             <p>의원·정당 검색 결과를 불러오지 못했습니다.</p>
@@ -110,6 +106,7 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
         )}
         {showPeople &&
           people.isSuccess &&
+          !peopleSkeleton &&
           peopleGroups
             .filter(({ type, results }) => selected === type || (selected === 'all' && results.length > 0))
             .map(({ type, label, results }) => (
