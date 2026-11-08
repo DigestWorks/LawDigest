@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { animate, AnimationPlaybackControls, motion, useReducedMotion } from 'framer-motion';
+import { animate, AnimationPlaybackControlsWithThen, motion, useReducedMotion } from 'framer-motion';
 import { Clock3, MessageCircle, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useSearchEntry from '@/components/search/useSearchEntry';
@@ -81,7 +81,8 @@ export function HeaderSearchField() {
   const root = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const shownExpanded = useRef<boolean | null>(null);
-  const motionRef = useRef<AnimationPlaybackControls[]>([]);
+  const motionRef = useRef<AnimationPlaybackControlsWithThen[]>([]);
+  const motionRunning = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const seenFocusToken = useRef(focusToken);
   const panelId = useId();
@@ -119,6 +120,21 @@ export function HeaderSearchField() {
     return { origin, final };
   }, []);
 
+  // 진행 중인 애니메이션을 멈춘다. 애니메이션 묶음의 state는 움직일 값이 없으면 읽을 때 예외가 나므로 직접 기록한다.
+  const stopMotion = useCallback(() => {
+    motionRef.current.forEach((animation) => animation.stop());
+    motionRef.current = [];
+    motionRunning.current = false;
+  }, []);
+
+  const startMotion = useCallback((animations: AnimationPlaybackControlsWithThen[]) => {
+    motionRef.current = animations;
+    motionRunning.current = true;
+    Promise.all(animations.map((animation) => animation.then(() => undefined))).then(() => {
+      if (motionRef.current === animations) motionRunning.current = false;
+    });
+  }, []);
+
   // 사용자가 열고 닫을 때만 움직인다. 경로가 바뀌어 헤더가 새로 그려지거나 창 크기가 바뀌면 제자리에 바로 놓는다.
   useLayoutEffect(() => {
     const form = formRef.current;
@@ -128,23 +144,24 @@ export function HeaderSearchField() {
     const previous = shownExpanded.current;
     shownExpanded.current = expanded;
     if (previous === null || previous === expanded || reduceMotion) {
-      motionRef.current.forEach((animation) => animation.stop());
+      stopMotion();
       placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
       return;
     }
-    const moving = motionRef.current.some((animation) => animation.state === 'running');
-    motionRef.current.forEach((animation) => animation.stop());
+    // 닫히는 중에 다시 열면 지금 자리에서 이어서 늘어난다.
+    const moving = motionRunning.current;
+    stopMotion();
     if (expanded) {
       if (!moving) placeForm(form, next.origin, 1);
       form.style.opacity = '1';
-      motionRef.current = [animate(form, toPixels(next.final), { duration: 0.46, ease: EASE_OUT })];
+      startMotion([animate(form, toPixels(next.final), { duration: 0.46, ease: EASE_OUT })]);
     } else {
-      motionRef.current = [
+      startMotion([
         animate(form, toPixels(next.origin), { duration: 0.34, ease: EASE_OUT }),
         animate(form, { opacity: 0 }, { duration: 0.1, delay: 0.3 }),
-      ];
+      ]);
     }
-  }, [expanded, measure, reduceMotion]);
+  }, [expanded, measure, reduceMotion, startMotion, stopMotion]);
 
   useEffect(() => {
     const onResize = () => {
@@ -152,12 +169,12 @@ export function HeaderSearchField() {
       const next = measure();
       if (!form || !next) return;
       setGeometry(next);
-      motionRef.current.forEach((animation) => animation.stop());
+      stopMotion();
       placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [expanded, measure]);
+  }, [expanded, measure, stopMotion]);
 
   useEffect(() => setValue(routeKeyword), [routeKeyword]);
 
