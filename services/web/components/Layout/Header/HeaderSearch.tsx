@@ -72,18 +72,27 @@ export function HeaderSearchField() {
       const frame = root.current?.getBoundingClientRect();
       if (!frame) return;
       const width = Math.min(560, window.innerWidth - 300);
-      const final = {
-        left: (frame.width - width) / 2,
-        top: (frame.height - FIELD_HEIGHT) / 2,
-        width,
-        height: FIELD_HEIGHT,
-      };
-      const source =
-        root.current?.closest('[data-header-center]')?.querySelector('[data-nav-indicator-active] svg') ??
-        document.querySelector('[data-header-search-toggle]');
-      const rect = source?.getBoundingClientRect();
-      const origin = rect
-        ? { left: rect.left - frame.left, top: rect.top - frame.top, width: rect.width, height: rect.height }
+      const left = (frame.width - width) / 2;
+      const indicator = root.current
+        ?.closest('[data-header-center]')
+        ?.querySelector('[data-nav-indicator-active] svg')
+        ?.getBoundingClientRect();
+      // 활성 탭 인디케이터가 있으면 그 세로 중심에 맞춰, 늘어날 때 좌우로만 커지게 한다.
+      if (indicator) {
+        const origin = {
+          left: indicator.left - frame.left,
+          top: indicator.top - frame.top,
+          width: indicator.width,
+          height: indicator.height,
+        };
+        const top = origin.top + (origin.height - FIELD_HEIGHT) / 2;
+        setGeometry({ origin, final: { left, top, width, height: FIELD_HEIGHT } });
+        return;
+      }
+      const final = { left, top: (frame.height - FIELD_HEIGHT) / 2, width, height: FIELD_HEIGHT };
+      const toggle = document.querySelector('[data-header-search-toggle]')?.getBoundingClientRect();
+      const origin = toggle
+        ? { left: toggle.left - frame.left, top: toggle.top - frame.top, width: toggle.width, height: toggle.height }
         : { ...final, left: final.left + final.width / 2 - FIELD_HEIGHT, width: FIELD_HEIGHT * 2 };
       setGeometry({ origin, final });
     };
