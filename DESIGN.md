@@ -111,9 +111,9 @@ components:
     backgroundColor: "{colors.surface-white}"
     textColor: "{colors.primary-ink}"
     typography: "{typography.body}"
-    rounded: "{rounded.lg}"
+    rounded: "{rounded.full}"
     padding: "0 16px"
-    height: "40px"
+    height: "48px"
 ---
 
 # Design System: 모두의입법
@@ -231,13 +231,13 @@ components:
 
 ### Inputs / Fields
 
-- **Style:** 검색 입력은 `40px` 높이, `16px` radius, 흰색 표면, 약한 그림자를 기본으로 한다.
-- **Focus:** focus 상태는 배경을 살짝 올리고 입력 가능성이 보이게 한다. 색이 강한 outline은 검색 확장 UI처럼 특별한 진입점에만 사용한다.
+- **Style:** 검색 입력은 `48px` 높이 pill, 1.5px 레인보우 테두리, 흰색(다크 모드는 `dark-bg`) 안쪽 면을 사용한다. 다른 입력은 흰색 표면과 약한 그림자를 기본으로 한다.
+- **Focus:** 검색 입력의 레인보우 테두리는 쉬는 상태에서 정지하고, 입력 중에는 6초에 한 바퀴, 검색 결과를 기다리는 동안 1.1초에 한 바퀴 돈다. 동작 줄이기 설정에서는 돌지 않는다. 다른 입력의 focus는 배경을 살짝 올린다.
 - **Error / Disabled:** 오류는 `alert-red`, 비활성은 `text-muted`와 낮은 대비 배경을 사용한다. 에러 문구는 짧고 행동 가능해야 한다.
 
 ### Navigation
 
-- **Desktop:** 상단 내비게이션은 `98px` 높이, 중앙 탭, 활성 탭 뒤의 시그니처 border 아이콘으로 구성한다. 기본 라벨은 `text-muted`, 활성 라벨은 `primary-ink`와 semibold다.
+- **Desktop:** 상단 내비게이션은 `98px` 높이, 중앙 탭, 활성 탭 뒤의 시그니처 border 아이콘으로 구성한다. 기본 라벨은 `text-muted`, 활성 라벨은 `primary-ink`와 semibold다. 검색 아이콘을 누르거나 `/`, ⌘K를 누르면 검색창이 아이콘 쪽에서 왼쪽으로 펼쳐져 중앙 탭 자리를 차지하고, 아이콘은 닫기로 바뀐다. 검색 결과 경로에서는 검색창이 펼쳐진 채 검색어를 보여 준다.
 - **Mobile:** 하단 플로팅 내비게이션은 glass shell, pill indicator, 검색 전용 레인보우 버튼을 사용한다. 터치 높이는 기본 `62px`, compact는 `43px` 안팎을 유지한다.
 - **Tabs:** 피드와 선거 탭은 NextUI Tabs를 기반으로 하되, 선택 상태는 검은 cursor 또는 밑줄로 명확히 표시한다.
 
@@ -247,7 +247,16 @@ components:
 
 ### Signature Component: Mobile Search Entry
 
-모바일 검색 버튼은 모두의입법에서 가장 표현적인 컴포넌트다. 레인보우 conic gradient, glass inner, 추천 질문 bubble을 허용하지만 검색이라는 명확한 행동을 벗어나면 같은 효과를 재사용하지 않는다.
+모바일 검색 버튼은 모두의입법에서 가장 표현적인 컴포넌트다. 레인보우 conic gradient, glass inner, 추천 bubble을 허용하지만 검색이라는 명확한 행동을 벗어나면 같은 효과를 재사용하지 않는다.
+
+- 누르면 탭 바는 현재 탭 아이콘 원으로 줄고, 검색 버튼이 탭 바 자리까지 펼쳐진다. 두 요소의 총폭은 바뀌지 않는다.
+- bubble은 실제 최근 검색어와 지금 뜨는 키워드만 쓴다. 검색 바에 가까운 것부터 차례로 떠오른다.
+- 검색 결과 경로에서는 검색 바가 펼쳐진 채 검색어를 보여 준다. 화면 키보드가 열리면 키보드 위로 올라간다.
+- 검색은 모달을 쓰지 않는다. 검색은 누른 자리에서 펼치고, 바깥을 누르면 접는다.
+
+### Search Result Row
+
+검색 결과의 법안은 피드 카드 대신 한 줄 묶음으로 보여 준다. 쉬운 제목(`title`), 정식 법안명, 처리 단계 칩, 이전 대수, 발의일, 대표발의자와 정당 dot 순서다. 검색어와 일치하는 글자는 Soft Assembly Blue 배경으로 표시한다. 첫 10줄은 40ms 간격으로 떠오르고, 결과 유형 탭의 검은 cursor는 누른 탭으로 미끄러진다.
 
 ## 6. Do's and Don'ts
 
