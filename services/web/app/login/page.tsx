@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Logo } from '@/components';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,17 @@ export default async function Login({ searchParams }: { searchParams: Promise<Lo
           </Button>
         ))}
       </div>
+      <p className="break-keep text-center text-sm leading-6 text-muted-foreground">
+        시작하면{' '}
+        <Link href="/terms" className="font-medium text-foreground underline underline-offset-4">
+          이용약관
+        </Link>
+        에 동의하게 됩니다. 개인정보 처리 내용은{' '}
+        <Link href="/privacy" className="font-semibold text-foreground underline underline-offset-4">
+          개인정보 처리방침
+        </Link>
+        에서 확인할 수 있습니다. 만 14세 미만은 가입할 수 없습니다.
+      </p>
     </section>
   );
 }

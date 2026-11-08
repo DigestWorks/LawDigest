@@ -123,3 +123,4 @@ curl -sSI https://api.lawdigest.kr/ | sed -n '1,20p'
 - 개발 웹은 PM2 dump만 단독으로 신뢰하지 않고 watchdog cron으로 재복구한다.
 - 백엔드는 `api.lawdigest.kr` 운영 API를 처리하는 live 컨테이너가 기준이다.
 - 현재 운영 API 경로에는 `test_backend`, `lawdigest-backend-test` 같은 기존 명칭이 남아 있다.
+- nginx 접속 기록은 `/etc/logrotate.d/nginx`에서 `daily`, `rotate 90`으로 최대 3개월 보관한다. 개인정보 처리방침(`services/web/constants/legal.ts`)의 접속 기록 보유 기간과 같아야 하므로 바꾸면 두 곳을 함께 고친다. 2026-11-08 변경 전 설정은 서버 `/var/backups/lawdigest-logrotate/`에 있다.
