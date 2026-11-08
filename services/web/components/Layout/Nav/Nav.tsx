@@ -44,8 +44,10 @@ function Nav() {
   );
 
   const activeIndexRef = useRef(activeIndex);
+  const lastTabIndex = useRef(Math.max(activeIndex, 0));
   useEffect(() => {
     activeIndexRef.current = activeIndex;
+    if (activeIndex >= 0) lastTabIndex.current = activeIndex;
   }, [activeIndex]);
 
   const setNavIndex = useCallback((index: number) => {
@@ -264,7 +266,17 @@ function Nav() {
   // 검색 바에 가까운 말풍선부터 떠오른다.
   const bubbleStyle = () =>
     ({ '--suggestion-delay': `${(bubbleCount - 1 - bubbleIndex++) * 0.045}s` }) as CSSProperties;
-  const ActiveIcon = activeIndex >= 0 ? navItems[activeIndex].IconComponent : null;
+  // 검색 결과 화면에서는 검색 바를 접지 않는다. 원형 단추는 마지막으로 보던 탭으로 돌아간다.
+  const soloItem = navItems[activeIndex >= 0 ? activeIndex : lastTabIndex.current];
+  const SoloIcon = activeIndex >= 0 || isSearchRoute ? soloItem.IconComponent : null;
+  const onSoloClick = () => {
+    if (!isSearchRoute) {
+      closeSearch();
+      return;
+    }
+    setNavIndex(lastTabIndex.current);
+    router.push(soloItem.href);
+  };
 
   return (
     <>
@@ -326,9 +338,9 @@ function Nav() {
             type="button"
             inert={!isSearchOpen}
             className="mobile-floating-nav__solo-icon"
-            onClick={closeSearch}
-            aria-label="검색 닫기">
-            {ActiveIcon ? <ActiveIcon isActive /> : <X aria-hidden="true" className="size-6" />}
+            onClick={onSoloClick}
+            aria-label={isSearchRoute ? `${soloItem.label}(으)로 돌아가기` : '검색 닫기'}>
+            {SoloIcon ? <SoloIcon isActive /> : <X aria-hidden="true" className="size-6" />}
           </button>
         </nav>
 

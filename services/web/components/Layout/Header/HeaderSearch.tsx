@@ -26,7 +26,9 @@ function isVisible(element: HTMLElement | null) {
 /** 헤더 오른쪽의 검색 아이콘. 펼친 동안에는 닫기 아이콘으로 바뀐다.
  * 모바일은 하단 검색 바에 닫기 단추가 있으므로 펼친 동안 숨긴다. */
 export function HeaderSearchToggle() {
-  const { expanded, openEntry, closeEntry } = useSearchEntry();
+  const { expanded, isSearchRoute, openEntry, closeEntry } = useSearchEntry();
+  // 검색 결과 화면에서는 검색창이 늘 펼쳐져 있으므로 열고 닫는 아이콘을 두지 않는다.
+  if (isSearchRoute) return null;
   return (
     <Button
       variant="ghost"

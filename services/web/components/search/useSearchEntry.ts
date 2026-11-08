@@ -19,7 +19,8 @@ export default function useSearchEntry() {
   const [state, setState] = useAtom(searchEntryState);
   const routeKeyword = searchKeywordFromPath(pathname);
   const isSearchRoute = routeKeyword !== '';
-  const expanded = state.open === 'auto' ? isSearchRoute : state.open;
+  // 검색 결과 화면에서는 검색창을 접지 않는다.
+  const expanded = isSearchRoute || state.open === true;
 
   const openEntry = useCallback(
     () => setState((current) => ({ ...current, open: true, focusToken: current.focusToken + 1 })),
