@@ -26,8 +26,9 @@ Apple Developer Program 멤버십과 Account Holder 또는 Admin 역할이 필�
 1. App ID: Identifiers → + → App IDs → App에서 Explicit Bundle ID(예: `kr.lawdigest.app`)를 만들고 Capabilities에서 Sign in with Apple을 켠다. iOS 앱이 없어도 웹 설정의 기준(primary App ID)으로 필요하다.
 2. Services ID: Identifiers → + → Services IDs에서 식별자(예: `kr.lawdigest.web`)를 등록한다. 이 값이 `APPLE_CLIENT_ID`다.
 3. Services ID의 Sign in with Apple → Configure에서 1의 App ID를 고르고 Website URLs에 아래를 넣는다. 도메인 확인 파일은 필요 없다.
-   - Domains: `api.lawdigest.kr`, `test.api.lawdigest.kr`
-   - Return URLs: `https://api.lawdigest.kr/v1/login/oauth2/code/apple`, `https://test.api.lawdigest.kr/v1/login/oauth2/code/apple`
+   - Domain: `api.lawdigest.kr`
+   - Return URL: `https://api.lawdigest.kr/v1/login/oauth2/code/apple`
+   - 테스트 웹(`test.lawdigest.kr`)도 운영 API(`api.lawdigest.kr`)로 로그인하므로 반환 주소는 이것 하나다.
 4. Key: Keys → +에서 Sign in with Apple을 체크하고 Configure에서 1의 App ID를 고른 뒤 저장한다. `.p8` 파일은 한 번만 내려받을 수 있다. 키 상세의 Key ID가 `APPLE_KEY_ID`다.
 5. Team ID: 계정 Membership details의 Team ID가 `APPLE_TEAM_ID`다.
 
@@ -35,7 +36,7 @@ Apple Developer Program 멤버십과 Account Holder 또는 Admin 역할이 필�
 
 ## 3. 백엔드 환경 변수
 
-서버의 `services/backend/.env`에 추가한다. 테스트와 운영 백엔드가 같은 파일을 쓰고, 반환 주소는 프로필(`ACTIVE=test`, `ACTIVE=prod`)이 정한다.
+서버의 `services/backend/.env`에 추가한다. 백엔드 컨테이너에는 이 파일만 `--env-file`로 들어가고, `.env.preview` 값은 컨테이너에 전달되지 않는다. 반환 주소는 `ACTIVE=prod` 프로필의 `app.auth.apple.redirect-uri`가 정한다.
 
 ```dotenv
 APPLE_CLIENT_ID=kr.lawdigest.web
@@ -46,7 +47,7 @@ APPLE_PRIVATE_KEY=<.p8 본문>
 
 `APPLE_PRIVATE_KEY`는 `.p8` 파일에서 `-----BEGIN PRIVATE KEY-----`, `-----END PRIVATE KEY-----` 줄을 빼고 나머지 줄을 이어 붙인 한 줄로 넣는다. 따옴표는 쓰지 않는다. BEGIN/END 줄과 `\n`이 섞여 있어도 서버가 본문만 읽는다.
 
-넣은 뒤 백엔드를 다시 배포한다. 테스트는 [TEST_BACKEND_DEPLOY.md](./TEST_BACKEND_DEPLOY.md), 운영은 [PROD_BACKEND_DEPLOY.md](./PROD_BACKEND_DEPLOY.md)를 따른다.
+넣은 뒤 [PROD_BACKEND_DEPLOY.md](./PROD_BACKEND_DEPLOY.md) 절차로 운영 API를 다시 배포한다. 운영 웹 버튼은 4단계에서 켜기 전까지 보이지 않는다.
 
 ## 4. 웹 버튼 켜기
 
@@ -57,7 +58,7 @@ APPLE_PRIVATE_KEY=<.p8 본문>
 
 ## 5. 확인
 
-1. `https://test.lawdigest.kr/login`에 "Apple로 계속하기" 버튼이 보인다.
+1. `https://test.lawdigest.kr/login`에 "Apple로 계속하기" 버튼이 보이고, `https://lawdigest.kr/login`에는 아직 보이지 않는다.
 2. Apple 계정으로 로그인하면 원래 보던 화면으로 돌아오고, 마이페이지에 Apple 이름(이름 공유를 거부했으면 이메일 @ 앞부분)이 보인다.
 3. 마이페이지에서 탈퇴하면 iPhone 설정 → Apple 계정 → 로그인 및 보안 → Apple로 로그인 목록에서 모두의입법이 사라진다.
 
