@@ -21,6 +21,8 @@ export const sitemapPaths = [
   '/explore',
   '/timeline',
   '/about',
+  '/terms',
+  '/privacy',
   ...[...CATEGORIES, UNKNOWN_CATEGORY].map(({ code }) => `/explore/category/${code}`),
 ];
 

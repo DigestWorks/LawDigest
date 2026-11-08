@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { MessageCircle, RotateCcw, Send, Square } from 'lucide-react';
 import { useRagConversation, useRagStatus } from '@/hooks/useRagConversation';
 import type { Assembly } from '@/lib/rag';
@@ -269,7 +270,11 @@ export default function AskClient() {
               </InputGroupAddon>
             </InputGroup>
             <FieldDescription id="question-help">
-              법안은 제안된 내용이며 현행법과 다를 수 있습니다. 개인정보는 입력하지 마세요.
+              법안은 제안된 내용이며 현행법과 다를 수 있습니다. 개인정보는 입력하지 마세요. 질문은 답변 생성을 위해
+              OpenAI(미국)로 전송됩니다.{' '}
+              <Link href="/privacy#overseas" className="underline underline-offset-4 hover:text-foreground">
+                국외 이전 안내
+              </Link>
             </FieldDescription>
           </Field>
         </FieldGroup>
