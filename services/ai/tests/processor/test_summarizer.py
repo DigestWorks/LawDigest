@@ -53,6 +53,6 @@ def test_pydantic_ai_summarizer_reuses_batch_prompt():
     assert "다음 법안 정보를 보고 JSON으로만 응답하세요." in prompt
     assert "키는 title, gptSummary, tags, category 네 개만 포함해야 합니다." in prompt
     assert "category는 아래 17개 분야" in prompt
-    assert "기존 DB 스타일의 긴 제목형 요약" in prompt
-    assert "[핵심 변경 목적/수단]을/를 위한 [정확한 bill_name]" in prompt
-    assert "입력 payload의 bill_name과 같은 법안명으로 끝나야 합니다." in prompt
+    assert "카드에 표시할 설명형 제목" in prompt
+    assert "[대상·바뀌는 내용·목적]하기 위한 법안" in prompt
+    assert "정식 법안명(bill_name)을 붙이지 마세요." in prompt

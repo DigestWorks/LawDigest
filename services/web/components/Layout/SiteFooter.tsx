@@ -11,6 +11,12 @@ export default function SiteFooter() {
         <Link href="/about" className={linkClass}>
           서비스 소개
         </Link>
+        <Link href="/terms" className={linkClass}>
+          이용약관
+        </Link>
+        <Link href="/privacy" className={`${linkClass} font-semibold text-foreground`}>
+          개인정보 처리방침
+        </Link>
         <a
           className={linkClass}
           href="https://likms.assembly.go.kr/bill/bi/main/mainPage.do"
