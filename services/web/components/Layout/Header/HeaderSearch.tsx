@@ -184,7 +184,18 @@ export function HeaderSearchField() {
           role="search"
           onSubmit={onSubmit}
           initial={false}
-          animate={expanded ? { ...geometry.final, opacity: 1 } : { ...geometry.origin, opacity: 0 }}
+          animate={
+            expanded
+              ? {
+                  // 펼치는 순간 잰 인디케이터 자리에서 출발한다.
+                  left: [geometry.origin.left, geometry.final.left],
+                  top: [geometry.origin.top, geometry.final.top],
+                  width: [geometry.origin.width, geometry.final.width],
+                  height: [geometry.origin.height, geometry.final.height],
+                  opacity: 1,
+                }
+              : { ...geometry.origin, opacity: 0 }
+          }
           transition={{
             left: boxTransition,
             top: boxTransition,

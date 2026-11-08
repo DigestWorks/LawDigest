@@ -21,6 +21,7 @@ date: 2026-11-08
 | `services/web/components/search/SearchEntrySync.tsx` (새) | 경로 동기화, 단축키 |
 | `services/web/components/Layout/Header/HeaderSearch.tsx` (새) | 데스크톱 확장 검색창과 추천 패널 |
 | `services/web/components/Layout/Header/Header.tsx` | `HeaderSearch` 배치, 펼침 중 탭 흐림, 헤더를 본문 위 쌓임 순서(`z-30`)로 올림 |
+| `services/web/components/Layout/Header/HeaderNavTabs.tsx` (새) | 탭 목록과 미끄러지는 단일 인디케이터 |
 | `services/web/components/Layout/Nav/Nav.tsx` | 하단 내비 확장 검색 복원 |
 | `services/web/styles/mobile-floating-nav.css` | 확장·말풍선·회전·키보드 규칙 |
 | `services/web/styles/globals.css` | 데스크톱 검색창 테두리·결과 강조 규칙 |
