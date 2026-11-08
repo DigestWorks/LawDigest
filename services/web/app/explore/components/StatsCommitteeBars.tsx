@@ -7,7 +7,7 @@ import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useGetStatisticsByCommittee } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const TOP_N = 8;
 
@@ -26,7 +26,7 @@ export default function StatsCommitteeBars() {
       <StatsCard title="위원회별 접수 현황" icon={Landmark} delay={0.15}>
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
-            <SkeletonBar key={i} className="h-[18px] w-full" />
+            <Skeleton key={i} className="h-[18px] w-full" />
           ))}
         </div>
       </StatsCard>

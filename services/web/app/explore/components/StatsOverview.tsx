@@ -6,7 +6,7 @@ import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useEffect, useRef } from 'react';
 import { animate, motion, useInView, useReducedMotion } from 'framer-motion';
 import { useGetStatisticsOverview } from '../apis';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CountUpProps {
   value: number;
@@ -85,8 +85,8 @@ export default function StatsOverview() {
           <div
             key={i}
             className="rounded-2xl border border-gray-1 bg-white p-4 shadow-sm dark:border-dark-l dark:bg-dark-b">
-            <SkeletonBar className="h-3 w-14" />
-            <SkeletonBar className="mt-2.5 h-6 w-20" />
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="mt-2.5 h-6 w-20" />
           </div>
         ))}
       </div>

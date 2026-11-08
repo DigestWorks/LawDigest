@@ -1,4 +1,5 @@
 import { SectionError } from '@/components/common/SectionState';
+import { PartyProfileSkeleton } from '@/components/common/Skeletons';
 import { Button } from '@/components/ui/button';
 import { Card } from '@heroui/card';
 import { Divider } from '@heroui/react';
@@ -24,9 +25,7 @@ export default function PartyDetail({ partyId }: { partyId: number }) {
 
   if (!profile) {
     return query.isPending ? (
-      <p role="status" className="p-5 text-sm text-muted-foreground">
-        정당 프로필을 불러오는 중…
-      </p>
+      <PartyProfileSkeleton />
     ) : (
       <SectionError
         message="정당 프로필을 불러오지 못했습니다."

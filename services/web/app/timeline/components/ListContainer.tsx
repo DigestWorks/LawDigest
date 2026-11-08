@@ -6,7 +6,7 @@ import { convertDateFormat } from '@/utils';
 import { Divider } from '@heroui/react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { TimelineEntriesSkeleton } from '@/components/common/Skeletons';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { BillSection, CommitteeSection, PlenarySection } from './TimelineEntries';
 import { useGetTimelineFeed } from '../apis/queries';
@@ -52,7 +52,7 @@ export default function ListContainer() {
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-      {query.isPending && <ContentSkeleton />}
+      {query.isPending && <TimelineEntriesSkeleton />}
       {query.isError && !query.data && (
         <SectionError
           message="타임라인을 불러오지 못했습니다."

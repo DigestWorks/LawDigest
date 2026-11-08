@@ -4,6 +4,8 @@ import { useId, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { BillProps, SimilarBill } from '@/types';
 import { Button } from '@/components/ui/button';
+import { LoadingRegion } from '@/components/common/Skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 import { nextBillPage } from '@/lib/billQueries';
 import { getSimilarBills } from '../../apis/apis';
 import AnotherBill from './AnotherBill';
@@ -54,7 +56,13 @@ function RelatedPageList({
 
   return (
     <div className="flex flex-col gap-3">
-      {query.isPending && <p role="status">개정안을 불러오는 중입니다.</p>}
+      {query.isPending && (
+        <LoadingRegion label="개정안을 불러오고 있습니다" className="flex flex-col gap-3">
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} className="h-16 w-full rounded-lg" />
+          ))}
+        </LoadingRegion>
+      )}
       {query.isError && !query.data && (
         <div className="flex flex-col gap-2">
           <p role="alert">개정안을 불러오지 못했습니다.</p>

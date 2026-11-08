@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getCookie } from 'cookies-next';
-import { SectionEmpty, SectionLoading } from '@/components/common/SectionState';
+import { SectionEmpty } from '@/components/common/SectionState';
+import { NotificationListSkeleton } from '@/components/common/Skeletons';
 import { ACCESS_TOKEN } from '@/constants';
 import { loginHref } from '@/lib/loginNavigation';
 import { NotificationList } from './components';
@@ -18,11 +19,7 @@ export default function Notification() {
   return (
     <section className="mx-auto w-full max-w-[840px]">
       <h1 className="sr-only">알림</h1>
-      {hasSession === null && (
-        <div className="p-5">
-          <SectionLoading>로그인 상태를 확인하는 중입니다.</SectionLoading>
-        </div>
-      )}
+      {hasSession === null && <NotificationListSkeleton />}
       {hasSession === false && (
         <div className="p-5">
           <SectionEmpty>

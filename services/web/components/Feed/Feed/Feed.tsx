@@ -1,9 +1,10 @@
 'use client';
 
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { BillListSkeleton, ReportListSkeleton } from '@/components/common/Skeletons';
 import { SectionError } from '@/components/common/SectionState';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useSearchParamsTransition } from '@/hooks/useSearchParamsTransition';
 import { useIntersect } from '@/hooks';
 import { feedAssembly, feedContent, feedStage, type FeedAssembly } from '@/lib/feedState';
 import { Button } from '@/components/ui/button';
@@ -80,15 +81,24 @@ const CONTENT_TABS: { label: string; value: ContentType; icon: React.ReactNode }
 ];
 
 export default function Feed() {
-  const router = useRouter();
-  const pathname = usePathname();
+  // params는 서버가 그린 현재 화면, navigation.params는 누른 값을 바로 반영한 다음 화면이다.
+  // 목록 데이터는 현재 화면 기준으로 두고, 탭·정렬·필터 표시와 대기 중 스켈레톤은 다음 화면 기준으로 그린다.
   const params = useSearchParams();
+  const navigation = useSearchParamsTransition();
   const contentType = feedContent(params.get('tab'));
   const assembly = feedAssembly(params.get('assembly'));
   const feedType =
     assembly === '22' && params.get('sort') === 'hot' ? FEED_TAB.sortedByPopularity : FEED_TAB.sortedByLatest;
   const stage = feedStage(params.get('stage'));
   const isLatest = feedType === FEED_TAB.sortedByLatest;
+  const viewContent = feedContent(navigation.params.get('tab'));
+  const viewAssembly = feedAssembly(navigation.params.get('assembly'));
+  const viewFeedType =
+    viewAssembly === '22' && navigation.params.get('sort') === 'hot'
+      ? FEED_TAB.sortedByPopularity
+      : FEED_TAB.sortedByLatest;
+  const viewStage = feedStage(navigation.params.get('stage'));
+  const viewLatest = viewFeedType === FEED_TAB.sortedByLatest;
   const query = useGetBillByStage(stage, assembly, contentType === 'bill' && isLatest);
   const popular = useGetBillPopular(contentType === 'bill' && !isLatest);
   const bills = isLatest ? query.data?.pages.flatMap(({ data }) => data.bill_list) ?? [] : popular.data?.data ?? [];
@@ -96,11 +106,11 @@ export default function Feed() {
   useListScrollRestoration(params.toString(), contentType === 'bill' && Boolean(activeQuery.data));
 
   const update = (name: string, value: string) => {
-    const next = new URLSearchParams(params.toString());
+    const next = new URLSearchParams(navigation.params.toString());
     if (value) next.set(name, value);
     else next.delete(name);
     if (name === 'assembly') next.delete('sort');
-    router.push(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
+    navigation.push(next);
   };
   const fetchRef = useIntersect(() => {
     if (isLatest && query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) {
@@ -112,8 +122,8 @@ export default function Feed() {
   if (isLatest && stage) emptyMessage = '이 단계에 해당하는 법안이 없습니다.';
 
   let results;
-  if (activeQuery.isPending) {
-    results = <ContentSkeleton />;
+  if (navigation.pending || activeQuery.isPending) {
+    results = <BillListSkeleton />;
   } else if (activeQuery.isError && !activeQuery.data) {
     results = (
       <div className="mx-5 mt-4">
@@ -160,35 +170,39 @@ export default function Feed() {
           className="feed-tab-indicator"
           aria-hidden="true"
           style={{
-            transform: `translateX(${CONTENT_TABS.findIndex((tab) => tab.value === contentType) * 90}px)`,
+            transform: `translateX(${CONTENT_TABS.findIndex((tab) => tab.value === viewContent) * 90}px)`,
           }}
         />
         {CONTENT_TABS.map(({ label, value, icon }) => (
           <button
             key={value}
             type="button"
-            aria-pressed={contentType === value}
+            aria-pressed={viewContent === value}
             onClick={() => update('tab', value)}
-            className={`feed-content-tab${contentType === value ? ' is-active' : ''}`}>
+            className={`feed-content-tab${viewContent === value ? ' is-active' : ''}`}>
             {icon}
             <span>{label}</span>
           </button>
         ))}
       </div>
-      {contentType === 'report' && <ReportFeed scrollKey={params.toString()} />}
-      {contentType === 'following' && (
-        <>
-          <FollowingCongressmanStrip />
-          <FollowingFeed scrollKey={params.toString()} />
-        </>
-      )}
-      {contentType === 'bill' && (
+      {viewContent === 'report' &&
+        (navigation.pending ? <ReportListSkeleton /> : <ReportFeed scrollKey={params.toString()} />)}
+      {viewContent === 'following' &&
+        (navigation.pending ? (
+          <BillListSkeleton />
+        ) : (
+          <>
+            <FollowingCongressmanStrip />
+            <FollowingFeed scrollKey={params.toString()} />
+          </>
+        ))}
+      {viewContent === 'bill' && (
         <>
           <NotificationTopThree />
           <section className="flex flex-wrap items-center justify-between gap-2 mx-5 mt-2">
-            {assembly === '22' ? (
+            {viewAssembly === '22' ? (
               <FeedTab
-                type={feedType}
+                type={viewFeedType}
                 clickHandler={(key) => update('sort', key === FEED_TAB.sortedByPopularity ? 'hot' : '')}
               />
             ) : (
@@ -198,18 +212,18 @@ export default function Feed() {
               <FeedFilterDropdown
                 label="국회 대수"
                 options={ASSEMBLY_FILTERS}
-                value={assembly}
+                value={viewAssembly}
                 onChange={(value) => update('assembly', value === '22' ? '' : value)}
               />
-              {isLatest && (
+              {viewLatest && (
                 <StageDropdown
-                  type={stage || '전체'}
+                  type={viewStage || '전체'}
                   clickHandler={(value) => update('stage', value === '전체' ? '' : value)}
                 />
               )}
             </div>
           </section>
-          {!isLatest && (
+          {!viewLatest && (
             <p className="mx-5 mt-3 text-sm text-muted-foreground">제22대 · 최근 7일 조회수와 스크랩 수 합계</p>
           )}
           {results}

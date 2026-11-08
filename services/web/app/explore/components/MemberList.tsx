@@ -3,7 +3,7 @@
 import { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Avatar } from '@heroui/avatar';
-import { Spinner } from '@heroui/spinner';
+import { MemberCardGridSkeleton } from '@/components/common/Skeletons';
 import { getPartyColor } from '@/constants/party';
 import { getImageSrc } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,7 @@ export default function MemberList() {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  if (query.isPending)
-    return (
-      <div className="flex justify-center py-8" role="status" aria-label="의원 불러오는 중">
-        <Spinner color="default" />
-      </div>
-    );
+  if (query.isPending) return <MemberCardGridSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError
@@ -65,11 +60,7 @@ export default function MemberList() {
           </Link>
         ))}
       </div>
-      {query.isFetchingNextPage && (
-        <div className="flex justify-center py-4">
-          <Spinner color="default" />
-        </div>
-      )}
+      {query.isFetchingNextPage && <MemberCardGridSkeleton count={2} label="다음 의원을 불러오고 있습니다" />}
       {query.hasNextPage && !query.isFetchNextPageError && <div ref={fetchRef} aria-hidden="true" />}
       {query.hasNextPage && (
         <div className="flex flex-col items-center gap-2 py-4">

@@ -1,5 +1,7 @@
 import { Card, CardHeader, CardBody } from '@heroui/react';
-import { SectionEmpty, SectionError, SectionLoading } from '@/components/common/SectionState';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { FollowingAvatarsSkeleton } from '@/components/common/Skeletons';
+import { Skeleton } from '@/components/ui/skeleton';
 import CongressmanList from './CongressmanList';
 import { useGetFollowingCongressman } from '../../apis';
 
@@ -9,7 +11,7 @@ export default function FollowingNav() {
   let content = <SectionEmpty>팔로우한 의원이 없습니다.</SectionEmpty>;
 
   if (query.isPending) {
-    content = <SectionLoading>팔로우한 의원을 불러오는 중입니다.</SectionLoading>;
+    content = <FollowingAvatarsSkeleton />;
   } else if (!congressmanList) {
     content = (
       <SectionError
@@ -38,7 +40,11 @@ export default function FollowingNav() {
           </p>
           <p className="hidden xl:block text-[26px] font-semibold lg:dark:text-gray-2"> · </p>
           <p className="text-2xl font-semibold xl:text-[26px] xl:text-gray-2 xl:dark:text-muted-foreground">
-            {congressmanList?.length ?? '—'}
+            {query.isPending ? (
+              <Skeleton className="h-8 w-6" aria-label="팔로우한 의원 수를 불러오고 있습니다" role="img" />
+            ) : (
+              congressmanList?.length ?? '—'
+            )}
           </p>
         </div>
 

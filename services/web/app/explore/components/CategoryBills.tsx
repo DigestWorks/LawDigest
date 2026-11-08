@@ -1,7 +1,7 @@
 'use client';
 
 import BillList from '@/components/Bill/BillList/BillList';
-import ContentSkeleton from '@/components/common/ContentSkeleton';
+import { BillListSkeleton } from '@/components/common/Skeletons';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 import { useIntersect } from '@/hooks';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
@@ -17,7 +17,12 @@ export default function CategoryBills({ category }: { category: string }) {
     if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError) void query.fetchNextPage();
   });
 
-  if (query.isPending) return <ContentSkeleton />;
+  if (query.isPending)
+    return (
+      <div className="-mx-5">
+        <BillListSkeleton />
+      </div>
+    );
   if (query.isError && !query.data) {
     return <SectionError message="분야 법안을 불러오지 못했습니다." pending={query.isFetching} onRetry={retry} />;
   }

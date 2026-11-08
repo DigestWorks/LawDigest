@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { SeatDistributionSkeleton } from '@/components/common/Skeletons';
 
 import { useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -100,13 +101,7 @@ export default function SeatDistribution() {
     return { positions, r };
   }, [seats, total]);
 
-  if (partiesQuery.isPending) {
-    return (
-      <p role="status" className="py-4 text-sm text-muted-foreground">
-        의석 분포 불러오는 중…
-      </p>
-    );
-  }
+  if (partiesQuery.isPending) return <SeatDistributionSkeleton />;
   if (partiesQuery.isError && !data) {
     return (
       <SectionError

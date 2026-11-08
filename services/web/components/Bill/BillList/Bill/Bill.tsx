@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
+import { InlineLinesSkeleton } from '@/components/common/Skeletons';
 import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
@@ -176,7 +177,7 @@ export default function Bill({
   const summaryLabel = aiSummary ? '요약' : '제안이유';
   let originalSummaryState: ReactNode = <p>공개된 제안이유가 없습니다.</p>;
   if (detailQuery.isFetching) {
-    originalSummaryState = <p role="status">제안이유를 불러오는 중입니다.</p>;
+    originalSummaryState = <InlineLinesSkeleton label="제안이유를 불러오고 있습니다" />;
   } else if (detailQuery.isError) {
     originalSummaryState = (
       <>
@@ -358,7 +359,7 @@ export default function Bill({
                     </ActionButton>
                   </>
                 ) : (
-                  <p role="status">발의자 명단을 불러오는 중입니다.</p>
+                  <InlineLinesSkeleton label="발의자 명단을 불러오고 있습니다" lines={2} />
                 )}
               </div>
             )}

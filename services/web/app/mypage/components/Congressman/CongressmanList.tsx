@@ -1,7 +1,8 @@
 'use client';
 
 import { ExpandableList } from '@/components';
-import { SectionEmpty, SectionError, SectionLoading } from '@/components/common/SectionState';
+import { SectionEmpty, SectionError } from '@/components/common/SectionState';
+import { FollowedMembersSkeleton } from '@/components/common/Skeletons';
 import CongressmanItem from './CongressmanItem';
 import { useGetFollowingCongressman } from '../../apis';
 
@@ -11,7 +12,7 @@ export default function CongressmanList() {
   let content = <SectionEmpty>팔로우한 의원이 없습니다.</SectionEmpty>;
 
   if (query.isPending) {
-    content = <SectionLoading>팔로우한 의원을 불러오는 중입니다.</SectionLoading>;
+    content = <FollowedMembersSkeleton />;
   } else if (!lawmakers) {
     content = (
       <SectionError

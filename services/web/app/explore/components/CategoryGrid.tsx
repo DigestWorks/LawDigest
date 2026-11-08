@@ -3,6 +3,7 @@
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import Link from 'next/link';
+import { CategoryGridSkeleton } from '@/components/common/Skeletons';
 import { getCategoryMeta, isCategoryCode } from '@/config/categories';
 import { useGetCategoryCounts } from '../apis';
 import { useExploreRetryFocus } from './useExploreRetryFocus';
@@ -14,7 +15,7 @@ export default function CategoryGrid() {
   const counts = (data?.data ?? []).filter((c) => isCategoryCode(c.category));
 
   if (isLoading) {
-    return <div className="py-10 text-center text-[14px] text-gray-2">분야를 불러오는 중…</div>;
+    return <CategoryGridSkeleton />;
   }
 
   if (query.isError && !query.data) {

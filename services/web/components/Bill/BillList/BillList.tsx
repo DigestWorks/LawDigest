@@ -1,6 +1,6 @@
 import { BillListItem } from '@/types';
 import { RefObject } from 'react';
-import { Spinner } from '@heroui/spinner';
+import { BillListSkeleton } from '@/components/common/Skeletons';
 import { Button } from '@/components/ui/button';
 import Bill from './Bill';
 import { filterUniqueBills } from './filterUniqueBills';
@@ -31,11 +31,7 @@ export default function BillList({
       {uniqueBills.map((bill) => (
         <Bill key={bill.bill_info_dto.bill_id} {...bill} detail={detail} headingLevel={headingLevel} />
       ))}
-      {isFetching && (
-        <div className="flex justify-center w-full my-4" role="status" aria-label="법안 불러오는 중">
-          <Spinner color="default" />
-        </div>
-      )}
+      {isFetching && <BillListSkeleton count={uniqueBills.length ? 1 : 3} />}
       {hasNextPage && !error && <div ref={fetchRef} className="h-4 w-full" aria-hidden="true" />}
       {hasNextPage && onLoadMore && (
         <div className="flex flex-col items-center gap-2 py-6">

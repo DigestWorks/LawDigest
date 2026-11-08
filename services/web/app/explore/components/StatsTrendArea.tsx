@@ -19,7 +19,7 @@ import { currentAssemblyMonths, fillTrendCalendar } from '../lib/trendCalendar';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const PERIODS = [
   { months: 6, label: '6개월' },
@@ -102,7 +102,7 @@ export default function StatsTrendArea() {
           ))}
         </span>
       }>
-      {loading && <SkeletonBar className="h-[220px] w-full" />}
+      {loading && <Skeleton className="h-[220px] w-full" />}
       {!loading && !hasPoints && (
         <Empty>
           <EmptyHeader>

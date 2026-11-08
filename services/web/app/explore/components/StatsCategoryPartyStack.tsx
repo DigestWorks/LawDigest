@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/chart';
 import { useGetStatisticsCategoryParty } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const TOP_CATEGORIES = 6;
 const TOP_PARTIES = 4;
@@ -75,7 +75,7 @@ export default function StatsCategoryPartyStack() {
   if (isLoading) {
     return (
       <StatsCard title="분야별 정당 구성" icon={ChartColumnStacked} delay={0.2}>
-        <SkeletonBar className="h-[240px] w-full" />
+        <Skeleton className="h-[240px] w-full" />
       </StatsCard>
     );
   }

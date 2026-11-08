@@ -1,4 +1,5 @@
 import { SectionError } from '@/components/common/SectionState';
+import { CongressmanProfileSkeleton } from '@/components/common/Skeletons';
 import { Card } from '@heroui/card';
 import { Avatar } from '@heroui/avatar';
 import { Divider, Button, Link as NextUILink, Accordion, AccordionItem } from '@heroui/react';
@@ -13,9 +14,7 @@ export default function CongressmanDetail({ congressmanId }: { congressmanId: st
 
   if (!profile) {
     return query.isPending ? (
-      <p role="status" className="p-5 text-sm text-muted-foreground">
-        의원 프로필을 불러오는 중…
-      </p>
+      <CongressmanProfileSkeleton />
     ) : (
       <SectionError
         message="의원 프로필을 불러오지 못했습니다."

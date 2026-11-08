@@ -5,6 +5,7 @@ import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { CSSProperties } from 'react';
 import Link from 'next/link';
+import { MemberRankingSkeleton } from '@/components/common/Skeletons';
 import { Avatar } from '@heroui/avatar';
 import { getPartyColor } from '@/constants/party';
 import { getImageSrc } from '@/utils';
@@ -18,12 +19,7 @@ export default function MemberRanking() {
   const { data } = query;
   const ranking = data?.data ?? [];
 
-  if (query.isPending)
-    return (
-      <p role="status" className="py-4 text-sm text-muted-foreground">
-        의원 발의 순위 불러오는 중…
-      </p>
-    );
+  if (query.isPending) return <MemberRankingSkeleton />;
   if (query.isError && !query.data) {
     return (
       <SectionError

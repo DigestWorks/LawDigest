@@ -31,6 +31,11 @@ date: 2026-11-08
 | `app/notification/page.tsx`, `components/{NotificationList,NotificationTopThree}.tsx` | 알림 스켈레톤 |
 | `app/mypage/page.tsx` + `components/{UserInfo,Party,Congressman,BillContainer}/*` | 마이페이지 스켈레톤 |
 | `app/following/page.tsx` + `components/{FollowingHeader/FollowingNav,BillContainer/*}` | 팔로잉 스켈레톤 |
+| `hooks/useSearchParamsTransition.ts` (새로) | 쿼리 문자열만 바꾸는 이동의 대기 상태와 누른 값을 바로 반영 |
+| `components/Feed/Feed/Feed.tsx`, `app/{congressman,party}/[id]/components/BillContainer/BillContainer.tsx` | 탭·정렬·필터 이동 대기 중 목록 자리 스켈레톤 |
+| `app/notification/components/NotificationList.test.tsx` | 로딩 안내 문구 기대값 갱신 |
+
+구현 중 추가(2026-11-08): 브라우저 확인에서 피드 탭(리포트·법안·팔로잉)과 대표/공동발의 탭 전환은 같은 라우트의 쿼리 문자열 이동이라 `loading.tsx`가 다시 뜨지 않고 이전 목록이 멈춰 있는 것을 확인했다. `useTransition`·`useOptimistic`으로 누른 탭은 바로 선택 표시하고, 서버 응답을 기다리는 동안 목록 자리에 스켈레톤을 보인다. 목록 데이터 쿼리는 현재 URL 기준으로 두어 클라이언트와 서버가 같은 자료를 두 번 요청하지 않게 한다.
 
 ## 작업 순서
 

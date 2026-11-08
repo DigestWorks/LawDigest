@@ -7,7 +7,7 @@ import { Bar, BarChart, Cell, LabelList, XAxis, YAxis } from 'recharts';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { StatisticsStage, useGetStatisticsStage } from '../apis';
 import StatsCard from './StatsCard';
-import { SkeletonBar } from './StatsSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Neutral First: soft assembly blue 단색의 불투명도 램프(뒤 단계일수록 진하게).
 const STAGES: { key: keyof StatisticsStage; label: string; opacity: number }[] = [
@@ -34,7 +34,7 @@ export default function StatsStageFunnel() {
       <StatsCard title="입법 진행 단계" icon={Filter} delay={0.05}>
         <div className="flex h-[190px] flex-col justify-between py-1">
           {STAGES.map(({ key }) => (
-            <SkeletonBar key={key} className="h-7 w-full" />
+            <Skeleton key={key} className="h-7 w-full" />
           ))}
         </div>
       </StatsCard>
