@@ -15,17 +15,19 @@ date: 2026-11-08
 | 파일 | 무엇을 |
 |---|---|
 | `services/web/store/SearchEntryState.tsx` (새, 기존 `SearchModalState.tsx` 대체) | `open`, `pending` 상태 |
-| `services/web/store/index.ts` | 내보내기 이름 변경 |
+| `services/web/store/index.tsx` | 내보내기 이름 변경 |
 | `services/web/components/search/useSearchEntry.ts` (새) | 펼침·제출·pending 판단 |
 | `services/web/components/search/useSearchSuggestions.ts` (새) | 최근 검색어·인기 키워드 |
 | `services/web/components/search/SearchEntrySync.tsx` (새) | 경로 동기화, 단축키 |
 | `services/web/components/Layout/Header/HeaderSearch.tsx` (새) | 데스크톱 확장 검색창과 추천 패널 |
-| `services/web/components/Layout/Header/Header.tsx` | `HeaderSearch` 배치, 펼침 중 탭 흐림 |
+| `services/web/components/Layout/Header/Header.tsx` | `HeaderSearch` 배치, 펼침 중 탭 흐림, 헤더를 본문 위 쌓임 순서(`z-30`)로 올림 |
 | `services/web/components/Layout/Nav/Nav.tsx` | 하단 내비 확장 검색 복원 |
 | `services/web/styles/mobile-floating-nav.css` | 확장·말풍선·회전·키보드 규칙 |
 | `services/web/styles/globals.css` | 데스크톱 검색창 테두리·결과 강조 규칙 |
 | `services/web/components/common/Button/SearchButton.tsx` | 삭제(`HeaderSearch`가 대체) |
 | `services/web/components/common/SearchBar/*` | `SearchModal.tsx`, `SearchBar.tsx` 삭제, `SearchBarButton`은 `openEntry` 호출 |
+| `services/web/components/qa/RagEntry.tsx` | 삭제(추천 패널·말풍선이 질의응답 입구를 맡음) |
+| `services/web/app/search/[id]/components/SearchHighlight.tsx` (새) | 일치 글자 표시 |
 | `services/web/app/layout.tsx` | `SearchModal` → `SearchEntrySync` |
 | `services/web/app/search/[id]/SearchResultClient.tsx` | 탭·결과 줄·빈 결과·pending 해제 |
 | `services/web/app/search/[id]/components/SearchTypeTabs.tsx` (새) | 미끄러지는 선택 표시 |

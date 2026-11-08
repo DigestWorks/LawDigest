@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useCallback, useRef, CSSProperties, FormEvent } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAtom } from 'jotai';
+import { Clock3, MessageCircle, X } from 'lucide-react';
 import { siteConfig } from '@/config/site';
-import { searchModalState } from '@/store';
+import useSearchEntry from '@/components/search/useSearchEntry';
+import useSearchSuggestions from '@/components/search/useSearchSuggestions';
+import { SEARCH_MAX_LENGTH } from '@/lib/search';
 
 const SHELL_PADDING_PX = 4;
 
@@ -14,13 +17,23 @@ function Nav() {
   const router = useRouter();
   const [isCompact, setIsCompact] = useState(false);
   const [lastScrollTop, setLastScrollTop] = useState(0);
-  const [searchModal, setSearchModal] = useAtom(searchModalState);
-
-  const isSearchOpen = searchModal.show;
-  const isSearchOpenRef = useRef(searchModal.show);
+  const search = useSearchEntry();
+  const { expanded: isSearchOpen, isSearchRoute, routeKeyword, pending, focusToken, openEntry, closeEntry } = search;
+  const isSearchOpenRef = useRef(isSearchOpen);
   useEffect(() => {
-    isSearchOpenRef.current = searchModal.show;
-  }, [searchModal.show]);
+    isSearchOpenRef.current = isSearchOpen;
+  }, [isSearchOpen]);
+
+  const [searchValue, setSearchValue] = useState(routeKeyword);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchGroupRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const seenFocusToken = useRef(focusToken);
+  const suggestions = useSearchSuggestions(isSearchOpen, 4);
+  const showSuggestions = isSearchOpen && !pending && (searchFocused || !isSearchRoute);
+
+  useEffect(() => setSearchValue(routeKeyword), [routeKeyword]);
 
   const navRef = useRef<HTMLElement | null>(null);
 
@@ -52,13 +65,70 @@ function Nav() {
   const wasDraggingRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const openSearch = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      setSearchModal({ show: true, trigger: event.currentTarget });
-      setIsCompact(false);
+  const openSearch = useCallback(() => {
+    openEntry();
+    setIsCompact(false);
+    // iOS는 사용자 동작 안에서 포커스해야 키보드를 연다.
+    searchInputRef.current?.focus();
+  }, [openEntry]);
+
+  const closeSearch = useCallback(() => {
+    searchInputRef.current?.blur();
+    closeEntry();
+  }, [closeEntry]);
+
+  // 헤더 아이콘, 본문 검색 입구, 단축키로 열면 보이는 입력에 포커스한다.
+  useLayoutEffect(() => {
+    if (focusToken === seenFocusToken.current) return;
+    seenFocusToken.current = focusToken;
+    const input = searchInputRef.current;
+    if (!input || input.getClientRects().length === 0) return;
+    setIsCompact(false);
+    input.focus();
+  }, [focusToken]);
+
+  const submitSearch = useCallback(
+    (keyword: string) => {
+      if (!search.submit(keyword)) {
+        searchInputRef.current?.focus();
+        return;
+      }
+      setSearchValue(keyword.trim());
+      searchInputRef.current?.blur();
     },
-    [setSearchModal],
+    [search],
   );
+
+  // 바깥을 누르면 추천을 닫고, 검색 결과 화면이 아니면 검색 바도 접는다.
+  useEffect(() => {
+    if (!isSearchOpen) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target || wrapperRef.current?.contains(target) || target.closest('[data-search-toggle]')) return;
+      searchInputRef.current?.blur();
+      if (!isSearchRoute && !pending) closeEntry();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [isSearchOpen, isSearchRoute, pending, closeEntry]);
+
+  // 화면 키보드가 열리면 검색 바를 키보드 위로 올린다.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const wrapper = wrapperRef.current;
+    if (!viewport || !wrapper) return undefined;
+    const update = () => {
+      const offset = searchFocused ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      wrapper.style.setProperty('--mobile-keyboard-offset', `${Math.round(offset)}px`);
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+    };
+  }, [searchFocused]);
 
   // compact 전환 시 is-nav-transitioning 클래스
   const isFirstCompactRender = useRef(true);
@@ -173,18 +243,32 @@ function Nav() {
     router.push(navItems[targetIndex].href);
   }, [navItems, router, setNavIndex]);
 
-  const isSearchActive = pathname.startsWith('/search') || pathname.startsWith('/ask') || searchModal.show;
+  const isSearchActive = pathname.startsWith('/search') || pathname.startsWith('/ask') || isSearchOpen;
+  let searchRingState = 'rest';
+  if (pending) searchRingState = 'pending';
+  else if (searchFocused) searchRingState = 'focus';
+
+  const recentBubbles = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 3);
+  const trendingBubbles = suggestions.trending.filter(({ keyword }) => !recentBubbles.includes(keyword)).slice(0, 4);
+  const bubbleCount = trendingBubbles.length + recentBubbles.length + (suggestions.ragAvailable ? 1 : 0);
+  let bubbleIndex = 0;
+  // 검색 바에 가까운 말풍선부터 떠오른다.
+  const bubbleStyle = () =>
+    ({ '--suggestion-delay': `${(bubbleCount - 1 - bubbleIndex++) * 0.045}s` }) as CSSProperties;
+  const ActiveIcon = activeIndex >= 0 ? navItems[activeIndex].IconComponent : null;
 
   return (
     <>
+      <div aria-hidden="true" className={`mobile-floating-nav-scrim${showSuggestions ? ' is-visible' : ''}`} />
       <div
+        ref={wrapperRef}
         className="mobile-floating-nav-wrapper"
         style={{ '--mobile-nav-count': navItems.length } as React.CSSProperties}>
         {/* 탭 바 */}
         <nav
           ref={registerNavRef}
           aria-label="모바일 주 메뉴"
-          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}${activeIndex < 0 ? ' has-no-active' : ''}`}
+          className={`mobile-floating-nav${isCompact ? ' is-compact' : ''}${isDragging ? ' is-dragging' : ''}${activeIndex < 0 ? ' has-no-active' : ''}${isSearchOpen ? ' is-search-open' : ''}`}
           onPointerDown={isSearchOpen ? undefined : handlePointerDown}
           onPointerMove={isSearchOpen ? undefined : handlePointerMove}
           onPointerUp={isSearchOpen ? undefined : handlePointerUp}
@@ -212,6 +296,7 @@ function Nav() {
             <button
               key={label}
               type="button"
+              inert={isSearchOpen}
               className="mobile-floating-nav__item"
               onClick={(event) => {
                 if (!wasDraggingRef.current || event.detail === 0) {
@@ -226,15 +311,111 @@ function Nav() {
               <span>{label}</span>
             </button>
           ))}
+
+          {/* 검색이 펼쳐지면 탭 바는 현재 탭 아이콘 하나로 줄고, 누르면 검색을 닫는다. */}
+          <button
+            type="button"
+            inert={!isSearchOpen}
+            className="mobile-floating-nav__solo-icon"
+            onClick={closeSearch}
+            aria-label="검색 닫기">
+            {ActiveIcon ? <ActiveIcon isActive /> : <X aria-hidden="true" className="size-6" />}
+          </button>
         </nav>
 
-        <div className="mobile-floating-nav-search-group">
+        <div ref={searchGroupRef} className="mobile-floating-nav-search-group">
+          <ul
+            aria-label="검색 추천"
+            inert={!showSuggestions}
+            className={`mobile-floating-nav-suggestions${showSuggestions && bubbleCount > 0 ? ' is-visible' : ''}`}>
+            {trendingBubbles.map(({ keyword }) => (
+              <li key={`trending-${keyword}`} style={bubbleStyle()}>
+                <button type="button" className="mobile-floating-nav-suggestion" onClick={() => submitSearch(keyword)}>
+                  <span className="mobile-floating-nav-suggestion__mark" aria-hidden="true">
+                    #
+                  </span>
+                  <span className="truncate">{keyword}</span>
+                </button>
+              </li>
+            ))}
+            {recentBubbles.map((keyword) => (
+              <li key={`recent-${keyword}`} style={bubbleStyle()}>
+                <button type="button" className="mobile-floating-nav-suggestion" onClick={() => submitSearch(keyword)}>
+                  <Clock3 aria-hidden="true" className="size-3.5 shrink-0 opacity-60" />
+                  <span className="sr-only">최근 검색어 </span>
+                  <span className="truncate">{keyword}</span>
+                </button>
+              </li>
+            ))}
+            {suggestions.ragAvailable && (
+              <li style={bubbleStyle()}>
+                <Link href="/ask" className="mobile-floating-nav-suggestion is-primary" onClick={closeSearch}>
+                  <MessageCircle aria-hidden="true" className="size-3.5 shrink-0" />
+                  법안에 질문하기
+                </Link>
+              </li>
+            )}
+          </ul>
+
           <div
-            className={`mobile-floating-nav-search-wrap${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}`}>
+            data-state={searchRingState}
+            className={`mobile-floating-nav-search-wrap${isSearchActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}${isSearchOpen ? ' is-expanded' : ''}`}>
+            <form
+              role="search"
+              inert={!isSearchOpen}
+              className="mobile-floating-nav-search-expanded-inner"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                submitSearch(searchValue);
+              }}>
+              <svg
+                className="mobile-floating-nav-search-expanded-icon"
+                width="18"
+                height="18"
+                viewBox="0 0 22 22"
+                fill="none"
+                aria-hidden="true">
+                <circle cx="9.5" cy="9.5" r="6" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M14 14L19 19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                className="mobile-floating-nav-search-input"
+                type="search"
+                value={searchValue}
+                maxLength={SEARCH_MAX_LENGTH}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                aria-label="법안·의안번호·의원·정당 검색어"
+                aria-busy={Boolean(pending)}
+                placeholder="법안·의원·정당 검색"
+                autoComplete="off"
+                enterKeyHint="search"
+              />
+              {searchValue && (
+                <button
+                  type="button"
+                  className="mobile-floating-nav-search-close"
+                  aria-label="검색어 지우기"
+                  onClick={() => {
+                    setSearchValue('');
+                    searchInputRef.current?.focus();
+                  }}>
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              )}
+            </form>
+            <span role="status" className="sr-only">
+              {pending ? `‘${pending}’ 검색 결과를 불러오는 중입니다.` : ''}
+            </span>
+
             <button
               type="button"
+              inert={isSearchOpen}
               onClick={openSearch}
               aria-label="검색 열기"
+              aria-expanded={isSearchOpen}
               className="mobile-floating-nav-search-btn">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="9.5" cy="9.5" r="6" stroke="currentColor" strokeWidth="1.7" />

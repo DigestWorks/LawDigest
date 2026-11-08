@@ -7,10 +7,11 @@ import { siteConfig } from '@/config/site';
 import { IconNavBorder } from '@/public/svgs';
 import GoBackButton from '@/components/common/Button/GoBackButton';
 import SettingButton from '@/components/common/Button/SettingButton';
-import SearchButton from '@/components/common/Button/SearchButton';
 import NotificationButton from '@/components/common/Button/NotifcationButton';
 import ThemeSwitchButton from '@/components/common/Button/ThemeSwitchButton';
 import Logo from './Logo';
+import { HeaderSearchField, HeaderSearchToggle } from './HeaderSearch';
+import useSearchEntry from '@/components/search/useSearchEntry';
 
 export default function Header({
   logo,
@@ -32,9 +33,10 @@ export default function Header({
   const pathname = usePathname();
   const { navItems } = siteConfig;
   const isTimelineOrFollowing = pathname.startsWith('/timeline') || pathname.startsWith('/following');
+  const { expanded: searchExpanded } = useSearchEntry();
 
   return (
-    <section className="w-full">
+    <section className="relative z-30 w-full">
       <Navbar
         position="static"
         className={`dark:bg-dark-b dark:lg:bg-dark-pb md:h-[98px] dark:border-dark-l ${isTimelineOrFollowing ? 'md:border-b' : 'border-b'}`}>
@@ -60,8 +62,13 @@ export default function Header({
           </NavbarContent>
         )}
 
-        <NavbarContent justify="center" className="hidden mx-auto md:block">
-          <ul className="flex justify-between md:min-w-[430px] w-full gap-0 px-0 lg:gap-6 xl:gap-20 xl:px-10">
+        <NavbarContent justify="center" className="relative hidden mx-auto md:block">
+          <NavbarItem className="contents">
+            <HeaderSearchField />
+          </NavbarItem>
+          <ul
+            inert={searchExpanded}
+            className={`header-search-tabs flex justify-between md:min-w-[430px] w-full gap-0 px-0 lg:gap-6 xl:gap-20 xl:px-10${searchExpanded ? ' is-hidden' : ''}`}>
             {navItems.map(({ label, href }) => {
               const isActive = pathname === '/' ? pathname?.endsWith(href) : href !== '/' && pathname?.startsWith(href);
 
@@ -89,7 +96,7 @@ export default function Header({
 
         <NavbarContent justify="end" className="xl:absolute xl:right-[-100px]">
           <NavbarItem>
-            <SearchButton />
+            <HeaderSearchToggle />
           </NavbarItem>
           {(setting || search || notification || theme) && (
             <NavbarItem>

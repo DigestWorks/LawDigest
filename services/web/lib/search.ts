@@ -39,3 +39,31 @@ export function saveRecentSearches(values: string[]) {
     // 저장 공간이 제한되어도 검색은 계속 사용할 수 있다.
   }
 }
+
+export function rememberSearch(keyword: string) {
+  const values = [keyword, ...readRecentSearches().filter((value) => value !== keyword)].slice(0, 10);
+  saveRecentSearches(values);
+  return values;
+}
+
+export interface HighlightPart {
+  text: string;
+  match: boolean;
+}
+
+/** 검색어를 공백 단위로 나눠, 원문에서 일치하는 구간을 표시할 수 있게 자른다. */
+export function highlightParts(text: string, keyword: string): HighlightPart[] {
+  const terms = Array.from(new Set(keyword.normalize('NFC').trim().split(/\s+/u).filter(Boolean))).sort(
+    (a, b) => b.length - a.length,
+  );
+  if (!text || terms.length === 0) return text ? [{ text, match: false }] : [];
+  const pattern = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')).join('|')})`, 'giu');
+  return text
+    .normalize('NFC')
+    .split(pattern)
+    .filter(Boolean)
+    .map((part) => ({
+      text: part,
+      match: terms.some((term) => term.toLocaleLowerCase() === part.toLocaleLowerCase()),
+    }));
+}
