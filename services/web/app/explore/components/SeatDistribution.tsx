@@ -11,6 +11,7 @@ import { getPartyColor } from '@/constants/party';
 import { getPartyLogoSrc } from '@/utils';
 import { ParliamentaryParty, useGetParliamentaryParties, useGetStatisticsByParty } from '../apis';
 import { buildHemicycle } from '../lib/hemicycle';
+import { sortPartiesIndependentLast } from '@/lib/partyOrder';
 import { orderPartiesByBloc } from '../lib/seatingOrder';
 
 const VIEW_W = 100;
@@ -41,7 +42,12 @@ export default function SeatDistribution() {
   const { data: billStats } = useGetStatisticsByParty();
 
   const parties = useMemo(
-    () => [...(data?.data ?? [])].sort((a, b) => b.congressman_count - a.congressman_count),
+    () =>
+      sortPartiesIndependentLast(
+        data?.data ?? [],
+        (party) => party.party_name,
+        (party) => party.congressman_count,
+      ),
     [data],
   );
   const total = parties.reduce((sum, p) => sum + p.congressman_count, 0);

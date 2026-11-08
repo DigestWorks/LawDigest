@@ -8,17 +8,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getPartyColor } from '@/constants/party';
 import { getPartyLogoSrc } from '@/utils';
+import { sortPartiesIndependentLast } from '@/lib/partyOrder';
 import { useGetParliamentaryParties } from '../apis';
 
-/** 정당 탭 — 원내 정당 목록(소속 의원 수 순). 각 항목은 정당 상세로 이동. */
+/** 정당 탭 — 원내 정당 목록(소속 의원 수 순, 무소속은 맨 뒤). 각 항목은 정당 상세로 이동. */
 export default function PartyList() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const query = useGetParliamentaryParties();
   const { data, isLoading } = query;
-  const parties = (data?.data ?? [])
-    .filter((party) => party.party_id > 0)
-    .sort((a, b) => b.congressman_count - a.congressman_count);
+  const parties = sortPartiesIndependentLast(
+    (data?.data ?? []).filter((party) => party.party_id > 0),
+    (party) => party.party_name,
+    (party) => party.congressman_count,
+  );
 
   if (isLoading) {
     return <div className="py-10 text-center text-[14px] text-gray-2">정당을 불러오는 중…</div>;
