@@ -68,8 +68,6 @@ function Nav() {
   const openSearch = useCallback(() => {
     openEntry();
     setIsCompact(false);
-    // iOS는 사용자 동작 안에서 포커스해야 키보드를 연다.
-    searchInputRef.current?.focus();
   }, [openEntry]);
 
   const closeSearch = useCallback(() => {
@@ -77,7 +75,8 @@ function Nav() {
     closeEntry();
   }, [closeEntry]);
 
-  // 헤더 아이콘, 본문 검색 입구, 단축키로 열면 보이는 입력에 포커스한다.
+  // 무지개 버튼, 헤더 아이콘, 본문 검색 입구, 단축키로 열면 보이는 입력에 포커스한다.
+  // 클릭으로 연 경우 React가 이 이펙트를 클릭 처리 안에서 동기로 실행하므로 iOS도 키보드를 연다.
   useLayoutEffect(() => {
     if (focusToken === seenFocusToken.current) return;
     seenFocusToken.current = focusToken;

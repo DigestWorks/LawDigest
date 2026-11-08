@@ -12,8 +12,14 @@ export default function SearchEntrySync() {
   const setState = useSetAtom(searchEntryState);
 
   useEffect(() => {
-    const onSearchRoute = searchKeywordFromPath(pathname) !== '';
-    setState((current) => ({ ...current, open: 'auto', pending: onSearchRoute ? current.pending : null }));
+    // 기다리던 검색어의 결과 경로에 도착했을 때만 검색 중 표시를 남긴다.
+    // 뒤로 가기나 다른 링크로 벗어나면 결과가 도착하지 않으므로 지운다.
+    const routeKeyword = searchKeywordFromPath(pathname);
+    setState((current) => ({
+      ...current,
+      open: 'auto',
+      pending: current.pending !== null && current.pending === routeKeyword ? current.pending : null,
+    }));
   }, [pathname, setState]);
 
   useEffect(() => {

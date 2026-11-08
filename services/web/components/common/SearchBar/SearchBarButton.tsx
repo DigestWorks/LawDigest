@@ -10,6 +10,7 @@ export default function SearchBarButton() {
     <div className="w-full max-w-[600px] px-5 mx-auto my-5">
       <button
         type="button"
+        data-search-toggle
         onClick={openEntry}
         className="search-ring flex h-12 w-full rounded-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
         <span className="search-ring__inner flex w-full items-center gap-2.5 px-4 text-[15px] text-muted-foreground">

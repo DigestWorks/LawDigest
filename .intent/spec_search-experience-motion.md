@@ -28,7 +28,7 @@ date: 2026-11-08
 
 **상태**: `store/SearchModalState.tsx`를 `store/SearchEntryState.tsx`(`searchEntryState`)로 바꾼다. 값은 `{ open: boolean | 'auto'; pending: string | null }`. `'auto'`는 검색 경로에서만 펼침을 뜻한다. 모든 판단은 `components/search/useSearchEntry.ts` 훅에 모은다: `expanded`, `routeKeyword`, `openEntry()`, `closeEntry()`, `submit(keyword)`, `pending`.
 
-**전역 동기화**: `components/search/SearchEntrySync.tsx`를 `SearchModal` 자리에 마운트한다. 경로가 바뀌면 `open`을 `'auto'`로 되돌리고, 검색 경로를 떠나면 `pending`을 지운다. `/`, ⌘K 단축키를 처리한다.
+**전역 동기화**: `components/search/SearchEntrySync.tsx`를 `SearchModal` 자리에 마운트한다. 경로가 바뀌면 `open`을 `'auto'`로 되돌리고, 새 경로가 기다리던 검색어의 결과 경로가 아니면 `pending`을 지운다(뒤로 가기 대비). `/`, ⌘K 단축키를 처리한다.
 
 **추천**: `components/search/useSearchSuggestions.ts`가 최근 검색어와 인기 키워드를 묶는다. 인기 키워드는 펼쳐졌을 때만 요청한다. 표시는 모바일 말풍선(`Nav.tsx`)과 데스크톱 패널(`HeaderSearch.tsx`)이 각자 한다.
 
