@@ -1,5 +1,5 @@
-const LOCAL_PARTY_LOGO_IDS = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
-const LOCAL_DARK_PARTY_LOGO_IDS = new Set(['1', '2', '6', '7', '9', '10']);
+const LOCAL_PARTY_LOGO_IDS = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '36', '39', '62']);
+const LOCAL_DARK_PARTY_LOGO_IDS = new Set(['1', '2', '6', '7', '9', '10', '36', '62']);
 
 export default function getPartyLogoSrc(partyImageUrl: string | null | undefined, isDark: boolean) {
   if (!partyImageUrl) return null;

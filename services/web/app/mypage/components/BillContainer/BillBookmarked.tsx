@@ -19,7 +19,7 @@ import {
 import Link from 'next/link';
 import { PartyLogoReplacement } from '@/components';
 import { ProposerList } from '@/app/bill/[id]/components';
-import { getChairmanProposerInfo } from '@/utils';
+import { getChairmanProposerInfo, getPartyLogoSrc } from '@/utils';
 
 export default function BillBookmarked({
   bill_info_dto: { bill_id, title, bill_stage, proposer_kind, proposers, committee },
@@ -108,7 +108,7 @@ export default function BillBookmarked({
             }}>
             {representative_proposer_dto_list[0].party_image_url !== null ? (
               <Image
-                src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${isDark ? representative_proposer_dto_list[0].party_image_url.replace('wide', 'dark') : representative_proposer_dto_list[0].party_image_url}`}
+                src={getPartyLogoSrc(representative_proposer_dto_list[0].party_image_url, isDark) as string}
                 width={60}
                 height={30}
                 alt={`${representative_proposer_dto_list[0].party_name} 이미지`}
@@ -123,7 +123,7 @@ export default function BillBookmarked({
             {representative_proposer_dto_list.map(({ party_image_url, party_id, party_name }) => (
               <Link href={`/party/${party_id}`} key={party_id}>
                 <Avatar
-                  src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${isDark ? party_image_url.replace('wide', 'dark') : party_image_url}`}
+                  src={getPartyLogoSrc(party_image_url, isDark) ?? undefined}
                   size="md"
                   classNames={{
                     base: [`bg-white dark:bg-dark-l p-1 border ${party_name}`],

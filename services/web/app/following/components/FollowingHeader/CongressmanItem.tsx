@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PartyLogoReplacement } from '@/components';
 import { FollowingCongressmanType } from '@/types';
+import { getPartyLogoSrc } from '@/utils';
 
 export default function CongressmanItem({
   congressman_id,
@@ -49,7 +50,7 @@ export default function CongressmanItem({
         }}>
         {party_image_url !== null ? (
           <Image
-            src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${isDark ? party_image_url.replace('wide', 'dark') : party_image_url}`}
+            src={getPartyLogoSrc(party_image_url, isDark) as string}
             width={60}
             height={20}
             alt={`${party_name} 로고 이미지`}

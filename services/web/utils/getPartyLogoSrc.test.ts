@@ -6,6 +6,12 @@ describe('getPartyLogoSrc', () => {
     expect(getPartyLogoSrc('/party/wide/1.png', false)).toBe('/images/parties/wide/1.png');
   });
 
+  it('uses local logos for parties outside the original ten', () => {
+    expect(getPartyLogoSrc('/party/wide/62.png', false)).toBe('/images/parties/wide/62.png');
+    expect(getPartyLogoSrc('/party/wide/36.png', true)).toBe('/images/parties/dark/36.png');
+    expect(getPartyLogoSrc('/party/wide/39.png', true)).toBe('/images/parties/wide/39.png');
+  });
+
   it('uses local dark party logos only when the dark asset exists', () => {
     expect(getPartyLogoSrc('/party/wide/1.png', true)).toBe('/images/parties/dark/1.png');
     expect(getPartyLogoSrc('/party/wide/3.png', true)).toBe('/images/parties/wide/3.png');
