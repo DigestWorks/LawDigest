@@ -1,27 +1,71 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { BillList, SearchBarButton } from '@/components';
+import { useSetAtom } from 'jotai';
 import { useIntersect } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { canSearchBills } from '@/lib/search';
+import { searchEntryState } from '@/store';
 import { useListScrollRestoration } from '@/hooks/useListScrollRestoration';
+import useSearchEntry from '@/components/search/useSearchEntry';
+import useSearchSuggestions from '@/components/search/useSearchSuggestions';
 import { useGetSearchCongressmanParty, useGetSearchBill } from '../apis';
 import { SearchList } from './components';
+import SearchTypeTabs, { RESULT_TYPES, ResultType } from './components/SearchTypeTabs';
+import SearchBillList from './components/SearchBillList';
 
-const RESULT_TYPES = [
-  { value: 'all', label: '전체' },
-  { value: 'bill', label: '법안' },
-  { value: 'member', label: '의원' },
-  { value: 'party', label: '정당' },
-] as const;
-type ResultType = (typeof RESULT_TYPES)[number]['value'];
+function SectionHeading({ id, label, count }: { id: string; label: string; count?: string }) {
+  return (
+    <h2 id={id} className="flex items-baseline gap-1.5 px-5 pb-1 pt-6 text-base font-semibold md:px-4">
+      {label}
+      {count && <span className="text-sm font-medium tabular-nums text-muted-foreground">{count}</span>}
+    </h2>
+  );
+}
+
+function RetryBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-5 py-8 text-center" role="alert">
+      <p>{message}</p>
+      <Button variant="outline" className="rounded-full" onClick={onRetry}>
+        다시 검색
+      </Button>
+    </div>
+  );
+}
+
+function NoResults({ keyword }: { keyword: string }) {
+  const { submit } = useSearchEntry();
+  const { trending } = useSearchSuggestions(true);
+  return (
+    <section className="animate-fade-up px-5 py-14 text-center motion-reduce:animate-fade-in md:px-4">
+      <p className="text-lg font-semibold [word-break:keep-all]">‘{keyword}’와 일치하는 결과가 없습니다.</p>
+      {trending.length > 0 && (
+        <>
+          <h2 className="mt-8 text-xs font-semibold text-muted-foreground">지금 뜨는 키워드</h2>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {trending.map(({ keyword: item }) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => submit(item)}
+                className="rounded-full border border-border px-3.5 py-2 text-[13px] font-medium transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                <span className="text-[#0088FF]">#</span> {item}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function SearchResultClient({ keyword }: { keyword: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const setEntry = useSetAtom(searchEntryState);
   const selected = RESULT_TYPES.find(({ value }) => value === searchParams.get('type'))?.value ?? 'all';
   const expanded = searchParams.get('expanded') === '1' && (selected === 'member' || selected === 'party');
   const showPeople = selected !== 'bill';
@@ -33,7 +77,9 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
   const parties = peopleResults.filter((result) => result.search_type === 'PARTY');
   const bills = bill.data?.pages.flatMap(({ data }) => data.search_response) ?? [];
   const billEnabled = canSearchBills(keyword);
-  const counts = {
+  const peopleSettled = people.isSuccess || people.isError;
+  const billSettled = !billEnabled || bill.isSuccess || bill.isError;
+  const counts: Record<ResultType, string> = {
     all: '',
     bill: bill.isSuccess ? `${bills.length.toLocaleString('ko-KR')}${bill.hasNextPage ? '+' : ''}` : '',
     member: people.isSuccess ? members.length.toLocaleString('ko-KR') : '',
@@ -43,6 +89,18 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
     { type: 'member', label: '의원', results: members },
     { type: 'party', label: '정당', results: parties },
   ] as const;
+  const nothingFound =
+    people.isSuccess &&
+    members.length === 0 &&
+    parties.length === 0 &&
+    (!billEnabled || (bill.isSuccess && bills.length === 0));
+
+  // 헤더·하단 바의 검색 중 표시는 이 검색어의 첫 결과가 도착하면 멈춘다.
+  useEffect(() => {
+    if (!peopleSettled || !billSettled) return;
+    setEntry((current) => (current.pending === keyword ? { ...current, pending: null } : current));
+  }, [peopleSettled, billSettled, keyword, setEntry]);
+
   const selectType = (type: ResultType) => {
     if (selected === type) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -68,104 +126,86 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
   const fetchRef = useIntersect(() => {
     if (bill.hasNextPage && !bill.isFetching && !bill.isFetchNextPageError) void bill.fetchNextPage();
   });
-  if (!keyword)
-    return (
-      <>
-        <SearchBarButton />
-        <p className="px-5 py-8 text-center">검색어를 입력해 주세요.</p>
-      </>
-    );
+
+  if (!keyword) {
+    return <p className="px-5 py-14 text-center text-muted-foreground">검색어를 입력해 주세요.</p>;
+  }
+
   return (
-    <>
-      <SearchBarButton keyword={keyword} />
-      <section className="lg:w-[840px] mx-auto">
-        <h1 className="px-5 my-5 text-xl font-semibold">‘{keyword}’ 검색 결과</h1>
-        <div className="mx-5 mb-5 flex flex-wrap gap-2" role="group" aria-label="검색 결과 유형">
-          {RESULT_TYPES.map(({ value, label }) => (
-            <Button
-              key={value}
-              type="button"
-              variant={selected === value ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={selected === value}
-              onClick={() => selectType(value)}>
-              {label}
-              {counts[value] && ` ${counts[value]}`}
-            </Button>
-          ))}
+    <section className="mx-auto w-full max-w-[720px] pt-4 md:pt-6">
+      <h1 className="sr-only">‘{keyword}’ 검색 결과</h1>
+      <div className="px-4 md:px-3">
+        <SearchTypeTabs selected={selected} counts={counts} onSelect={selectType} />
+      </div>
+
+      {nothingFound ? (
+        <NoResults keyword={keyword} />
+      ) : (
+        <div key={`${keyword}-${selected}`} className="animate-fade-in motion-reduce:animate-none">
+          {showPeople && people.isPending && (
+            <div className="flex flex-col gap-3 px-5 pt-6 md:px-4" role="status" aria-label="의원·정당 검색 중">
+              <Skeleton className="h-14 w-full rounded-xl" />
+              <Skeleton className="h-14 w-full rounded-xl" />
+            </div>
+          )}
+          {showPeople && people.isError && (
+            <RetryBlock message="의원·정당 검색 결과를 불러오지 못했습니다." onRetry={() => void people.refetch()} />
+          )}
+          {showPeople &&
+            people.isSuccess &&
+            peopleGroups
+              .filter(({ type, results }) => selected === type || (selected === 'all' && results.length > 0))
+              .map(({ type, label, results }) => (
+                <section
+                  key={type}
+                  aria-labelledby={`${type}-results`}
+                  className="animate-fade-up motion-reduce:animate-fade-in">
+                  <SectionHeading id={`${type}-results`} label={label} count={counts[type]} />
+                  {results.length ? (
+                    <SearchList
+                      key={`${keyword}-${selected}`}
+                      searchResults={results}
+                      kind={label}
+                      expanded={expanded}
+                      onToggleExpanded={toggleExpanded}
+                      onShowCategory={selected === 'all' ? () => selectType(type) : undefined}
+                    />
+                  ) : (
+                    <p className="px-5 py-6 text-muted-foreground md:px-4">일치하는 {label}이 없습니다.</p>
+                  )}
+                </section>
+              ))}
+
+          {showBills && (
+            <section aria-labelledby="bill-results">
+              <SectionHeading id="bill-results" label="법안" count={counts.bill} />
+              {!billEnabled && (
+                <p className="px-5 py-6 text-muted-foreground md:px-4">
+                  법안은 두 글자 이상의 이름이나 단어로 검색해 주세요.
+                </p>
+              )}
+              {billEnabled && bill.isError && !bill.data && (
+                <RetryBlock message="법안 검색 결과를 불러오지 못했습니다." onRetry={() => void bill.refetch()} />
+              )}
+              {billEnabled && !(bill.isError && !bill.data) && (
+                <SearchBillList
+                  bills={bills}
+                  keyword={keyword}
+                  pending={bill.isPending}
+                  fetchingNext={bill.isFetchingNextPage}
+                  hasNextPage={bill.hasNextPage}
+                  nextPageError={bill.isFetchNextPageError}
+                  fetchRef={fetchRef}
+                  onLoadMore={() => void bill.fetchNextPage()}
+                />
+              )}
+              {billEnabled && bill.isSuccess && bills.length === 0 && (
+                <p className="px-5 py-6 text-muted-foreground md:px-4">일치하는 법안이 없습니다.</p>
+              )}
+            </section>
+          )}
         </div>
-        {showPeople && people.isPending && (
-          <div className="flex flex-col gap-3 mx-5 mb-6" role="status" aria-label="의원·정당 검색 중">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </div>
-        )}
-        {showPeople && people.isError && (
-          <div className="flex flex-col items-center gap-3 py-6" role="alert">
-            <p>의원·정당 검색 결과를 불러오지 못했습니다.</p>
-            <Button variant="outline" onClick={() => void people.refetch()}>
-              다시 검색
-            </Button>
-          </div>
-        )}
-        {showPeople &&
-          people.isSuccess &&
-          peopleGroups
-            .filter(({ type, results }) => selected === type || (selected === 'all' && results.length > 0))
-            .map(({ type, label, results }) => (
-              <section key={type} className="mb-6" aria-labelledby={`${type}-results`}>
-                <h2 id={`${type}-results`} className="mx-5 text-lg font-semibold">
-                  {label}
-                </h2>
-                <Separator className="mx-5 my-3 w-auto" />
-                {results.length ? (
-                  <SearchList
-                    key={`${keyword}-${selected}`}
-                    searchResults={results}
-                    kind={label}
-                    expanded={expanded}
-                    onToggleExpanded={toggleExpanded}
-                    onShowCategory={selected === 'all' ? () => selectType(type) : undefined}
-                  />
-                ) : (
-                  <p className="px-5 py-6 text-muted-foreground">일치하는 {label}이 없습니다.</p>
-                )}
-              </section>
-            ))}
-        {showBills && (
-          <section aria-labelledby="bill-results">
-            <h2 id="bill-results" className="mx-5 text-lg font-semibold">
-              법안
-            </h2>
-            <Separator className="mx-5 my-3 w-auto" />
-            {!billEnabled && (
-              <p className="px-5 py-6 text-muted-foreground">법안은 두 글자 이상의 이름이나 단어로 검색해 주세요.</p>
-            )}
-            {billEnabled && bill.isError && !bill.data && (
-              <div className="flex flex-col items-center gap-3 py-6" role="alert">
-                <p>법안 검색 결과를 불러오지 못했습니다.</p>
-                <Button variant="outline" onClick={() => void bill.refetch()}>
-                  다시 검색
-                </Button>
-              </div>
-            )}
-            {billEnabled && (
-              <BillList
-                bills={bills}
-                headingLevel={3}
-                isFetching={bill.isPending || bill.isFetchingNextPage}
-                fetchRef={fetchRef}
-                hasNextPage={bill.hasNextPage}
-                error={bill.isFetchNextPageError}
-                onLoadMore={() => void bill.fetchNextPage()}
-              />
-            )}
-            {billEnabled && bill.isSuccess && bills.length === 0 && (
-              <p className="py-6 text-center text-muted-foreground">일치하는 법안이 없습니다.</p>
-            )}
-          </section>
-        )}
-      </section>
-    </>
+      )}
+    </section>
   );
 }

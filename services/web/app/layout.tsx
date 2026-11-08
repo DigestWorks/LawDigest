@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import Script from 'next/script';
 import { QueryClientProvider, HeroUIProvider, NextThemesProvider, StateProvider } from '@/lib/provider';
 import { GoToTopButton, Snackbar } from '@/components';
-import SearchModal from '@/components/common/SearchBar/SearchModal';
+import SearchEntrySync from '@/components/search/SearchEntrySync';
 import Nav from '@/components/Layout/Nav/Nav';
 import SiteFooter from '@/components/Layout/SiteFooter';
 
@@ -44,7 +44,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
                 <div className="relative flex flex-col h-auto min-h-[100dvh] min-w-[360px]">
                   <main className="flex items-center justify-center w-full h-full ">
                     {children}
-                    <SearchModal />
+                    <SearchEntrySync />
                     <Snackbar />
                     <GoToTopButton />
                   </main>
