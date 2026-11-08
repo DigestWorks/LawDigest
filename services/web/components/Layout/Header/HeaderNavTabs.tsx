@@ -15,8 +15,8 @@ interface Point {
 
 /** IconNavBorder의 크기 */
 const INDICATOR = { width: 100, height: 50 };
-/** 모바일 하단 내비 인디케이터와 같은 곡선(mobile-floating-nav.css) */
-const INDICATOR_EASE: [number, number, number, number] = [0.175, 0.885, 0.32, 1.275];
+/** 튀지 않고 감속하는 곡선. 검색 펼침과 같은 값이다. */
+const INDICATOR_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 // 헤더는 경로마다 다시 그려진다. 마지막 위치를 기억해 새 헤더에서 이어서 움직인다.
 let lastIndicator: Point | null = null;
@@ -71,7 +71,7 @@ export default function HeaderNavTabs({ hidden }: { hidden: boolean }) {
   };
 
   const origin = start ?? target;
-  const move = reduceMotion ? { duration: 0 } : { duration: 0.4, ease: INDICATOR_EASE };
+  const move = reduceMotion ? { duration: 0 } : { duration: 0.36, ease: INDICATOR_EASE };
 
   return (
     <ul

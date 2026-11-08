@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { CSSProperties, FormEvent, KeyboardEvent, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import {
+  CSSProperties,
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import { animate, AnimationPlaybackControls, motion, useReducedMotion } from 'framer-motion';
 import { Clock3, MessageCircle, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useSearchEntry from '@/components/search/useSearchEntry';
@@ -49,6 +59,14 @@ interface Box {
 const FIELD_HEIGHT = 50;
 const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
+function toPixels(box: Box) {
+  return { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` };
+}
+
+function placeForm(form: HTMLFormElement, box: Box, opacity: number) {
+  Object.assign(form.style, toPixels(box), { opacity: String(opacity) });
+}
+
 /** 헤더 가운데에서 펼쳐지는 검색창과 그 아래 추천 패널(데스크톱).
  * 활성 탭의 무지개 인디케이터 자리에서 늘어나 검색창이 되고, 닫으면 그 자리로 줄어든다. */
 export function HeaderSearchField() {
@@ -59,47 +77,85 @@ export function HeaderSearchField() {
   const [geometry, setGeometry] = useState<{ origin: Box; final: Box } | null>(null);
   const reduceMotion = useReducedMotion();
   const root = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const shownExpanded = useRef<boolean | null>(null);
+  const motionRef = useRef<AnimationPlaybackControls[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const seenFocusToken = useRef(focusToken);
   const panelId = useId();
   const suggestions = useSearchSuggestions(expanded);
   const showPanel = expanded && panelOpen && !pending;
   const recent = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 5);
+  const trending = suggestions.trending.filter(({ keyword }) => keyword !== routeKeyword);
 
   // 펼친 검색창의 자리와, 늘어나기 시작할 활성 탭 인디케이터(없으면 검색 아이콘)의 자리를 잰다.
+  const measure = useCallback(() => {
+    const frame = root.current?.getBoundingClientRect();
+    if (!frame) return null;
+    const width = Math.min(560, window.innerWidth - 300);
+    const left = (frame.width - width) / 2;
+    const indicator = root.current
+      ?.closest('[data-header-center]')
+      ?.querySelector('[data-nav-indicator-active] svg')
+      ?.getBoundingClientRect();
+    // 활성 탭 인디케이터가 있으면 그 세로 중심에 맞춰, 늘어날 때 좌우로만 커지게 한다.
+    if (indicator) {
+      const origin = {
+        left: indicator.left - frame.left,
+        top: indicator.top - frame.top,
+        width: indicator.width,
+        height: indicator.height,
+      };
+      const top = origin.top + (origin.height - FIELD_HEIGHT) / 2;
+      return { origin, final: { left, top, width, height: FIELD_HEIGHT } };
+    }
+    const final = { left, top: (frame.height - FIELD_HEIGHT) / 2, width, height: FIELD_HEIGHT };
+    const toggle = document.querySelector('[data-header-search-toggle]')?.getBoundingClientRect();
+    const origin = toggle
+      ? { left: toggle.left - frame.left, top: toggle.top - frame.top, width: toggle.width, height: toggle.height }
+      : { ...final, left: final.left + final.width / 2 - FIELD_HEIGHT, width: FIELD_HEIGHT * 2 };
+    return { origin, final };
+  }, []);
+
+  // 사용자가 열고 닫을 때만 움직인다. 경로가 바뀌어 헤더가 새로 그려지거나 창 크기가 바뀌면 제자리에 바로 놓는다.
   useLayoutEffect(() => {
-    const measure = () => {
-      const frame = root.current?.getBoundingClientRect();
-      if (!frame) return;
-      const width = Math.min(560, window.innerWidth - 300);
-      const left = (frame.width - width) / 2;
-      const indicator = root.current
-        ?.closest('[data-header-center]')
-        ?.querySelector('[data-nav-indicator-active] svg')
-        ?.getBoundingClientRect();
-      // 활성 탭 인디케이터가 있으면 그 세로 중심에 맞춰, 늘어날 때 좌우로만 커지게 한다.
-      if (indicator) {
-        const origin = {
-          left: indicator.left - frame.left,
-          top: indicator.top - frame.top,
-          width: indicator.width,
-          height: indicator.height,
-        };
-        const top = origin.top + (origin.height - FIELD_HEIGHT) / 2;
-        setGeometry({ origin, final: { left, top, width, height: FIELD_HEIGHT } });
-        return;
-      }
-      const final = { left, top: (frame.height - FIELD_HEIGHT) / 2, width, height: FIELD_HEIGHT };
-      const toggle = document.querySelector('[data-header-search-toggle]')?.getBoundingClientRect();
-      const origin = toggle
-        ? { left: toggle.left - frame.left, top: toggle.top - frame.top, width: toggle.width, height: toggle.height }
-        : { ...final, left: final.left + final.width / 2 - FIELD_HEIGHT, width: FIELD_HEIGHT * 2 };
-      setGeometry({ origin, final });
+    const form = formRef.current;
+    const next = measure();
+    if (!form || !next) return;
+    setGeometry(next);
+    const previous = shownExpanded.current;
+    shownExpanded.current = expanded;
+    if (previous === null || previous === expanded || reduceMotion) {
+      motionRef.current.forEach((animation) => animation.stop());
+      placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
+      return;
+    }
+    const moving = motionRef.current.some((animation) => animation.state === 'running');
+    motionRef.current.forEach((animation) => animation.stop());
+    if (expanded) {
+      if (!moving) placeForm(form, next.origin, 1);
+      form.style.opacity = '1';
+      motionRef.current = [animate(form, toPixels(next.final), { duration: 0.46, ease: EASE_OUT })];
+    } else {
+      motionRef.current = [
+        animate(form, toPixels(next.origin), { duration: 0.34, ease: EASE_OUT }),
+        animate(form, { opacity: 0 }, { duration: 0.1, delay: 0.3 }),
+      ];
+    }
+  }, [expanded, measure, reduceMotion]);
+
+  useEffect(() => {
+    const onResize = () => {
+      const form = formRef.current;
+      const next = measure();
+      if (!form || !next) return;
+      setGeometry(next);
+      motionRef.current.forEach((animation) => animation.stop());
+      placeForm(form, expanded ? next.final : next.origin, expanded ? 1 : 0);
     };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [expanded]);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [expanded, measure]);
 
   useEffect(() => setValue(routeKeyword), [routeKeyword]);
 
@@ -170,97 +226,74 @@ export function HeaderSearchField() {
   let rowIndex = 0;
   const nextRow = () => ({ '--row-index': rowIndex++ }) as CSSProperties;
 
-  // 열 때: 인디케이터 자리에서 바로 보인 뒤 늘어난다. 닫을 때: 인디케이터 자리로 줄어든 뒤 사라진다.
-  const boxTransition = reduceMotion ? { duration: 0 } : { duration: expanded ? 0.46 : 0.34, ease: EASE_OUT };
-  let opacityTransition = { duration: 0.12, delay: 0 };
-  if (!reduceMotion) opacityTransition = expanded ? { duration: 0, delay: 0 } : { duration: 0.1, delay: 0.3 };
   let contentTransition = { duration: 0.12, delay: 0 };
   if (!reduceMotion) contentTransition = expanded ? { duration: 0.2, delay: 0.2 } : { duration: 0.08, delay: 0 };
 
   return (
     <div ref={root} onKeyDown={onKeyDown} className="pointer-events-none absolute inset-0 z-50" inert={!expanded}>
-      {geometry && (
-        <motion.form
-          role="search"
-          onSubmit={onSubmit}
-          initial={false}
-          animate={
-            expanded
-              ? {
-                  // 펼치는 순간 잰 인디케이터 자리에서 출발한다.
-                  left: [geometry.origin.left, geometry.final.left],
-                  top: [geometry.origin.top, geometry.final.top],
-                  width: [geometry.origin.width, geometry.final.width],
-                  height: [geometry.origin.height, geometry.final.height],
-                  opacity: 1,
-                }
-              : { ...geometry.origin, opacity: 0 }
-          }
-          transition={{
-            left: boxTransition,
-            top: boxTransition,
-            width: boxTransition,
-            height: boxTransition,
-            opacity: opacityTransition,
-          }}
-          className={`header-search-ring absolute${expanded ? ' pointer-events-auto' : ''}`}
-          data-state={pending ? 'pending' : 'rest'}>
-          <div className="header-search-ring__inner">
-            <motion.div
-              initial={false}
-              animate={{ opacity: expanded ? 1 : 0 }}
-              transition={contentTransition}
-              className="flex h-full items-center gap-2.5 pl-4 pr-1.5">
-              <Search aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
-              <input
-                ref={input}
-                value={value}
-                maxLength={SEARCH_MAX_LENGTH}
-                onChange={(event) => setValue(event.target.value)}
-                onFocus={() => {
-                  setFocused(true);
-                  setPanelOpen(true);
-                }}
-                onBlur={() => setFocused(false)}
-                aria-label="법안·의안번호·의원·정당 검색어"
-                aria-controls={showPanel ? panelId : undefined}
-                aria-busy={Boolean(pending)}
-                placeholder="법안·의안번호·의원·정당 검색"
-                autoComplete="off"
-                enterKeyHint="search"
-                className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
-              />
-              {value && (
-                <button
-                  type="button"
-                  aria-label="검색어 지우기"
-                  onClick={() => {
-                    setValue('');
-                    input.current?.focus();
-                  }}
-                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                  <X aria-hidden="true" className="size-4" />
-                </button>
-              )}
+      <form
+        ref={formRef}
+        role="search"
+        onSubmit={onSubmit}
+        style={{ opacity: 0 }}
+        className={`header-search-ring absolute${expanded ? ' pointer-events-auto' : ''}`}
+        data-state={pending ? 'pending' : 'rest'}>
+        <div className="header-search-ring__inner">
+          <motion.div
+            initial={false}
+            animate={{ opacity: expanded ? 1 : 0 }}
+            transition={contentTransition}
+            className="flex h-full items-center gap-2.5 pl-4 pr-1.5">
+            <Search aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
+            <input
+              ref={input}
+              value={value}
+              maxLength={SEARCH_MAX_LENGTH}
+              onChange={(event) => setValue(event.target.value)}
+              onFocus={() => {
+                setFocused(true);
+                setPanelOpen(true);
+                suggestions.refreshRecent();
+              }}
+              onBlur={() => setFocused(false)}
+              aria-label="법안·의안번호·의원·정당 검색어"
+              aria-controls={showPanel ? panelId : undefined}
+              aria-busy={Boolean(pending)}
+              placeholder="법안·의안번호·의원·정당 검색"
+              autoComplete="off"
+              enterKeyHint="search"
+              className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            {value && (
               <button
-                type="submit"
-                aria-label="검색"
-                className={`flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-                  focused || value
-                    ? 'bg-primary-3 text-white hover:opacity-85 dark:bg-white dark:text-primary-3'
-                    : 'bg-accent text-muted-foreground'
-                }`}>
-                검색
+                type="button"
+                aria-label="검색어 지우기"
+                onClick={() => {
+                  setValue('');
+                  input.current?.focus();
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                <X aria-hidden="true" className="size-4" />
               </button>
-            </motion.div>
-          </div>
-        </motion.form>
-      )}
+            )}
+            <button
+              type="submit"
+              aria-label="검색"
+              className={`flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+                focused || value
+                  ? 'bg-primary-3 text-white hover:opacity-85 dark:bg-white dark:text-primary-3'
+                  : 'bg-accent text-muted-foreground'
+              }`}>
+              검색
+            </button>
+          </motion.div>
+        </div>
+      </form>
       <span role="status" className="sr-only">
         {pending ? `‘${pending}’ 검색 결과를 불러오는 중입니다.` : ''}
       </span>
 
-      {showPanel && geometry && (suggestions.ragAvailable || recent.length > 0 || suggestions.trending.length > 0) && (
+      {showPanel && geometry && (suggestions.ragAvailable || recent.length > 0 || trending.length > 0) && (
         <section
           id={panelId}
           aria-label="검색 추천"
@@ -324,7 +357,7 @@ export function HeaderSearchField() {
             </section>
           )}
 
-          {suggestions.trending.length > 0 && (
+          {trending.length > 0 && (
             <section aria-labelledby={`${panelId}-trending`} className="px-3 pb-2 pt-3">
               <h2
                 id={`${panelId}-trending`}
@@ -334,7 +367,7 @@ export function HeaderSearchField() {
                 지금 뜨는 키워드
               </h2>
               <div data-suggestion-row style={nextRow()} className="mt-2 flex flex-wrap gap-2">
-                {suggestions.trending.map(({ keyword }) => (
+                {trending.map(({ keyword }) => (
                   <button
                     key={keyword}
                     type="button"

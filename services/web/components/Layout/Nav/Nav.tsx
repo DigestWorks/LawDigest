@@ -26,12 +26,14 @@ function Nav() {
 
   const [searchValue, setSearchValue] = useState(routeKeyword);
   const [searchFocused, setSearchFocused] = useState(false);
+  // 추천 말풍선은 포커스와 따로 연다. 말풍선을 누르는 순간 입력 포커스가 빠져도 클릭이 사라지지 않게 한다.
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const searchGroupRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const seenFocusToken = useRef(focusToken);
   const suggestions = useSearchSuggestions(isSearchOpen, 4);
-  const showSuggestions = isSearchOpen && !pending && (searchFocused || !isSearchRoute);
+  const showSuggestions = isSearchOpen && !pending && (suggestionsOpen || !isSearchRoute);
 
   useEffect(() => setSearchValue(routeKeyword), [routeKeyword]);
 
@@ -72,6 +74,7 @@ function Nav() {
 
   const closeSearch = useCallback(() => {
     searchInputRef.current?.blur();
+    setSuggestionsOpen(false);
     closeEntry();
   }, [closeEntry]);
 
@@ -93,6 +96,7 @@ function Nav() {
         return;
       }
       setSearchValue(keyword.trim());
+      setSuggestionsOpen(false);
       searchInputRef.current?.blur();
     },
     [search],
@@ -100,11 +104,15 @@ function Nav() {
 
   // 바깥을 누르면 추천을 닫고, 검색 결과 화면이 아니면 검색 바도 접는다.
   useEffect(() => {
-    if (!isSearchOpen) return undefined;
+    if (!isSearchOpen) {
+      setSuggestionsOpen(false);
+      return undefined;
+    }
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (!target || wrapperRef.current?.contains(target) || target.closest('[data-search-toggle]')) return;
       searchInputRef.current?.blur();
+      setSuggestionsOpen(false);
       if (!isSearchRoute && !pending) closeEntry();
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -248,7 +256,9 @@ function Nav() {
   else if (searchFocused) searchRingState = 'focus';
 
   const recentBubbles = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 3);
-  const trendingBubbles = suggestions.trending.filter(({ keyword }) => !recentBubbles.includes(keyword)).slice(0, 4);
+  const trendingBubbles = suggestions.trending
+    .filter(({ keyword }) => keyword !== routeKeyword && !recentBubbles.includes(keyword))
+    .slice(0, 4);
   const bubbleCount = trendingBubbles.length + recentBubbles.length + (suggestions.ragAvailable ? 1 : 0);
   let bubbleIndex = 0;
   // 검색 바에 가까운 말풍선부터 떠오른다.
@@ -384,7 +394,11 @@ function Nav() {
                 value={searchValue}
                 maxLength={SEARCH_MAX_LENGTH}
                 onChange={(event) => setSearchValue(event.target.value)}
-                onFocus={() => setSearchFocused(true)}
+                onFocus={() => {
+                  setSearchFocused(true);
+                  setSuggestionsOpen(true);
+                  suggestions.refreshRecent();
+                }}
                 onBlur={() => setSearchFocused(false)}
                 aria-label="법안·의안번호·의원·정당 검색어"
                 aria-busy={Boolean(pending)}

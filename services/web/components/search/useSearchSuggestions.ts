@@ -30,6 +30,8 @@ export default function useSearchSuggestions(enabled: boolean, trendingSize = 8)
     [updateRecent],
   );
   const clearRecent = useCallback(() => updateRecent([]), [updateRecent]);
+  /** 하단 내비처럼 경로가 바뀌어도 남아 있는 화면은 입력에 포커스할 때 다시 읽는다. */
+  const refreshRecent = useCallback(() => setRecent(readRecentSearches()), []);
 
   return {
     recent,
@@ -37,5 +39,6 @@ export default function useSearchSuggestions(enabled: boolean, trendingSize = 8)
     ragAvailable: Boolean(rag.data?.available),
     removeRecent,
     clearRecent,
+    refreshRecent,
   };
 }
