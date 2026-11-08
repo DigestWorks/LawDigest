@@ -36,3 +36,14 @@ it('세션 쿠키가 있는 콜백은 원래 내부 화면으로 replace한다',
   render(<OAuthCallback />);
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/bill/test?view=summary'));
 });
+
+it('Apple 취소 응답도 취소 안내로 보낸다', async () => {
+  window.history.replaceState(
+    {},
+    '',
+    '/login/appleLogin?error=%5Buser_cancelled_authorize%5D%20&returnTo=%2Fnotification',
+  );
+  render(<OAuthCallback />);
+  await waitFor(() => expect(replace).toHaveBeenCalledOnce());
+  expect(replace.mock.calls[0][0]).toBe('/login?returnTo=%2Fnotification&error=cancelled');
+});

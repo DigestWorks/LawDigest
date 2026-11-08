@@ -37,9 +37,13 @@ public class AppleOAuth2UserInfo implements OAuth2UserInfo {
         return text("email");
     }
 
+    /**
+     * Apple은 프로필 사진을 주지 않는다. User.imageUrl은 NOT NULL이고,
+     * 웹 마이페이지는 빈 문자열을 받으면 기본 아바타를 보인다(user_image_url || undefined).
+     */
     @Override
     public String getImageUrl() {
-        return null;
+        return "";
     }
 
     private Optional<String> nameFromUser() {

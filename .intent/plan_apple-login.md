@@ -27,8 +27,9 @@ date: 2026-11-08
 | `global/service/CustomOAuth2UserService.java` | Apple 분기 |
 | `global/config/OAuthConfig/AppleClientProperties.java` (새), `service/AppleOAuthService.java` (새) | 탈퇴 시 refresh·revoke |
 | `src/main/resources/application*.properties` | `app.auth.apple.*` 환경 변수와 프로필별 redirect-uri |
-| `src/test/.../apple/*Test.java` (새) | 생성기, 검증기, 변환기, 등록, 사용자 정보 테스트 |
+| `src/test/.../global/auth/apple/*Test.java`, `src/test/.../service/AppleOAuthServiceTest.java` (새) | 생성기, 검증기, 변환기, 등록, 사용자 정보, H2 저장, revoke 테스트 |
 | `services/web/lib/loginNavigation.ts`, `app/login/page.tsx`, `app/login/appleLogin/page.tsx` (새) | 버튼과 콜백 |
+| `services/web/app/login/components/OAuthCallback.tsx` | Apple 취소 코드를 취소 안내로 |
 | `deploy/APPLE_LOGIN_SETUP.md` (새) | Apple 콘솔·`.env`·DB 확인 절차 |
 
 ## 작업 순서
@@ -53,4 +54,4 @@ cd services/backend && ./gradlew test
 cd services/web && npm ci && npm run lint && npm test && npm run build
 ```
 
-실제 Apple 로그인은 Apple 콘솔 값을 넣은 뒤 `test.lawdigest.kr` 로그인 화면 → Apple로 계속하기 → 마이페이지 이름 확인 → 탈퇴 → Apple 계정 설정에서 앱 사라짐 순으로 확인한다.
+실제 Apple 로그인은 Apple 콘솔 값을 넣고 운영 API를 다시 배포한 뒤 `test.lawdigest.kr` 로그인 화면 → Apple로 계속하기 → 마이페이지 이름 확인 → 탈퇴 → Apple 계정 설정에서 앱 사라짐 순으로 확인한다.

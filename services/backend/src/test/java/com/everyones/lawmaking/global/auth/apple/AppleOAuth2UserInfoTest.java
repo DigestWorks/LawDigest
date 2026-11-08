@@ -19,7 +19,7 @@ class AppleOAuth2UserInfoTest {
         assertThat(info).isInstanceOf(AppleOAuth2UserInfo.class);
         assertThat(info.getId()).isEqualTo("001234.apple-user.0001");
         assertThat(info.getEmail()).isEqualTo("abc123@privaterelay.appleid.com");
-        assertThat(info.getImageUrl()).isNull();
+        assertThat(info.getImageUrl()).isEmpty();
     }
 
     @Test

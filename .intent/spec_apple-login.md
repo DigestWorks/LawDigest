@@ -15,8 +15,9 @@ date: 2026-11-08
 - [ ] `/v1/oauth2/authorization/apple`이 `https://appleid.apple.com/auth/authorize`로 `response_type=code`, `scope=name email`, `response_mode=form_post`, `state`를 붙여 보낸다.
 - [ ] Apple이 `/v1/login/oauth2/code/apple`로 보내는 form POST를 받아 토큰을 교환한다. 토큰 요청의 `client_secret`은 ES256 JWT이며 header `kid`, claims `iss`=Team ID, `sub`=Services ID, `aud`=`https://appleid.apple.com`, `iat`, `exp`를 가진다.
 - [ ] 토큰 응답의 `id_token`을 Apple JWKS(`https://appleid.apple.com/auth/keys`)로 서명 검증하고 `iss`=`https://appleid.apple.com`, `aud`=Services ID, 만료를 확인한다. 검증 실패는 로그인 실패로 처리한다.
-- [ ] 사용자 식별자는 `id_token.sub`, 이메일은 `id_token.email`이다. 이름은 첫 POST의 `user` JSON(`name.firstName`, `name.lastName`)에서 읽고, 없으면 이메일의 @ 앞부분을 쓴다.
+- [ ] 사용자 식별자는 `id_token.sub`, 이메일은 `id_token.email`이다. 이름은 첫 POST의 `user` JSON(`name.firstName`, `name.lastName`)에서 읽고, 없으면 이메일의 @ 앞부분을 쓴다. `User.imageUrl`은 NOT NULL이므로 빈 문자열을 저장한다(웹은 빈 값이면 기본 아바타).
 - [ ] 탈퇴 시 저장된 Apple refresh token으로 access token을 받고 `https://appleid.apple.com/auth/revoke`에 `token_type_hint=access_token`으로 폐기한다.
+- [ ] 웹 `OAuthCallback`은 Apple 취소 코드 `user_cancelled_authorize`도 `access_denied`와 같이 취소 안내로 보낸다.
 - [ ] 웹 로그인 화면은 `NEXT_PUBLIC_APPLE_LOGIN_ENABLED=true`일 때만 "Apple로 계속하기" 버튼을 보이고, 콜백 `/login/appleLogin`은 기존 `OAuthCallback`을 쓴다.
 
 ## 설계
@@ -56,7 +57,7 @@ flowchart TD
 
 - Apple은 `name`/`email` scope를 요청하면 `response_mode=form_post`를 요구한다. 콜백이 POST로 온다.
 - `user` 파라미터는 첫 인가 때만 온다. 연결을 해제한 뒤 다시 가입하면 다시 온다.
-- Apple 반환 주소는 HTTPS 도메인만 허용한다. 로컬 프로필에서는 끝까지 확인할 수 없다.
+- Apple 반환 주소는 HTTPS 도메인만 허용한다. 로컬 프로필에서는 끝까지 확인할 수 없다. 별도 테스트 백엔드는 없고 테스트 웹도 운영 API를 쓰므로 반환 주소는 `https://api.lawdigest.kr/v1/login/oauth2/code/apple` 하나다.
 - `.env` 한 줄에 PEM 줄바꿈을 넣기 어렵다. private key는 BEGIN/END 줄 유무, `\n` 문자열, 공백을 모두 허용해 본문만 추출한다.
 - 운영 `auth_info.provider`가 MySQL ENUM이면 `APPLE` 저장이 실패한다(`ddl-auto=update`는 컬럼 타입을 바꾸지 않는다).
 
