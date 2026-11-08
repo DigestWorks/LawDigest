@@ -481,36 +481,43 @@ li {
   background: hsl(var(--background));
 }
 
-/* ── 데스크톱 헤더 확장 검색 ── */
-.header-search-field {
-  clip-path: inset(0 0 0 100% round 999px);
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.2s ease;
+/* ── 데스크톱 헤더 확장 검색 ──
+   활성 탭 인디케이터(IconNavBorder)와 같은 3px 선형 그라디언트 테두리라서,
+   인디케이터가 그대로 늘어나 검색창이 되는 것처럼 보인다. */
+.header-search-ring {
+  padding: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fbeb59 0%, #fc56d8 31%, #10d9ef 65%, #6cf880 100%);
 }
 
-.header-search-field.is-expanded {
-  clip-path: inset(0 0 0 0 round 999px);
-  opacity: 1;
-  pointer-events: auto;
+/* 검색 중: 같은 색이 테두리를 따라 흐른다. */
+.header-search-ring[data-state='pending'] {
+  background: linear-gradient(90deg, #fbeb59, #fc56d8, #10d9ef, #6cf880, #fbeb59, #fc56d8, #10d9ef, #6cf880, #fbeb59);
+  background-size: 200% 100%;
+  animation: header-search-flow 1.2s linear infinite;
 }
 
-.header-search-field.is-instant {
-  transition: none;
+@keyframes header-search-flow {
+  to {
+    background-position: -200% 0;
+  }
 }
 
+.header-search-ring__inner {
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--background));
+}
+
+/* 탭은 검색창이 인디케이터 자리로 돌아온 뒤 다시 나타난다. */
 .header-search-tabs {
-  transition:
-    opacity 0.2s ease,
-    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.2s ease 0.3s;
 }
 
 .header-search-tabs.is-hidden {
   opacity: 0;
-  transform: translateX(-12px);
   pointer-events: none;
+  transition: opacity 0.16s ease;
 }
 
 .header-search-panel {
@@ -572,14 +579,13 @@ li {
     animation: none;
   }
 
-  .header-search-field,
-  .header-search-tabs {
+  .header-search-tabs,
+  .header-search-tabs.is-hidden {
     transition: opacity 0.12s ease;
-    transform: none;
   }
 
-  .header-search-field {
-    clip-path: none;
+  .header-search-ring[data-state='pending'] {
+    animation: none;
   }
 
   .header-search-panel,

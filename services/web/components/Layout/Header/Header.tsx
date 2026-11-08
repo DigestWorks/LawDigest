@@ -62,7 +62,7 @@ export default function Header({
           </NavbarContent>
         )}
 
-        <NavbarContent justify="center" className="relative hidden mx-auto md:block">
+        <NavbarContent justify="center" data-header-center className="relative hidden mx-auto md:block">
           <NavbarItem className="contents">
             <HeaderSearchField />
           </NavbarItem>
@@ -74,7 +74,9 @@ export default function Header({
 
               return (
                 <NavbarItem key={label} className="flex items-center justify-center ">
-                  <div className={`${isActive ? 'z-10' : '-z-10'} absolute`}>
+                  <div
+                    data-nav-indicator-active={isActive || undefined}
+                    className={`${isActive ? 'z-10' : '-z-10'} absolute`}>
                     <IconNavBorder />
                   </div>
                   <Link
