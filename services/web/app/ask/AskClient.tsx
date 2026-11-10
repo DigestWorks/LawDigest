@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, SquarePen } from 'lucide-react';
 import { useRagConversation, useRagStatus } from '@/hooks/useRagConversation';
@@ -23,6 +23,26 @@ export default function AskClient() {
   const bar = useRef<ChatBarHandle>(null);
   const shownCount = useRef(0);
   const entry = turns[0]?.entry;
+  const dock = useRef<HTMLDivElement>(null);
+  const [barFocused, setBarFocused] = useState(false);
+
+  // 화면 키보드가 열리면 채팅 바를 키보드 위로 올린다(하단 내비 검색 바와 같은 방식).
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const element = dock.current;
+    if (!viewport || !element) return undefined;
+    const update = () => {
+      const offset = barFocused ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      element.style.transform = offset ? `translateY(-${Math.round(offset)}px)` : '';
+    };
+    update();
+    viewport.addEventListener('resize', update);
+    viewport.addEventListener('scroll', update);
+    return () => {
+      viewport.removeEventListener('resize', update);
+      viewport.removeEventListener('scroll', update);
+    };
+  }, [barFocused]);
 
   // 새 질문이 들어오면 그 질문이 화면 위쪽에 오도록 옮긴다. 처음 들어왔을 때는 바로 옮긴다.
   useEffect(() => {
@@ -121,7 +141,11 @@ export default function AskClient() {
         ))}
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-background from-60% to-transparent pb-[max(env(safe-area-inset-bottom),12px)] pt-10">
+      <div
+        ref={dock}
+        onFocus={() => setBarFocused(true)}
+        onBlur={() => setBarFocused(false)}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-background from-60% to-transparent pb-[max(env(safe-area-inset-bottom),12px)] pt-10">
         <div className="pointer-events-auto mx-auto w-full max-w-[720px] px-4 md:px-5">
           <ChatBar
             ref={bar}
