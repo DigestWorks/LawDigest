@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import useSearchEntry from './useSearchEntry';
-import { searchModeState } from '@/store/SearchEntryState';
 import { ragSubmissionState } from '@/store/RagConversationState';
 import { readRecentSearches } from '@/lib/search';
 
@@ -31,36 +30,30 @@ it('keeps keyword navigation and recent searches', () => {
   expect(readRecentSearches()).toEqual(['주거급여법']);
 });
 
-it.each(['search', 'chat'] as const)(
-  'hands %s to the conversation without putting questions in URLs or history',
-  (mode) => {
-    const store = createStore();
-    store.set(searchModeState, mode);
-    const { result } = renderHook(useSearchEntry, {
-      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
-    });
-    const question = '청년 주거 지원의 요건을 비교해 주세요. '.repeat(15);
-    act(() => {
-      expect(result.current.submit(question)).toBe(true);
-      expect(result.current.submit(question)).toBe(false);
-    });
-    expect(navigation.push).toHaveBeenCalledExactlyOnceWith('/ask');
-    expect(store.get(ragSubmissionState)).toMatchObject({ question: question.trim(), mode });
-    expect(readRecentSearches()).toEqual([]);
-  },
-);
+it('sends sentences to the search result page, where the AI answer starts, without a conversation hand-off', () => {
+  const store = createStore();
+  const { result } = renderHook(useSearchEntry, {
+    wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+  });
+  act(() => {
+    expect(result.current.submit('전세사기 피해자 지원 법안은?')).toBe(true);
+  });
+  expect(navigation.push).toHaveBeenCalledExactlyOnceWith(
+    `/search/${encodeURIComponent('전세사기 피해자 지원 법안은?')}`,
+  );
+  expect(store.get(ragSubmissionState)).toBeNull();
+});
 
-it('shares draft and mode between desktop and mobile and keeps the bar open on /ask', () => {
-  navigation.pathname = '/ask';
+it('shares the draft between desktop and mobile and keeps the bar open only on search results', () => {
+  navigation.pathname = '/search/%EC%9E%84%EC%B0%A8%EB%A3%8C';
   const store = createStore();
   const wrapper = ({ children }: { children: React.ReactNode }) => <Provider store={store}>{children}</Provider>;
   const desktop = renderHook(useSearchEntry, { wrapper });
   const mobile = renderHook(useSearchEntry, { wrapper });
-  act(() => {
-    desktop.result.current.setDraft('임차료 지원');
-    desktop.result.current.setMode('search');
-  });
+  act(() => desktop.result.current.setDraft('임차료 지원'));
   expect(mobile.result.current.draft).toBe('임차료 지원');
-  expect(mobile.result.current.mode).toBe('search');
   expect(mobile.result.current.expanded).toBe(true);
+  navigation.pathname = '/ask';
+  mobile.rerender();
+  expect(mobile.result.current.expanded).toBe(false);
 });

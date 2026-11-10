@@ -15,6 +15,7 @@ import { useGetSearchCongressmanParty, useGetSearchBill } from '../apis';
 import { SearchList } from './components';
 import SearchTypeTabs, { RESULT_TYPES, ResultType } from './components/SearchTypeTabs';
 import SearchBillList from './components/SearchBillList';
+import SearchAiOverview from './components/SearchAiOverview';
 
 function SectionHeading({ id, label, count }: { id: string; label: string; count?: string }) {
   return (
@@ -136,6 +137,11 @@ export default function SearchResultClient({ keyword }: { keyword: string }) {
       <h1 className="sr-only">‘{keyword}’ 검색 결과</h1>
       <div className="px-4 md:px-3">
         <SearchTypeTabs selected={selected} counts={counts} onSelect={selectType} />
+      </div>
+
+      {/* 다른 결과 탭에서는 숨기기만 한다. 언마운트하면 만들던 답이 끊긴다. */}
+      <div hidden={selected !== 'all'}>
+        <SearchAiOverview keyword={keyword} />
       </div>
 
       {nothingFound ? (

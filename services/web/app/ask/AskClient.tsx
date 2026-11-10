@@ -1,248 +1,139 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { MessageCircle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, SquarePen } from 'lucide-react';
 import { useRagConversation, useRagStatus } from '@/hooks/useRagConversation';
-import type { Assembly } from '@/lib/rag';
-import type { RagTurn } from '@/store/RagConversationState';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Message, MessageContent, MessageHeader } from '@/components/ui/message';
-import { Bubble, BubbleContent } from '@/components/ui/bubble';
-import { Marker, MarkerContent } from '@/components/ui/marker';
-import {
-  MessageScroller,
-  MessageScrollerButton,
-  MessageScrollerContent,
-  MessageScrollerItem,
-  MessageScrollerProvider,
-  MessageScrollerViewport,
-} from '@/components/ui/message-scroller';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import RagAnswer from '@/components/qa/RagAnswer';
-import useSearchEntry from '@/components/search/useSearchEntry';
+import { buildSearchHref } from '@/lib/search';
+import ChatBar, { type ChatBarHandle } from '@/components/qa/ChatBar';
+import AgentTurn from '@/components/qa/AgentTurn';
+import { OverseasNotice } from '@/app/search/[id]/components/SearchAiOverview';
 
-function Retry({ turn, retry, disabled }: { turn: RagTurn; retry: () => void; disabled: boolean }) {
-  const [waiting, setWaiting] = useState((turn.retryAt ?? 0) > Date.now());
-  useEffect(() => {
-    const remaining = (turn.retryAt ?? 0) - Date.now();
-    setWaiting(remaining > 0);
-    if (remaining <= 0) return undefined;
-    const timer = setTimeout(() => setWaiting(false), remaining + 10);
-    return () => clearTimeout(timer);
-  }, [turn.retryAt]);
-  return (
-    <div className="flex flex-col items-start gap-2">
-      {waiting && (
-        <p className="text-sm text-muted-foreground">
-          다시 요청 가능한 시각:{' '}
-          {new Date(turn.retryAt!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      )}
-      <Button variant="outline" size="sm" onClick={retry} disabled={disabled || waiting}>
-        <RotateCcw data-icon="inline-start" />
-        다시 시도
-      </Button>
-    </div>
-  );
-}
+const EXAMPLES = [
+  '전세사기 피해자를 지원하는 법안은 어떤 내용을 담고 있나요?',
+  '청년 주거비 부담을 줄이려는 법안에는 무엇이 있나요?',
+  '반도체 산업 지원 법안들은 서로 무엇이 다른가요?',
+];
 
-function stepLabel(complete: boolean, pending: boolean) {
-  if (complete) return '완료';
-  return pending ? '진행 중' : '중단';
-}
-
+/** 에이전트 채팅. 검색 결과의 AI 답변에서 이어진 대화를 질문 제목과 답변의 흐름으로 보이고, 채팅 바를 하단에 고정한다. */
 export default function AskClient() {
-  const { turns, assembly, setAssembly, ask, reset, pending } = useRagConversation();
-  const search = useSearchEntry();
-  const mode = search.mode;
+  const { turns, assembly, setAssembly, ask, stop, reset, pending } = useRagConversation();
   const status = useRagStatus(assembly);
   const available = status.data?.available === true;
-  let announcement = turns.length ? '질문 처리가 끝났습니다. 대화에서 답변과 근거를 확인하세요.' : '';
+  const bar = useRef<ChatBarHandle>(null);
+  const shownCount = useRef(0);
+  const entry = turns[0]?.entry;
+
+  // 새 질문이 들어오면 그 질문이 화면 위쪽에 오도록 옮긴다. 처음 들어왔을 때는 바로 옮긴다.
+  useEffect(() => {
+    const previous = shownCount.current;
+    shownCount.current = turns.length;
+    if (turns.length <= previous || turns.length === 0) return;
+    const last = document.getElementById(`turn-${turns.at(-1)!.id}`);
+    last?.scrollIntoView({ block: 'start', behavior: previous === 0 ? 'auto' : 'smooth' });
+  }, [turns]);
+
+  const submit = (question: string) => {
+    if (pending || !available) return false;
+    void ask(undefined, { id: crypto.randomUUID(), question, mode: 'chat' });
+    return true;
+  };
+
+  let announcement = '';
   if (pending)
     announcement =
-      turns.find((turn) => turn.status === 'pending')?.steps?.at(-1)?.summary ?? '법안 원문을 확인하고 있습니다.';
-  let emptyTitle = '질의응답을 잠시 사용할 수 없습니다';
-  if (available)
-    emptyTitle = mode === 'search' ? '관심 있는 주제로 법안을 찾아보세요' : '궁금한 법안 내용을 물어보세요';
-  if (status.isPending) emptyTitle = '질문할 자료를 확인하고 있습니다';
+      turns.find((turn) => turn.status === 'pending')?.steps?.at(-1)?.summary ?? '질문에 맞는 법안을 찾고 있습니다.';
+  else if (turns.length) announcement = '답변이 끝났습니다.';
+
   return (
-    <div className="mx-auto flex h-[calc(100dvh-64px)] min-h-[480px] max-w-[880px] flex-col gap-4 px-5 pb-28 pt-5 text-foreground md:h-[calc(100dvh-98px)] md:pb-6">
-      <header className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-[26px] font-semibold">법안 검색과 질문</h1>
-            <p className="text-sm text-muted-foreground">
-              {mode === 'search'
-                ? '관심 주제와 관련된 법안을 원문에서 찾습니다.'
-                : 'AI가 필요한 법안을 검색하고 원문을 확인해 답합니다.'}
-            </p>
-          </div>
-          {turns.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                reset();
-                search.openEntry();
-              }}>
-              새 대화
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <ToggleGroup
-            type="single"
-            variant="pill"
-            size="sm"
-            value={String(assembly)}
-            disabled={pending}
-            aria-label="질문에 사용할 법안 대수"
-            onValueChange={(value) => {
-              if (value) setAssembly(Number(value) as Assembly);
-            }}>
-            <ToggleGroupItem value="22">22대</ToggleGroupItem>
-            <ToggleGroupItem value="21">21대</ToggleGroupItem>
-            <ToggleGroupItem value="0">전체</ToggleGroupItem>
-          </ToggleGroup>
-          {available && (
-            <p className="text-xs text-muted-foreground">
-              검색 자료 {status.data!.indexed_bills.toLocaleString('ko-KR')}건 · 최신 발의일{' '}
-              {status.data!.index_latest_proposal ?? '확인 중'}
-            </p>
-          )}
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-[720px] px-5 pb-[calc(env(safe-area-inset-bottom)+168px)] pt-4 text-foreground md:px-6 md:pt-6">
       <p className="sr-only" role="status">
         {announcement}
       </p>
-      {status.data?.lagging && (
-        <Alert>
-          <AlertDescription>
-            수집된 법안 중 아직 검색에 반영되지 않은 자료가 있습니다. 최신 원문은 국회 출처에서 확인해 주세요.
-          </AlertDescription>
-        </Alert>
+      {turns.length > 0 && (
+        <div className="mb-6 flex items-center justify-between gap-3">
+          {entry ? (
+            <Link
+              href={buildSearchHref(entry)}
+              className="-ml-2 inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+              <ArrowLeft aria-hidden="true" className="size-4 shrink-0" />
+              <span className="truncate">‘{entry}’ 검색 결과</span>
+            </Link>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              reset();
+              bar.current?.focus();
+            }}
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            <SquarePen aria-hidden="true" className="size-4" />새 대화
+          </button>
+        </div>
       )}
-      <MessageScrollerProvider defaultScrollPosition="last-anchor">
-        <MessageScroller className="flex-1">
-          <MessageScrollerViewport aria-label="법안 질문 대화" tabIndex={0}>
-            <MessageScrollerContent className="px-1 pb-5" aria-live="off">
-              {turns.length === 0 && (
-                <MessageScrollerItem messageId="welcome">
-                  <Empty>
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <MessageCircle />
-                      </EmptyMedia>
-                      <EmptyTitle>{emptyTitle}</EmptyTitle>
-                      <EmptyDescription>
-                        {available
-                          ? '법안명이나 관심 주제를 넣으면 더 구체적인 근거를 찾을 수 있습니다.'
-                          : '자료 준비가 끝나면 질문할 수 있습니다. 잠시 후 다시 확인해 주세요.'}
-                      </EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      {available ? (
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            search.setDraft('청년 주거 지원과 관련된 법안은 어떤 내용을 담고 있나요?');
-                            search.openEntry();
-                          }}>
-                          청년 주거 지원 법안 알아보기
-                        </Button>
-                      ) : (
-                        <Button variant="outline" disabled={status.isFetching} onClick={() => void status.refetch()}>
-                          자료 상태 다시 확인
-                        </Button>
-                      )}
-                    </EmptyContent>
-                  </Empty>
-                </MessageScrollerItem>
-              )}
-              {turns.flatMap((turn) => [
-                <MessageScrollerItem key={`${turn.id}-question`} messageId={`${turn.id}-question`} scrollAnchor>
-                  <Message align="end">
-                    <MessageContent>
-                      <MessageHeader>
-                        {turn.mode === 'search' ? '내 검색' : '내 질문'} ·{' '}
-                        {turn.assembly ? `${turn.assembly}대` : '전체 대수'}
-                      </MessageHeader>
-                      <Bubble align="end">
-                        <BubbleContent className="whitespace-pre-wrap">{turn.question}</BubbleContent>
-                      </Bubble>
-                    </MessageContent>
-                  </Message>
-                </MessageScrollerItem>,
-                <MessageScrollerItem key={`${turn.id}-answer`} messageId={`${turn.id}-answer`}>
-                  <Message>
-                    <MessageContent>
-                      <MessageHeader>모두의입법 AI</MessageHeader>
-                      <Bubble variant="ghost">
-                        <BubbleContent>
-                          {!!turn.steps?.length && (
-                            <ul className="mb-4 flex flex-col gap-2" aria-label="법안 확인 과정">
-                              {turn.steps.map((step) => (
-                                <li key={step.id} className="flex items-start gap-2 text-sm">
-                                  <Badge variant="outline">
-                                    {stepLabel(step.status === 'complete', turn.status === 'pending')}
-                                  </Badge>
-                                  <span>{step.summary}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {turn.status === 'pending' && (
-                            <div className="flex flex-col gap-3" aria-busy="true">
-                              <Marker>
-                                <MarkerContent>법안 원문을 확인하고 있습니다…</MarkerContent>
-                              </Marker>
-                              <Skeleton className="h-4 w-64 max-w-full" />
-                              <Skeleton className="h-4 w-48 max-w-full" />
-                            </div>
-                          )}
-                          {turn.status === 'answered' && turn.answer && (
-                            <RagAnswer answer={turn.answer} turnId={turn.id} />
-                          )}
-                          {turn.status === 'failed' && (
-                            <div className="flex flex-col gap-3">
-                              <Alert variant="destructive">
-                                <AlertTitle>답변을 불러오지 못했습니다</AlertTitle>
-                                <AlertDescription>{turn.error}</AlertDescription>
-                              </Alert>
-                              <Retry turn={turn} retry={() => void ask(turn)} disabled={pending || !available} />
-                            </div>
-                          )}
-                          {turn.status === 'cancelled' && (
-                            <div className="flex flex-col gap-3">
-                              <Marker>
-                                <MarkerContent>답변 요청을 중지했습니다.</MarkerContent>
-                              </Marker>
-                              <Retry turn={turn} retry={() => void ask(turn)} disabled={pending || !available} />
-                            </div>
-                          )}
-                        </BubbleContent>
-                      </Bubble>
-                    </MessageContent>
-                  </Message>
-                </MessageScrollerItem>,
-              ])}
-            </MessageScrollerContent>
-          </MessageScrollerViewport>
-          <MessageScrollerButton />
-        </MessageScroller>
-      </MessageScrollerProvider>
-      <p className="text-xs leading-5 text-muted-foreground">
-        검색바에서 다음 질문을 입력하세요. 법안은 제안된 내용이며 현행법과 다를 수 있습니다. 질문은 답변 생성을 위해
-        OpenAI(미국)로 전송됩니다. 개인정보는 입력하지 마세요.{' '}
-        <Link href="/privacy#overseas" className="underline underline-offset-4 hover:text-foreground">
-          국외 이전 안내
-        </Link>
-      </p>
+
+      {turns.length === 0 && (
+        <section className="flex min-h-[calc(100dvh-340px)] flex-col justify-center py-10">
+          <h1 className="text-[26px] font-bold leading-tight md:text-[32px]">법안에 대해 물어보세요</h1>
+          {!available && !status.isPending && (
+            <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+              지금은 질문을 받을 수 없습니다. 잠시 후 다시 들어와 주세요.
+            </p>
+          )}
+          {available && (
+            <ul className="mt-8 flex flex-col">
+              {EXAMPLES.map((example) => (
+                <li key={example} className="border-t border-border last:border-b">
+                  <button
+                    type="button"
+                    onClick={() => bar.current?.fill(example)}
+                    className="w-full py-4 text-left text-[15px] leading-6 transition-colors hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+                    {example}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      <div className="flex flex-col">
+        {turns.map((turn, index) => (
+          <article
+            key={turn.id}
+            id={`turn-${turn.id}`}
+            aria-labelledby={`question-${turn.id}`}
+            className={`scroll-mt-20 md:scroll-mt-28 ${index > 0 ? 'mt-12 border-t border-border pt-10' : ''}`}>
+            <h2
+              id={`question-${turn.id}`}
+              className="whitespace-pre-wrap text-[22px] font-bold leading-[1.35] [word-break:keep-all] md:text-[26px]">
+              {turn.question}
+            </h2>
+            <div className="mt-5">
+              <AgentTurn turn={turn} onRetry={() => void ask(turn)} retryDisabled={pending || !available} />
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-background from-60% to-transparent pb-[max(env(safe-area-inset-bottom),12px)] pt-10">
+        <div className="pointer-events-auto mx-auto w-full max-w-[720px] px-4 md:px-5">
+          <ChatBar
+            ref={bar}
+            placeholder={turns.length ? '이어서 질문하기' : '법안에 관해 질문하기'}
+            pending={pending}
+            disabled={!available}
+            assembly={assembly}
+            onAssemblyChange={setAssembly}
+            onSubmit={submit}
+            onStop={stop}
+            autoFocus={turns.length === 0}
+          />
+          <OverseasNotice className="mt-2 px-2 text-center" />
+        </div>
+      </div>
     </div>
   );
 }

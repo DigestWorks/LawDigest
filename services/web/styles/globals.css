@@ -577,6 +577,82 @@ li {
   }
 }
 
+/* ── AI 답변과 에이전트 채팅 ──
+   채팅 바는 검색 입구와 같은 무지개 테두리를 쓰고, 답변을 만드는 동안 같은 회전 층이 돈다.
+   여러 줄로 늘어나도 모양이 유지되게 완전한 pill 대신 28px 모서리를 쓴다. */
+.chat-bar {
+  border-radius: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chat-bar > .search-ring__inner {
+  position: relative;
+  z-index: 1;
+}
+
+/* 접힌 AI 답변: 아래쪽을 흐려 이어지는 내용이 있음을 보인다. */
+.ai-answer-clip {
+  max-height: 13.5rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 4rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 4rem), transparent);
+}
+
+/* 지금 하는 일: 글자 위로 밝은 띠가 지나간다. */
+.ai-shimmer {
+  background: linear-gradient(
+      90deg,
+      hsl(var(--muted-foreground)) 0%,
+      hsl(var(--muted-foreground)) 35%,
+      hsl(var(--foreground)) 50%,
+      hsl(var(--muted-foreground)) 65%,
+      hsl(var(--muted-foreground)) 100%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-shimmer 1.8s linear infinite;
+}
+
+@keyframes ai-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+/* 새 답변의 문단은 도착한 순서대로 떠오른다. */
+.ai-reveal > * {
+  animation: search-fade-up 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-reveal > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.ai-reveal > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.ai-reveal > *:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-shimmer {
+    animation: none;
+    background: none;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .ai-reveal > * {
+    animation: none;
+  }
+}
+
 /* ── 검색 결과: 일치 글자 ── */
 .search-mark {
   border-radius: 0.2em;

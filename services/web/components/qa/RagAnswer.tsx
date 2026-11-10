@@ -1,103 +1,164 @@
 'use client';
 
+import { useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
-import type { RagAnswer as Answer } from '@/lib/rag';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Marker, MarkerContent } from '@/components/ui/marker';
+import { ChevronDown, ExternalLink } from 'lucide-react';
+import type { RagAnswer as Answer, RagSource } from '@/lib/rag';
+import { billHeadline } from '@/lib/billHeadline';
+import { billResultLabel } from '@/lib/billStage';
+import { proposalDateLabel } from '@/lib/dataFreshness';
 
-export default function RagAnswer({ answer, turnId }: { answer: Answer; turnId: string }) {
+const sourceId = (turnId: string, key: string) => `source-${turnId}-${key}`;
+const sourceNumber = (key: string) => key.replace(/^S/, '');
+
+function SourceRow({ source, turnId }: { source: RagSource; turnId: string }) {
+  const status = billResultLabel(source.result) || source.stage;
   return (
-    <div className="flex flex-col gap-5">
-      {answer.status === 'insufficient_evidence' && <p>확인한 법안 자료에서 답변할 근거를 찾지 못했습니다.</p>}
-      {answer.status === 'searched' && (
-        <p>
-          {answer.sources.length
-            ? `관련 법안 ${answer.sources.length}건을 찾았습니다. 원문을 확인하거나 AI 채팅에서 이어서 질문하세요.`
-            : '관련 법안을 찾지 못했습니다. 법안명이나 다른 검색어를 입력해 주세요.'}
-        </p>
-      )}
-      {answer.paragraphs.map((paragraph, index) => (
-        <div key={index} className="flex flex-col gap-2">
-          <p className="whitespace-pre-wrap leading-7">{paragraph.text}</p>
-          <div className="flex flex-wrap gap-2" aria-label={`${index + 1}번째 문단의 근거`}>
-            {paragraph.source_keys.map((key) => {
-              const source = answer.sources.find((item) => item.key === key);
-              return source ? (
-                <Link
-                  key={key}
-                  className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-                  href={`#source-${turnId}-${key}`}
-                  replace>
-                  {key} · {source.bill_name}
-                </Link>
-              ) : null;
-            })}
-          </div>
+    <li
+      id={sourceId(turnId, source.key)}
+      className="flex scroll-mt-32 gap-3.5 border-t border-border py-4 first:border-t-0">
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-full bg-foreground/[0.07] text-xs font-semibold tabular-nums text-foreground/80 dark:bg-white/10">
+        {sourceNumber(source.key)}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <Link
+          href={`/bill/${encodeURIComponent(source.bill_id)}`}
+          className="text-[16px] font-semibold leading-snug text-foreground underline-offset-4 [word-break:keep-all] hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          {billHeadline(source.bill_name)}
+        </Link>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          {status && (
+            <span className="rounded-lg border border-border px-2 py-[3px] font-semibold text-foreground/80">
+              {status}
+            </span>
+          )}
+          <span className="font-semibold">제{source.assembly}대</span>
+          <span>{proposalDateLabel(source.propose_date)}</span>
+          <a
+            href={`https://likms.assembly.go.kr/bill/billDetail.do?billId=${encodeURIComponent(source.bill_id)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded underline-offset-4 hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            국회 원문
+            <ExternalLink aria-hidden="true" className="size-3" />
+            <span className="sr-only">(새 창)</span>
+          </a>
         </div>
-      ))}
-      {answer.limitations.length > 0 && (
-        <ul className="flex list-disc flex-col gap-2 pl-5 text-sm text-muted-foreground">
-          {answer.limitations.map((text, index) => (
-            <li key={index}>{text}</li>
+        <details className="group mt-0.5">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+            근거가 된 원문
+            <ChevronDown aria-hidden="true" className="size-3.5 transition-transform group-open:rotate-180" />
+          </summary>
+          <blockquote className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl bg-muted px-4 py-3 text-sm leading-6 text-foreground/85">
+            {source.excerpt}
+          </blockquote>
+        </details>
+      </div>
+    </li>
+  );
+}
+
+type RagAnswerProps = {
+  answer: Answer;
+  turnId: string;
+  /** 검색 결과 위의 AI 답변처럼, 길면 접어 두고 근거 법안은 펼친 뒤에 보인다. */
+  collapsible?: boolean;
+};
+
+/** 근거 번호가 붙은 답변 문단과, 같은 번호의 근거 법안 목록 */
+export default function RagAnswer({ answer, turnId, collapsible = false }: RagAnswerProps) {
+  const body = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(!collapsible);
+  const clipped = !expanded;
+  const showSources = answer.sources.length > 0 && expanded;
+
+  // 접었을 때 높이를 넘는 답만 접는다. 짧은 답에 "더 보기"를 두지 않는다.
+  useLayoutEffect(() => {
+    if (expanded || !body.current) return;
+    const element = body.current;
+    if (element.scrollHeight <= element.clientHeight + 4) setExpanded(true);
+  }, [expanded, answer]);
+
+  const revealSource = (key: string) => {
+    setExpanded(true);
+    requestAnimationFrame(() =>
+      document.getElementById(sourceId(turnId, key))?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
+  };
+
+  let lead = '';
+  if (answer.status === 'insufficient_evidence')
+    lead = '확인한 법안에서 답할 근거를 찾지 못했습니다. 법안 이름이나 다른 표현으로 다시 물어보세요.';
+  if (answer.status === 'searched')
+    lead = answer.sources.length
+      ? `관련 법안 ${answer.sources.length}건을 찾았습니다.`
+      : '관련 법안을 찾지 못했습니다. 법안 이름이나 다른 표현으로 다시 물어보세요.';
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="relative">
+        <div
+          ref={body}
+          id={`answer-${turnId}`}
+          className={`ai-reveal flex flex-col gap-4 text-[16px] leading-[1.8] text-foreground ${clipped ? 'ai-answer-clip' : ''}`}>
+          {lead && <p>{lead}</p>}
+          {answer.paragraphs.map((paragraph, index) => (
+            <p key={index} className="whitespace-pre-wrap [word-break:keep-all]">
+              {paragraph.text}
+              {paragraph.source_keys.map((key) => {
+                const source = answer.sources.find((item) => item.key === key);
+                if (!source) return null;
+                return (
+                  <a
+                    key={key}
+                    href={`#${sourceId(turnId, key)}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      revealSource(key);
+                    }}
+                    title={billHeadline(source.bill_name)}
+                    className="relative -top-px ml-1 inline-flex size-[18px] items-center justify-center rounded-full bg-foreground/[0.07] align-middle text-[11px] font-semibold tabular-nums leading-none text-foreground/75 no-underline transition-colors hover:bg-foreground hover:text-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/10">
+                    {sourceNumber(key)}
+                    <span className="sr-only">번 근거, {billHeadline(source.bill_name)}</span>
+                  </a>
+                );
+              })}
+            </p>
           ))}
-        </ul>
-      )}
-      {answer.sources.length > 0 && (
-        <section
-          aria-label={answer.status === 'searched' ? '법안 검색 결과' : '답변의 근거 법안'}
-          className="flex flex-col gap-3">
-          <Marker variant="border">
-            <MarkerContent>
-              {answer.status === 'searched' ? '검색 결과' : '근거 법안'} {answer.sources.length}건
-            </MarkerContent>
-          </Marker>
-          {answer.sources.map((source) => (
-            <article
-              id={`source-${turnId}-${source.key}`}
-              key={source.key}
-              className="flex scroll-mt-6 flex-col gap-2 rounded-lg border p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{source.key}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {source.assembly}대 · {source.propose_date} 발의
-                </span>
-              </div>
-              <Link
-                className="font-medium underline-offset-4 hover:underline"
-                href={`/bill/${encodeURIComponent(source.bill_id)}`}>
-                {source.bill_name}
-              </Link>
-              <p className="text-xs text-muted-foreground">
-                수집된 처리 상태: {source.stage}
-                {source.result ? ` · ${source.result}` : ''}
-              </p>
-              <details className="text-sm">
-                <summary className="cursor-pointer text-muted-foreground">근거 원문 보기</summary>
-                <blockquote className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap border-l-2 pl-3 leading-6">
-                  {source.excerpt}
-                </blockquote>
-              </details>
-              <Button asChild size="sm" variant="ghost" className="self-start">
-                <a
-                  href={`https://likms.assembly.go.kr/bill/billDetail.do?billId=${encodeURIComponent(source.bill_id)}`}
-                  target="_blank"
-                  rel="noopener noreferrer">
-                  국회 원문 <ExternalLink data-icon="inline-end" />
-                  <span className="sr-only">새 창</span>
-                </a>
-              </Button>
-            </article>
-          ))}
+          {answer.limitations.length > 0 && (
+            <ul className="flex flex-col gap-1.5 text-sm leading-6 text-muted-foreground">
+              {answer.limitations.map((text, index) => (
+                <li key={index}>{text}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {clipped && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-expanded={false}
+            aria-controls={`answer-${turnId}`}
+            className="mt-1 inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-background px-4 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            더 보기
+            <ChevronDown aria-hidden="true" className="size-4" />
+          </button>
+        )}
+      </div>
+      {showSources && (
+        <section aria-labelledby={`sources-${turnId}`}>
+          <h3 id={`sources-${turnId}`} className="text-[13px] font-semibold text-muted-foreground">
+            {answer.status === 'searched' ? '찾은 법안' : '근거 법안'}
+          </h3>
+          <ol className="mt-1">
+            {answer.sources.map((source) => (
+              <SourceRow key={source.key} source={source} turnId={turnId} />
+            ))}
+          </ol>
         </section>
       )}
-      <Marker>
-        <MarkerContent>
-          수집 법안의 최신 발의일 {answer.metadata.data_as_of ?? '확인 중'}
-          {answer.metadata.lagging ? ' · 검색 자료 갱신이 지연되고 있습니다.' : ''}
-        </MarkerContent>
-      </Marker>
     </div>
   );
 }

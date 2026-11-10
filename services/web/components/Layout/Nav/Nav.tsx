@@ -2,13 +2,12 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback, useRef, CSSProperties, FormEvent } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Clock3, ArrowUp, Square, X } from 'lucide-react';
+import { Clock3, ArrowUp, X } from 'lucide-react';
 import { siteConfig } from '@/config/site';
 import useSearchEntry from '@/components/search/useSearchEntry';
 import useSearchSuggestions from '@/components/search/useSearchSuggestions';
 import useSearchRingState from '@/components/search/useSearchRingState';
 import { SEARCH_MAX_LENGTH } from '@/lib/search';
-import SearchModePicker, { searchInputLabel, searchActionLabel } from '@/components/search/SearchModePicker';
 
 const SHELL_PADDING_PX = 4;
 
@@ -25,7 +24,7 @@ function Nav() {
     isSearchOpenRef.current = isSearchOpen;
   }, [isSearchOpen]);
 
-  const { draft: searchValue, setDraft: setSearchValue, mode, ragPending, stop } = search;
+  const { draft: searchValue, setDraft: setSearchValue } = search;
   const [searchFocused, setSearchFocused] = useState(false);
   // 추천 말풍선은 포커스와 따로 연다. 말풍선을 누르는 순간 입력 포커스가 빠져도 클릭이 사라지지 않게 한다.
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -94,16 +93,15 @@ function Nav() {
 
   const submitSearch = useCallback(
     (keyword: string) => {
-      if (mode !== 'keyword' && !suggestions.ragAvailable) return;
       if (!search.submit(keyword)) {
         searchInputRef.current?.focus();
         return;
       }
-      if (mode === 'keyword') setSearchValue(keyword.trim());
+      setSearchValue(keyword.trim());
       setSuggestionsOpen(false);
       searchInputRef.current?.blur();
     },
-    [search, mode, setSearchValue, suggestions.ragAvailable],
+    [search, setSearchValue],
   );
 
   // 바깥을 누르면 추천을 닫고, 검색 결과 화면이 아니면 검색 바도 접는다.
@@ -256,13 +254,13 @@ function Nav() {
     router.push(navItems[targetIndex].href);
   }, [navItems, router, setNavIndex]);
 
-  const isSearchActive = pathname.startsWith('/search') || pathname.startsWith('/ask') || isSearchOpen;
+  const isSearchActive = pathname.startsWith('/search') || isSearchOpen;
 
   const recentBubbles = suggestions.recent.filter((keyword) => keyword !== routeKeyword).slice(0, 3);
   const trendingBubbles = suggestions.trending
     .filter(({ keyword }) => keyword !== routeKeyword && !recentBubbles.includes(keyword))
     .slice(0, 4);
-  const bubbleCount = mode === 'keyword' ? trendingBubbles.length + recentBubbles.length + 1 : 1;
+  const bubbleCount = trendingBubbles.length + recentBubbles.length;
   let bubbleIndex = 0;
   // 검색 바에 가까운 말풍선부터 떠오른다.
   const bubbleStyle = () =>
@@ -278,6 +276,9 @@ function Nav() {
     setNavIndex(lastTabIndex.current);
     router.push(soloItem.href);
   };
+
+  // 에이전트 채팅 화면은 하단에 채팅 바를 고정하므로 탭 바를 두지 않는다.
+  if (pathname === '/ask') return null;
 
   return (
     <>
@@ -350,36 +351,25 @@ function Nav() {
             aria-label="검색 추천"
             inert={!showSuggestions}
             className={`mobile-floating-nav-suggestions${showSuggestions && bubbleCount > 0 ? ' is-visible' : ''}`}>
-            {mode === 'keyword' &&
-              trendingBubbles.map(({ keyword }) => (
-                <li key={`trending-${keyword}`} style={bubbleStyle()}>
-                  <button
-                    type="button"
-                    className="mobile-floating-nav-suggestion"
-                    onClick={() => submitSearch(keyword)}>
-                    <span className="mobile-floating-nav-suggestion__mark" aria-hidden="true">
-                      #
-                    </span>
-                    <span className="truncate">{keyword}</span>
-                  </button>
-                </li>
-              ))}
-            {mode === 'keyword' &&
-              recentBubbles.map((keyword) => (
-                <li key={`recent-${keyword}`} style={bubbleStyle()}>
-                  <button
-                    type="button"
-                    className="mobile-floating-nav-suggestion"
-                    onClick={() => submitSearch(keyword)}>
-                    <Clock3 aria-hidden="true" className="size-3.5 shrink-0 opacity-60" />
-                    <span className="sr-only">최근 검색어 </span>
-                    <span className="truncate">{keyword}</span>
-                  </button>
-                </li>
-              ))}
-            <li style={bubbleStyle()} className="rounded-full border bg-background p-1">
-              <SearchModePicker available={suggestions.ragAvailable} pending={Boolean(pending)} />
-            </li>
+            {trendingBubbles.map(({ keyword }) => (
+              <li key={`trending-${keyword}`} style={bubbleStyle()}>
+                <button type="button" className="mobile-floating-nav-suggestion" onClick={() => submitSearch(keyword)}>
+                  <span className="mobile-floating-nav-suggestion__mark" aria-hidden="true">
+                    #
+                  </span>
+                  <span className="truncate">{keyword}</span>
+                </button>
+              </li>
+            ))}
+            {recentBubbles.map((keyword) => (
+              <li key={`recent-${keyword}`} style={bubbleStyle()}>
+                <button type="button" className="mobile-floating-nav-suggestion" onClick={() => submitSearch(keyword)}>
+                  <Clock3 aria-hidden="true" className="size-3.5 shrink-0 opacity-60" />
+                  <span className="sr-only">최근 검색어 </span>
+                  <span className="truncate">{keyword}</span>
+                </button>
+              </li>
+            ))}
           </ul>
 
           <div
@@ -408,7 +398,7 @@ function Nav() {
                 className="mobile-floating-nav-search-input"
                 type="search"
                 value={searchValue}
-                maxLength={mode === 'keyword' ? SEARCH_MAX_LENGTH : 1000}
+                maxLength={SEARCH_MAX_LENGTH}
                 onChange={(event) => setSearchValue(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter') return;
@@ -428,9 +418,9 @@ function Nav() {
                   suggestions.refreshRecent();
                 }}
                 onBlur={() => setSearchFocused(false)}
-                aria-label={searchInputLabel(mode)}
+                aria-label="법안·의안번호·의원·정당 검색어"
                 aria-busy={Boolean(pending)}
-                placeholder={searchInputLabel(mode)}
+                placeholder="법안·의원·정당 검색"
                 autoComplete="off"
                 enterKeyHint="search"
               />
@@ -447,21 +437,11 @@ function Nav() {
                 </button>
               )}
               <button
-                type={ragPending ? 'button' : 'submit'}
-                onClick={ragPending ? stop : undefined}
-                aria-label={searchActionLabel(mode, ragPending)}
-                disabled={
-                  !ragPending &&
-                  (Boolean(pending) ||
-                    !searchValue.trim() ||
-                    (mode !== 'keyword' && (!suggestions.ragAvailable || searchValue.trim().length < 2)))
-                }
+                type="submit"
+                aria-label="검색"
+                disabled={Boolean(pending) || !searchValue.trim()}
                 className="mobile-floating-nav-search-close">
-                {ragPending ? (
-                  <Square aria-hidden="true" className="size-4" />
-                ) : (
-                  <ArrowUp aria-hidden="true" className="size-4" />
-                )}
+                <ArrowUp aria-hidden="true" className="size-4" />
               </button>
             </form>
             <span role="status" className="sr-only">

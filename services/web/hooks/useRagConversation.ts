@@ -31,7 +31,8 @@ export function useRagStatus(assembly: Assembly = 22, enabled = true) {
   });
 }
 
-export function useRagConversation() {
+/** consume가 false면 다른 화면으로 보낼 제출(ragSubmissionState)을 이 화면에서 처리하지 않는다. */
+export function useRagConversation({ consume = true }: { consume?: boolean } = {}) {
   const [turns, setTurns] = useAtom(ragConversationState);
   const [draft, setDraft] = useAtom(ragDraftState);
   const [assembly, setAssembly] = useAtom(ragAssemblyState);
@@ -57,6 +58,9 @@ export function useRagConversation() {
 
   const ask = async (retry?: RagTurn, incoming?: RagSubmission) => {
     const question = (retry?.question ?? incoming?.question ?? draft).trim();
+    const fresh = Boolean(incoming?.fresh);
+    // 검색 결과 화면의 첫 턴은 진행 중이던 대화를 끊고 새로 시작한다.
+    if (fresh && active.current) stop();
     if (active.current || question.length < 2 || question.length > 1000 || (retry?.retryAt ?? 0) > Date.now()) return;
     const turn: RagTurn = {
       id: retry?.id ?? crypto.randomUUID(),
@@ -65,16 +69,18 @@ export function useRagConversation() {
       mode: retry?.mode ?? incoming?.mode ?? mode,
       steps: [],
       status: 'pending',
+      entry: retry?.entry ?? incoming?.entry,
     };
     const controller = new AbortController();
     const pendingRequest = { id: turn.id, controller };
     active.current = pendingRequest;
-    const prior = retry
-      ? turns.slice(
-          0,
-          turns.findIndex((item) => item.id === retry.id),
-        )
-      : turns;
+    let prior = turns;
+    if (fresh) prior = [];
+    else if (retry)
+      prior = turns.slice(
+        0,
+        turns.findIndex((item) => item.id === retry.id),
+      );
     const history = prior
       .filter((item) => item.status === 'answered' && ['answered', 'searched'].includes(item.answer?.status ?? ''))
       .slice(-4)
@@ -83,10 +89,12 @@ export function useRagConversation() {
         assembly: item.assembly,
         source_ids: item.answer!.sources.map((source) => source.bill_id),
       }));
-    setTurns((current) =>
-      retry ? current.map((item) => (item.id === turn.id ? turn : item)) : [...current.slice(-19), turn],
-    );
-    if (!retry) setDraft('');
+    setTurns((current) => {
+      if (fresh) return [turn];
+      if (retry) return current.map((item) => (item.id === turn.id ? turn : item));
+      return [...current.slice(-19), turn];
+    });
+    if (!retry && !incoming) setDraft('');
     try {
       const response = await fetch(`/api/qa/${turn.mode}`, {
         method: 'POST',
@@ -174,7 +182,7 @@ export function useRagConversation() {
     setDraft('');
   };
   useEffect(() => {
-    if (!submission || consumed.current === submission.id) return undefined;
+    if (!consume || !submission || consumed.current === submission.id) return undefined;
     let live = true;
     queueMicrotask(() => {
       if (!live || consumed.current === submission.id) return;

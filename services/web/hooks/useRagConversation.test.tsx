@@ -152,3 +152,27 @@ it('updates a running tool by ID and retains completed steps after answering', a
   expect(hook.result.current.turns[0].steps?.[0].status).toBe('complete');
   expect(hook.result.current.turns[0].status).toBe('answered');
 });
+
+it('starts a fresh conversation from a search keyword without earlier history', async () => {
+  const store = createStore();
+  const fetcher = vi.fn().mockResolvedValue(streamAnswer());
+  vi.stubGlobal('fetch', fetcher);
+  const hook = renderHook(useRagConversation, {
+    wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+  });
+  await act(async () => {
+    await hook.result.current.ask(undefined, { id: 'a', question: '이전 질문', mode: 'chat' });
+  });
+  await act(async () => {
+    await hook.result.current.ask(undefined, {
+      id: 'b',
+      question: '전세사기',
+      mode: 'chat',
+      fresh: true,
+      entry: '전세사기',
+    });
+  });
+  expect(hook.result.current.turns).toHaveLength(1);
+  expect(hook.result.current.turns[0]).toMatchObject({ question: '전세사기', entry: '전세사기' });
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).history).toEqual([]);
+});

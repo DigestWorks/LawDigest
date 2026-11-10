@@ -4,32 +4,26 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSetAtom } from 'jotai';
 import { searchEntryState } from '@/store';
-import { searchDraftState, searchModeState } from '@/store/SearchEntryState';
+import { searchDraftState } from '@/store/SearchEntryState';
 import { searchKeywordFromPath } from './useSearchEntry';
 
 /** 경로가 바뀔 때 검색 확장 상태를 맞추고, `/`·⌘K 단축키로 검색을 연다. */
 export default function SearchEntrySync() {
   const pathname = usePathname();
   const setState = useSetAtom(searchEntryState);
-  const setMode = useSetAtom(searchModeState);
   const setDraft = useSetAtom(searchDraftState);
 
   useEffect(() => {
     // 기다리던 검색어의 결과 경로에 도착했을 때만 검색 중 표시를 남긴다.
     // 뒤로 가기나 다른 링크로 벗어나면 결과가 도착하지 않으므로 지운다.
     const routeKeyword = searchKeywordFromPath(pathname);
-    if (routeKeyword) {
-      setMode('keyword');
-      setDraft(routeKeyword);
-    } else if (pathname === '/ask') {
-      setMode((mode) => (mode === 'keyword' ? 'chat' : mode));
-    }
+    if (routeKeyword) setDraft(routeKeyword);
     setState((current) => ({
       ...current,
       open: 'auto',
       pending: current.pending !== null && current.pending === routeKeyword ? current.pending : null,
     }));
-  }, [pathname, setState, setMode, setDraft]);
+  }, [pathname, setState, setDraft]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {

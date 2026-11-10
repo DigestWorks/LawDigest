@@ -13,6 +13,4 @@ const searchEntryState = atom<SearchEntryStateProps>({ open: 'auto', pending: nu
 
 export default searchEntryState;
 
-export type SearchMode = 'keyword' | 'search' | 'chat';
-export const searchModeState = atom<SearchMode>('keyword');
 export const searchDraftState = atom('');
