@@ -52,7 +52,11 @@ async function readBody(request: Request) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
 }
 
-export async function ragProxy(request: Request, fetcher: typeof fetch = fetch) {
+export async function ragProxy(
+  request: Request,
+  fetcher: typeof fetch = fetch,
+  mode: 'answers' | 'search' | 'chat' = 'answers',
+) {
   const config = configuration();
   if (!config) return request.method === 'GET' ? json(unavailableStatus) : failure();
   const headers: Record<string, string> = { Authorization: `Bearer ${config.token}` };
@@ -82,15 +86,17 @@ export async function ragProxy(request: Request, fetcher: typeof fetch = fetch) 
     headers['X-Rag-Client'] = createHmac('sha256', config.token)
       .update(`${day}:${client?.slice(0, 64) ?? 'shared'}`)
       .digest('hex');
-    path = '/v1/answers';
+    path = `/v1/${mode}`;
   } else return failure('QA_INVALID_REQUEST', 405);
+  let timeout = request.method === 'POST' ? 45000 : 12000;
+  if (mode === 'chat') timeout = 120000;
   try {
     const response = await fetcher(new URL(path, config.url), {
       method: request.method,
       headers,
       body,
       cache: 'no-store',
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(request.method === 'POST' ? 45000 : 12000)]),
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeout)]),
     });
     if (!response.ok) {
       if (request.method === 'GET') return json(unavailableStatus);
@@ -104,11 +110,23 @@ export async function ragProxy(request: Request, fetcher: typeof fetch = fetch) 
       }
       return failure();
     }
+    if (mode === 'chat' && request.method === 'POST') {
+      if (!response.body || !response.headers.get('content-type')?.startsWith('text/event-stream')) return failure();
+      return new Response(response.body, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-store, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      });
+    }
     const result = await response.json();
     if (request.method === 'GET') {
       return json(typeof result?.available === 'boolean' ? result : unavailableStatus);
     }
-    return isRagAnswer(result) ? json(result) : failure();
+    return isRagAnswer(result) && (mode === 'search' ? result.status === 'searched' : result.status !== 'searched')
+      ? json(result)
+      : failure();
   } catch {
     return request.method === 'GET' ? json(unavailableStatus) : failure();
   }

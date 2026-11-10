@@ -1,10 +1,12 @@
 import { atom } from 'jotai';
-import type { Assembly, RagAnswer } from '@/lib/rag';
+import type { Assembly, RagAnswer, RagMode, RagStep } from '@/lib/rag';
 
 export type RagTurn = {
   id: string;
   question: string;
   assembly: Assembly;
+  mode?: RagMode;
+  steps?: RagStep[];
   status: 'pending' | 'answered' | 'failed' | 'cancelled';
   answer?: RagAnswer;
   error?: string;
@@ -15,3 +17,4 @@ export type RagTurn = {
 export const ragConversationState = atom<RagTurn[]>([]);
 export const ragDraftState = atom('');
 export const ragAssemblyState = atom<Assembly>(22);
+export const ragModeState = atom<RagMode>('chat');

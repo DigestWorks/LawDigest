@@ -11,6 +11,13 @@ export default function RagAnswer({ answer, turnId }: { answer: Answer; turnId: 
   return (
     <div className="flex flex-col gap-5">
       {answer.status === 'insufficient_evidence' && <p>확인한 법안 자료에서 답변할 근거를 찾지 못했습니다.</p>}
+      {answer.status === 'searched' && (
+        <p>
+          {answer.sources.length
+            ? `관련 법안 ${answer.sources.length}건을 찾았습니다. 원문을 확인하거나 AI 채팅에서 이어서 질문하세요.`
+            : '관련 법안을 찾지 못했습니다. 법안명이나 다른 검색어를 입력해 주세요.'}
+        </p>
+      )}
       {answer.paragraphs.map((paragraph, index) => (
         <div key={index} className="flex flex-col gap-2">
           <p className="whitespace-pre-wrap leading-7">{paragraph.text}</p>
@@ -38,9 +45,13 @@ export default function RagAnswer({ answer, turnId }: { answer: Answer; turnId: 
         </ul>
       )}
       {answer.sources.length > 0 && (
-        <section aria-label="답변의 근거 법안" className="flex flex-col gap-3">
+        <section
+          aria-label={answer.status === 'searched' ? '법안 검색 결과' : '답변의 근거 법안'}
+          className="flex flex-col gap-3">
           <Marker variant="border">
-            <MarkerContent>근거 법안 {answer.sources.length}건</MarkerContent>
+            <MarkerContent>
+              {answer.status === 'searched' ? '검색 결과' : '근거 법안'} {answer.sources.length}건
+            </MarkerContent>
           </Marker>
           {answer.sources.map((source) => (
             <article

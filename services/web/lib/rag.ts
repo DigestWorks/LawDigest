@@ -21,7 +21,7 @@ export type RagSource = {
   official_url: string;
 };
 export type RagAnswer = {
-  status: 'answered' | 'insufficient_evidence';
+  status: 'answered' | 'insufficient_evidence' | 'searched';
   paragraphs: { text: string; source_keys: string[] }[];
   sources: RagSource[];
   limitations: string[];
@@ -29,6 +29,13 @@ export type RagAnswer = {
 };
 export type RagPrior = { question: string; source_ids: string[]; assembly: Assembly };
 export type RagRequest = { question: string; assembly: Assembly; history: RagPrior[] };
+export type RagMode = 'chat' | 'search';
+export type RagStep = {
+  id: string;
+  name: 'search' | 'read' | 'answer';
+  status: 'running' | 'complete';
+  summary: string;
+};
 export const unavailableStatus: RagStatus = {
   available: false,
   indexed_bills: 0,
@@ -69,9 +76,19 @@ export function isRagAnswer(value: unknown): value is RagAnswer {
   if (!value || typeof value !== 'object') return false;
   const answer = value as RagAnswer;
   if (
-    !['answered', 'insufficient_evidence'].includes(answer.status) ||
+    !['answered', 'insufficient_evidence', 'searched'].includes(answer.status) ||
     !answer.metadata ||
     typeof answer.metadata.available !== 'boolean' ||
+    typeof answer.metadata.lagging !== 'boolean' ||
+    !['indexed_bills', 'available_bills'].every(
+      (key) =>
+        Number.isSafeInteger(answer.metadata[key as keyof RagStatus]) &&
+        Number(answer.metadata[key as keyof RagStatus]) >= 0,
+    ) ||
+    !['data_as_of', 'index_as_of', 'index_latest_proposal'].every(
+      (key) =>
+        answer.metadata[key as keyof RagStatus] === null || typeof answer.metadata[key as keyof RagStatus] === 'string',
+    ) ||
     !Array.isArray(answer.sources) ||
     answer.sources.length > 8 ||
     !Array.isArray(answer.paragraphs) ||
@@ -86,16 +103,23 @@ export function isRagAnswer(value: unknown): value is RagAnswer {
       (source) =>
         source &&
         typeof source.key === 'string' &&
+        /^S[1-8]$/.test(source.key) &&
+        [21, 22].includes(source.assembly) &&
+        (source.result === null || typeof source.result === 'string') &&
         typeof source.bill_id === 'string' &&
         /^[A-Za-z0-9_-]{1,100}$/.test(source.bill_id) &&
         ['bill_name', 'propose_date', 'stage', 'excerpt'].every(
-          (key) => typeof source[key as keyof RagSource] === 'string',
+          (key) =>
+            typeof source[key as keyof RagSource] === 'string' &&
+            String(source[key as keyof RagSource]).length <= 12000,
         ),
     )
   )
     return false;
   const keys = new Set(answer.sources.map((source) => source.key));
   return (
+    keys.size === answer.sources.length &&
+    new Set(answer.sources.map((source) => source.bill_id)).size === answer.sources.length &&
     answer.paragraphs.every(
       (p) =>
         p &&
@@ -108,6 +132,20 @@ export function isRagAnswer(value: unknown): value is RagAnswer {
     ) &&
     (answer.status === 'answered'
       ? answer.paragraphs.length > 0 && answer.sources.length > 0
-      : answer.paragraphs.length === 0)
+      : answer.paragraphs.length === 0 && (answer.status === 'searched' || answer.sources.length === 0))
+  );
+}
+
+export function isRagStep(value: unknown): value is RagStep {
+  if (!value || typeof value !== 'object') return false;
+  const step = value as RagStep;
+  return (
+    typeof step.id === 'string' &&
+    /^[1-5]$/.test(step.id) &&
+    ['search', 'read', 'answer'].includes(step.name) &&
+    ['running', 'complete'].includes(step.status) &&
+    typeof step.summary === 'string' &&
+    step.summary.length > 0 &&
+    step.summary.length <= 500
   );
 }

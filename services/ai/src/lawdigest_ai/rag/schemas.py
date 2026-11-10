@@ -71,11 +71,24 @@ class GeneratedAnswer(StrictModel):
 
 
 class AnswerResponse(StrictModel):
-    status: Literal["answered", "insufficient_evidence"]
+    status: Literal["answered", "insufficient_evidence", "searched"]
     paragraphs: list[AnswerParagraph]
     sources: list[Source]
     limitations: list[str]
     metadata: IndexStatus
+
+
+class AgentDecision(StrictModel):
+    action: Literal["search", "read", "answer"]
+    query: str = Field(max_length=1000)
+    bill_ids: list[str] = Field(max_length=3)
+
+
+class AgentStep(StrictModel):
+    id: str
+    name: Literal["search", "read", "answer"]
+    status: Literal["running", "complete"]
+    summary: str
 
 
 class ErrorResponse(StrictModel):

@@ -219,23 +219,37 @@ class LawdigestionChatbot:
                 break
         return sources, stale
 
-    def _call_llm(self, request, sources):
+    def _call_llm(self, request, sources, generator=None):
         context = {
             "question": request.question,
             "previous_questions": [turn.question for turn in request.history[-3:]],
             "evidence": [source.model_dump(mode="json") for source in sources],
         }
-        return GeneratedAnswer.model_validate(self.generator(SYSTEM_PROMPT, context))
+        return GeneratedAnswer.model_validate(
+            (generator or self.generator)(SYSTEM_PROMPT, context)
+        )
 
-    def answer(self, request):
-        if isinstance(request, str):
-            request = QuestionRequest(question=request)
+    def search(self, request):
         metadata = self.status(request.assembly)
         if not metadata.available:
             raise RagUnavailable("질의응답 자료를 준비하고 있습니다.")
         sources, stale = self._retrieve(request)
-        if stale:
-            metadata.lagging = True
+        metadata.lagging = metadata.lagging or stale
+        return AnswerResponse(
+            status="searched",
+            paragraphs=[],
+            sources=sources,
+            limitations=[],
+            metadata=metadata,
+        )
+
+    def answer(self, request):
+        if isinstance(request, str):
+            request = QuestionRequest(question=request)
+        result = self.search(request)
+        return self.answer_from_sources(request, result.sources, result.metadata)
+
+    def answer_from_sources(self, request, sources, metadata, generator=None):
         if not sources:
             return AnswerResponse(
                 status="insufficient_evidence",
@@ -246,7 +260,7 @@ class LawdigestionChatbot:
                 ],
                 metadata=metadata,
             )
-        generated = self._call_llm(request, sources)
+        generated = self._call_llm(request, sources, generator)
         if not generated.answerable:
             return AnswerResponse(
                 status="insufficient_evidence",

@@ -23,6 +23,18 @@ Python 3.12 이상의 전용 HTTP 환경은 `requirements-rag.txt`, 패키지 �
 PYTHONPATH=services/ai/src:services/ai pytest services/ai/tests/rag -q
 ```
 
+## RAG 검색과 에이전틱 채팅
+
+웹 `/ask`에서 **법안 검색**과 **AI 채팅**을 선택한다. 검색은 검증된 원문을 바로 반환한다. 채팅은 초기 검색 후 모델이 검색어 변경·원문 추가 조회·답변 중 다음 행동을 선택한다. 추가 도구는 최대 3회, 근거는 최대 8건이며 최종 답변의 출처 ID를 검증한다.
+
+- `POST /v1/search` ↔ `/api/qa/search`: 기존 질문 계약으로 검색 결과를 반환한다. 생성 모델을 호출하지 않는다.
+- `POST /v1/chat` ↔ `/api/qa/chat`: SSE `step` 이벤트로 실행 상태를 갱신하고 `answer` 이벤트로 검증 완료 답변을 전달한다. 실패는 `error` 이벤트이며 불완전한 답변을 표시하지 않는다.
+- `POST /v1/answers`와 `/api/qa`: 기존 단일 검색 질의응답을 유지한다.
+
+`rag/agent.py`는 Expresso의 `platform/agent/runtime.ts`, `modules/agent-chat/service.ts`, `routes.ts`에서 런타임과 도구 경계, 동일 ID 상태 갱신, 취소 전파 구조를 가져와 Python 서비스에 적용했다. 모델 연결은 기존 Codex 생성기를 사용한다. 셸·파일 도구를 모델에 제공하지 않으며 원문 조회는 현재 요청에서 확보한 법안으로 제한한다. Expresso 저장소는 변경하지 않는다.
+
+모델 호출별 25초, 요청 전체 시간 예산 110초, 웹 프록시 120초를 사용한다. 중지·연결 종료는 모델 프로세스까지 전파된다. 이미 실행 중인 DB/벡터 조회는 해당 클라이언트의 타임아웃 안에 끝나며, 종료 전까지 동시 요청 슬롯을 유지한다. 대화는 브라우저 메모리에만 보존한다. Python API와 웹을 함께 배포해야 신규 경로가 동작한다. 운영 배포 절차는 위 RAG 운영 문서를 따른다.
+
 ## 에이전트 기반 법안 리포트
 
 자세한 운영 문서는 아래를 기준으로 본다.

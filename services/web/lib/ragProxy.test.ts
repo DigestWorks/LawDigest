@@ -19,6 +19,31 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('public question proxy', () => {
+  it.each(['search', 'chat'] as const)('applies origin and body validation to %s', async (mode) => {
+    const fetcher = vi.fn();
+    expect((await ragProxy(request(question, 'https://other.example'), fetcher, mode)).status).toBe(403);
+    expect((await ragProxy(request({ ...question, question: ' ' }), fetcher, mode)).status).toBe(400);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('forwards streaming state and cancellation through the private chat path', async () => {
+    const body = 'data: {"type":"step"}\n\n';
+    const fetcher = vi.fn().mockResolvedValue(new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }));
+    const controller = new AbortController();
+    const incoming = request();
+    Object.defineProperty(incoming, 'signal', { value: controller.signal });
+    const result = await ragProxy(incoming, fetcher, 'chat');
+    expect(String(fetcher.mock.calls[0][0])).toBe('http://127.0.0.1:8110/v1/chat');
+    expect(result.headers.get('x-accel-buffering')).toBe('no');
+    expect(await result.text()).toBe(body);
+    controller.abort();
+    expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
+  });
+  it('requires an actual stream for a chat response', async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ private: 'upstream' }));
+    const response = await ragProxy(request(), fetcher, 'chat');
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain('upstream');
+  });
   it('does not expose an unconfigured feature or call an upstream', async () => {
     vi.stubEnv('RAG_ENABLED', 'false');
     const fetcher = vi.fn();

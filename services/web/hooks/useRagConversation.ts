@@ -4,7 +4,14 @@ import { useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 import { isRagAnswer, unavailableStatus, type Assembly, type RagStatus } from '@/lib/rag';
-import { ragAssemblyState, ragConversationState, ragDraftState, type RagTurn } from '@/store/RagConversationState';
+import { readRagStream } from '@/lib/ragStream';
+import {
+  ragAssemblyState,
+  ragConversationState,
+  ragDraftState,
+  ragModeState,
+  type RagTurn,
+} from '@/store/RagConversationState';
 
 export function useRagStatus(assembly: Assembly = 22, enabled = true) {
   return useQuery({
@@ -25,6 +32,7 @@ export function useRagConversation() {
   const [turns, setTurns] = useAtom(ragConversationState);
   const [draft, setDraft] = useAtom(ragDraftState);
   const [assembly, setAssembly] = useAtom(ragAssemblyState);
+  const [mode, setMode] = useAtom(ragModeState);
   const active = useRef<{ id: string; controller: AbortController } | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
@@ -47,6 +55,8 @@ export function useRagConversation() {
       id: retry?.id ?? crypto.randomUUID(),
       question,
       assembly: retry?.assembly ?? assembly,
+      mode: retry?.mode ?? mode,
+      steps: [],
       status: 'pending',
     };
     const controller = new AbortController();
@@ -59,7 +69,7 @@ export function useRagConversation() {
         )
       : turns;
     const history = prior
-      .filter((item) => item.status === 'answered' && item.answer?.status === 'answered')
+      .filter((item) => item.status === 'answered' && ['answered', 'searched'].includes(item.answer?.status ?? ''))
       .slice(-4)
       .map((item) => ({
         question: item.question,
@@ -71,14 +81,14 @@ export function useRagConversation() {
     );
     if (!retry) setDraft('');
     try {
-      const response = await fetch('/api/qa', {
+      const response = await fetch(`/api/qa/${turn.mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, assembly: turn.assembly, history }),
         signal: controller.signal,
       });
-      const result = await response.json();
       if (!response.ok) {
+        const result = await response.json();
         const wait =
           response.status === 429 ? Math.min(86400, Math.max(1, Number(response.headers.get('retry-after')) || 60)) : 0;
         if (mounted.current && active.current === pendingRequest && !controller.signal.aborted)
@@ -96,7 +106,24 @@ export function useRagConversation() {
           );
         return;
       }
-      if (!isRagAnswer(result)) throw new Error('invalid answer');
+      const result =
+        turn.mode === 'search'
+          ? await response.json()
+          : await readRagStream(response, (step) => {
+              if (!mounted.current || active.current !== pendingRequest || controller.signal.aborted) return;
+              setTurns((current) =>
+                current.map((item) => {
+                  if (item.id !== turn.id) return item;
+                  const steps = [...(item.steps ?? [])];
+                  const index = steps.findIndex((entry) => entry.id === step.id);
+                  if (index < 0) steps.push(step);
+                  else steps[index] = step;
+                  return { ...item, steps };
+                }),
+              );
+            });
+      if (!isRagAnswer(result) || (turn.mode === 'search' && result.status !== 'searched'))
+        throw new Error('invalid answer');
       if (mounted.current && active.current === pendingRequest && !controller.signal.aborted)
         setTurns((current) =>
           current.map((item) =>
@@ -144,6 +171,8 @@ export function useRagConversation() {
     setDraft,
     assembly,
     setAssembly,
+    mode,
+    setMode,
     ask,
     stop,
     reset,

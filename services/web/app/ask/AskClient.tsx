@@ -23,6 +23,7 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import RagAnswer from '@/components/qa/RagAnswer';
 
 function Retry({ turn, retry, disabled }: { turn: RagTurn; retry: () => void; disabled: boolean }) {
@@ -50,8 +51,14 @@ function Retry({ turn, retry, disabled }: { turn: RagTurn; retry: () => void; di
   );
 }
 
+function stepLabel(complete: boolean, pending: boolean) {
+  if (complete) return '완료';
+  return pending ? '진행 중' : '중단';
+}
+
 export default function AskClient() {
-  const { turns, draft, setDraft, assembly, setAssembly, ask, stop, reset, pending } = useRagConversation();
+  const { turns, draft, setDraft, assembly, setAssembly, mode, setMode, ask, stop, reset, pending } =
+    useRagConversation();
   const status = useRagStatus(assembly);
   const composing = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -61,17 +68,23 @@ export default function AskClient() {
     if (!composing.current && available) void ask();
   };
   let announcement = turns.length ? '질문 처리가 끝났습니다. 대화에서 답변과 근거를 확인하세요.' : '';
-  if (pending) announcement = '법안 원문을 확인하고 답변을 준비하고 있습니다.';
-  let emptyTitle = available ? '궁금한 법안 내용을 물어보세요' : '질의응답을 잠시 사용할 수 없습니다';
+  if (pending)
+    announcement =
+      turns.find((turn) => turn.status === 'pending')?.steps?.at(-1)?.summary ?? '법안 원문을 확인하고 있습니다.';
+  let emptyTitle = '질의응답을 잠시 사용할 수 없습니다';
+  if (available)
+    emptyTitle = mode === 'search' ? '관심 있는 주제로 법안을 찾아보세요' : '궁금한 법안 내용을 물어보세요';
   if (status.isPending) emptyTitle = '질문할 자료를 확인하고 있습니다';
   return (
     <div className="mx-auto flex h-[calc(100dvh-64px)] min-h-[480px] max-w-[880px] flex-col gap-4 px-5 pb-28 pt-5 text-foreground md:h-[calc(100dvh-98px)] md:pb-6">
       <header className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-[26px] font-semibold">법안에 질문하기</h1>
+            <h1 className="text-[26px] font-semibold">법안 검색과 질문</h1>
             <p className="text-sm text-muted-foreground">
-              AI가 국회 법안 원문을 찾아 설명합니다. 답변 아래 근거를 확인하세요.
+              {mode === 'search'
+                ? '관심 주제와 관련된 법안을 원문에서 찾습니다.'
+                : 'AI가 필요한 법안을 검색하고 원문을 확인해 답합니다.'}
             </p>
           </div>
           {turns.length > 0 && (
@@ -86,6 +99,19 @@ export default function AskClient() {
             </Button>
           )}
         </div>
+        <ToggleGroup
+          type="single"
+          variant="pill"
+          size="sm"
+          value={mode}
+          disabled={pending}
+          aria-label="법안 검색 또는 채팅 선택"
+          onValueChange={(value) => {
+            if (value === 'chat' || value === 'search') setMode(value);
+          }}>
+          <ToggleGroupItem value="search">법안 검색</ToggleGroupItem>
+          <ToggleGroupItem value="chat">AI 채팅</ToggleGroupItem>
+        </ToggleGroup>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ToggleGroup
             type="single"
@@ -160,7 +186,10 @@ export default function AskClient() {
                 <MessageScrollerItem key={`${turn.id}-question`} messageId={`${turn.id}-question`} scrollAnchor>
                   <Message align="end">
                     <MessageContent>
-                      <MessageHeader>내 질문 · {turn.assembly ? `${turn.assembly}대` : '전체 대수'}</MessageHeader>
+                      <MessageHeader>
+                        {turn.mode === 'search' ? '내 검색' : '내 질문'} ·{' '}
+                        {turn.assembly ? `${turn.assembly}대` : '전체 대수'}
+                      </MessageHeader>
                       <Bubble align="end">
                         <BubbleContent className="whitespace-pre-wrap">{turn.question}</BubbleContent>
                       </Bubble>
@@ -173,6 +202,18 @@ export default function AskClient() {
                       <MessageHeader>모두의입법 AI</MessageHeader>
                       <Bubble variant="ghost">
                         <BubbleContent>
+                          {!!turn.steps?.length && (
+                            <ul className="mb-4 flex flex-col gap-2" aria-label="법안 확인 과정">
+                              {turn.steps.map((step) => (
+                                <li key={step.id} className="flex items-start gap-2 text-sm">
+                                  <Badge variant="outline">
+                                    {stepLabel(step.status === 'complete', turn.status === 'pending')}
+                                  </Badge>
+                                  <span>{step.summary}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                           {turn.status === 'pending' && (
                             <div className="flex flex-col gap-3" aria-busy="true">
                               <Marker>
@@ -263,7 +304,7 @@ export default function AskClient() {
                 ) : (
                   <Button type="submit" size="sm" disabled={!available || draft.trim().length < 2 || invalid}>
                     <Send data-icon="inline-start" />
-                    질문하기
+                    {mode === 'search' ? '검색하기' : '질문하기'}
                   </Button>
                 )}
               </InputGroupAddon>

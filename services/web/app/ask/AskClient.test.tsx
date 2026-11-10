@@ -29,13 +29,19 @@ afterEach(() => vi.unstubAllGlobals());
 
 it('does not submit Enter during Korean IME composition and submits once after composition ends', async () => {
   const fetcher = vi.fn().mockResolvedValue(
-    Response.json({
-      status: 'insufficient_evidence',
-      paragraphs: [],
-      sources: [],
-      limitations: ['해당 자료가 없습니다.'],
-      metadata: unavailableStatus,
-    }),
+    new Response(
+      `data: ${JSON.stringify({
+        type: 'answer',
+        answer: {
+          status: 'insufficient_evidence',
+          paragraphs: [],
+          sources: [],
+          limitations: ['해당 자료가 없습니다.'],
+          metadata: unavailableStatus,
+        },
+      })}\n\n`,
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    ),
   );
   vi.stubGlobal('fetch', fetcher);
   render(
