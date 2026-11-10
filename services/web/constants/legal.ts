@@ -24,8 +24,6 @@ export const LEGAL_OPERATOR = {
   service: '모두의입법',
   domain: 'lawdigest.kr',
   privacyOfficer: { name: '박민재', position: '운영자', email: 'parkmj9260@gmail.com' },
-  effectiveDate: '2026년 11월 8일',
-  effectiveDateTime: '2026-11-08',
 } as const;
 
 export type LegalInline = string | { text: string; href: string };
@@ -38,7 +36,17 @@ export type LegalBlock =
 
 export type LegalSection = { id: string; title: string; blocks: LegalBlock[] };
 
-export type LegalDocumentData = {
+export type LegalKind = 'terms' | 'privacy';
+
+/** 시행일. effectiveDateTime(YYYY-MM-DD)은 이전 버전 주소(`/terms/2026-11-08`)에도 쓴다. */
+export type LegalEffectiveDate = { effectiveDate: string; effectiveDateTime: string };
+
+export type LegalRevision = LegalEffectiveDate & { summary: string };
+
+export type LegalDocumentData = LegalEffectiveDate & {
+  kind: LegalKind;
+  /** 최신순 개정 이력. 첫 항목은 이 문서 자신의 시행일이다. */
+  history: LegalRevision[];
   title: string;
   description: string;
   path: string;
@@ -47,10 +55,14 @@ export type LegalDocumentData = {
   closing: string;
 };
 
-const { name: OPERATOR, service: SERVICE, privacyOfficer: OFFICER, effectiveDate } = LEGAL_OPERATOR;
+const { name: OPERATOR, service: SERVICE, privacyOfficer: OFFICER } = LEGAL_OPERATOR;
+const FIRST_EDITION: LegalEffectiveDate = { effectiveDate: '2026년 11월 8일', effectiveDateTime: '2026-11-08' };
 const officerMail = { text: OFFICER.email, href: `mailto:${OFFICER.email}` };
 
 export const TERMS_DOCUMENT: LegalDocumentData = {
+  kind: 'terms',
+  ...FIRST_EDITION,
+  history: [{ ...FIRST_EDITION, summary: '이용약관 제정' }],
   title: '이용약관',
   description: `${SERVICE} 서비스의 이용 조건과 절차, 운영자와 이용자의 권리·의무를 안내합니다.`,
   path: '/terms',
@@ -264,10 +276,13 @@ export const TERMS_DOCUMENT: LegalDocumentData = {
       ],
     },
   ],
-  closing: `이 약관은 ${effectiveDate}부터 시행합니다.`,
+  closing: `이 약관은 ${FIRST_EDITION.effectiveDate}부터 시행합니다.`,
 };
 
 export const PRIVACY_DOCUMENT: LegalDocumentData = {
+  kind: 'privacy',
+  ...FIRST_EDITION,
+  history: [{ ...FIRST_EDITION, summary: '개인정보 처리방침 제정' }],
   title: '개인정보 처리방침',
   description: `${SERVICE}가 처리하는 개인정보의 항목, 목적, 보유 기간과 이용자의 권리 행사 방법을 안내합니다.`,
   path: '/privacy',
@@ -536,5 +551,5 @@ export const PRIVACY_DOCUMENT: LegalDocumentData = {
       ],
     },
   ],
-  closing: `이 개인정보 처리방침은 ${effectiveDate}부터 적용합니다.`,
+  closing: `이 개인정보 처리방침은 ${FIRST_EDITION.effectiveDate}부터 적용합니다.`,
 };

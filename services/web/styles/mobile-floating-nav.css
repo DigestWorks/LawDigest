@@ -9,7 +9,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--mobile-nav-bottom);
+  bottom: calc(var(--mobile-nav-bottom) + var(--mobile-keyboard-offset, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,7 +17,14 @@
   padding: 0 1rem;
   z-index: 40;
   pointer-events: none;
+  transition: bottom 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   --mobile-nav-group-gap: 0.625rem;
+  --mobile-nav-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mobile-nav-bubble: rgba(255, 255, 255, 0.9);
+  --mobile-nav-bubble-border: rgba(0, 0, 0, 0.08);
+  --mobile-nav-bubble-text: #262626;
+  --mobile-nav-field: rgba(250, 250, 250, 0.94);
+  --mobile-nav-field-muted: #6b6b6b;
   --mobile-nav-shell: rgba(255, 255, 255, 0.92);
   --mobile-nav-shell-opaque: #fafafa;
   --mobile-nav-shell-border: rgba(0, 0, 0, 0.10);
@@ -55,6 +62,11 @@
   --mobile-nav-search: #1e1e1e;
   --mobile-nav-search-active: #34383e;
   --mobile-nav-focus: #8bc5ff;
+  --mobile-nav-bubble: rgba(30, 30, 30, 0.9);
+  --mobile-nav-bubble-border: #3a3a3a;
+  --mobile-nav-bubble-text: #ebebeb;
+  --mobile-nav-field: rgba(30, 30, 30, 0.94);
+  --mobile-nav-field-muted: #a3a3a3;
 }
 
 .mobile-floating-nav-wrapper > * {
@@ -312,6 +324,255 @@
   z-index: 1;
 }
 
+/* ── 검색 펼침: 탭 바는 현재 탭 아이콘 원으로 줄어든다 ── */
+.mobile-floating-nav.is-search-open {
+  width: var(--mobile-nav-size);
+  height: var(--mobile-nav-size);
+  cursor: default;
+}
+
+.mobile-floating-nav.is-search-open .mobile-floating-nav__indicator,
+.mobile-floating-nav.is-search-open .mobile-floating-nav__active-overlay,
+.mobile-floating-nav.is-search-open .mobile-floating-nav__item {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.mobile-floating-nav__solo-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  color: var(--mobile-nav-selected);
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  z-index: 5;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    opacity 0.2s ease,
+    transform 0.32s var(--mobile-nav-ease);
+}
+
+.mobile-floating-nav.is-search-open .mobile-floating-nav__solo-icon {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+  transition-delay: 0.1s;
+}
+
+.mobile-floating-nav__solo-icon:focus-visible {
+  outline: 2px solid var(--mobile-nav-focus);
+  outline-offset: -2px;
+}
+
+/* ── 검색 펼침: 무지개 버튼이 탭 바 자리까지 자란다 ── */
+.mobile-floating-nav-search-wrap.is-expanded {
+  width: min(
+    var(--mobile-nav-full-width),
+    calc(100vw - 2rem - var(--mobile-nav-size) - var(--mobile-nav-group-gap))
+  );
+  height: var(--mobile-nav-size);
+}
+
+
+.mobile-floating-nav-search-expanded-inner {
+  position: absolute;
+  inset: var(--mobile-nav-search-padding);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.625rem 0 1rem;
+  border-radius: 999px;
+  background: var(--mobile-nav-field);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.18s ease;
+}
+
+.mobile-floating-nav-search-wrap.is-expanded .mobile-floating-nav-search-expanded-inner {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0.12s;
+}
+
+.mobile-floating-nav-search-expanded-icon {
+  flex-shrink: 0;
+  color: var(--mobile-nav-field-muted);
+}
+
+.mobile-floating-nav-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--mobile-nav-bubble-text);
+  /* iOS Safari는 16px 미만이면 확대한다 */
+  font-size: 1rem;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mobile-floating-nav-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.mobile-floating-nav-search-input::placeholder {
+  color: var(--mobile-nav-field-muted);
+}
+
+.mobile-floating-nav-search-close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(127, 127, 127, 0.14);
+  color: var(--mobile-nav-field-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-floating-nav-search-close:focus-visible,
+.mobile-floating-nav-suggestion:focus-visible {
+  outline: 2px solid var(--mobile-nav-focus);
+  outline-offset: 2px;
+}
+
+.mobile-floating-nav-search-wrap.is-expanded .mobile-floating-nav-search-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── 추천 말풍선: 검색 바 위로 쌓인다 ── */
+.mobile-floating-nav-suggestions {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.625rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+  width: calc(100vw - 2rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.mobile-floating-nav-suggestions > li {
+  max-width: 100%;
+  opacity: 0;
+  transform: translateY(10px) scale(0.96);
+  transform-origin: bottom right;
+  transition:
+    opacity 0.16s ease,
+    transform 0.2s var(--mobile-nav-ease);
+}
+
+.mobile-floating-nav-suggestions.is-visible {
+  pointer-events: auto;
+}
+
+.mobile-floating-nav-suggestions.is-visible > li {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.26s ease,
+    transform 0.34s var(--mobile-nav-ease);
+  transition-delay: calc(0.14s + var(--suggestion-delay, 0s));
+}
+
+.mobile-floating-nav-suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid var(--mobile-nav-bubble-border);
+  border-radius: 999px;
+  background: var(--mobile-nav-bubble);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  color: var(--mobile-nav-bubble-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s ease;
+}
+
+.mobile-floating-nav-suggestion:active {
+  transform: scale(0.97);
+}
+
+.mobile-floating-nav-suggestion.is-primary {
+  color: var(--mobile-nav-selected);
+}
+
+.mobile-floating-nav-suggestion__mark {
+  color: #0088ff;
+  font-weight: 700;
+}
+
+/* 말풍선 뒤 본문을 옅게 가려 읽기 쉽게 한다. 누르는 동작은 막지 않는다. */
+.mobile-floating-nav-scrim {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: 60dvh;
+  z-index: 39;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(to top, hsl(var(--background) / 0.92) 35%, hsl(var(--background) / 0));
+  transition: opacity 0.24s ease;
+}
+
+.mobile-floating-nav-scrim.is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-floating-nav,
+  .mobile-floating-nav-search-wrap,
+  .mobile-floating-nav-wrapper {
+    transition-duration: 0.01s;
+  }
+
+
+  .mobile-floating-nav__solo-icon,
+  .mobile-floating-nav-suggestions > li,
+  .mobile-floating-nav-suggestions.is-visible > li {
+    transform: none;
+    transition: opacity 0.12s ease;
+    transition-delay: 0s;
+  }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .mobile-floating-nav {
     background: var(--mobile-nav-shell-opaque);
@@ -329,7 +590,8 @@
 }
 
 @media (min-width: 48rem) {
-  .mobile-floating-nav-wrapper {
+  .mobile-floating-nav-wrapper,
+  .mobile-floating-nav-scrim {
     display: none;
   }
 }

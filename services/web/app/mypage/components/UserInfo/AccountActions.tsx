@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import WithdrawModal from '@/components/common/Modal/WithdrawModal';
 import { useGetBillBookmarkedCount, useGetFollowingCongressman, useGetFollowingParty } from '../../apis';
@@ -34,6 +35,16 @@ export default function AccountActions() {
           }
         />
       </div>
+      <nav aria-label="약관과 정책" className="flex flex-wrap gap-x-5 text-sm text-muted-foreground">
+        <Link href="/terms" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+          이용약관
+        </Link>
+        <Link
+          href="/privacy"
+          className="inline-flex min-h-11 items-center font-semibold text-foreground underline-offset-4 hover:underline">
+          개인정보 처리방침
+        </Link>
+      </nav>
     </section>
   );
 }
