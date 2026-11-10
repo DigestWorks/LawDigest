@@ -30,6 +30,8 @@ date: 2026-11-10
 | `services/web/app/search/[id]/SearchResultClient.tsx` | 전체 탭 맨 위에 AI 답변 |
 | `services/web/app/ask/AskClient.tsx` | 재작성 |
 | `services/web/styles/globals.css` | `ChatBar` 링, 근거 번호, 접힘 그라디언트 |
+| `services/web/components/common/Button/GoToTopButton.tsx` | `/ask`에서 숨김(하단 채팅 바의 보내기 단추를 가림) |
+| `services/web/app/ask/layout.tsx` | 화면 제목을 "법안 AI 채팅"으로 |
 | 테스트: `AskClient.test.tsx`, `useSearchEntry.test.tsx`, `useRagConversation.test.tsx` | 새 동작에 맞춤 |
 
 ## 작업 순서

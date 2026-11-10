@@ -105,7 +105,10 @@ export default function AskClient() {
             key={turn.id}
             id={`turn-${turn.id}`}
             aria-labelledby={`question-${turn.id}`}
-            className={`scroll-mt-20 md:scroll-mt-28 ${index > 0 ? 'mt-12 border-t border-border pt-10' : ''}`}>
+            className={`scroll-mt-20 md:scroll-mt-28 ${index > 0 ? 'mt-12 border-t border-border pt-10' : ''} ${
+              // 마지막 질문이 화면 위쪽까지 올라갈 수 있게 남은 높이를 채운다.
+              index === turns.length - 1 && index > 0 ? 'min-h-[calc(100dvh-300px)]' : ''
+            }`}>
             <h2
               id={`question-${turn.id}`}
               className="whitespace-pre-wrap text-[22px] font-bold leading-[1.35] [word-break:keep-all] md:text-[26px]">

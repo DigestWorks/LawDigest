@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { IconArrowUp } from '@/public/svgs';
 import { Button } from '@/components/ui/button';
 
 export default function GoToTopButton() {
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
 
   const handleScroll = useCallback(() => {
@@ -28,6 +30,9 @@ export default function GoToTopButton() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  // 에이전트 채팅 화면은 하단 채팅 바가 그 자리를 쓴다.
+  if (pathname === '/ask') return null;
 
   return (
     <Button
