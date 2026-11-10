@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   CSSProperties,
   FormEvent,
@@ -13,12 +12,13 @@ import {
   useState,
 } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Clock3, MessageCircle, Search, X } from 'lucide-react';
+import { Clock3, MessageCircle, Search, Sparkles, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import useSearchEntry from '@/components/search/useSearchEntry';
 import useSearchSuggestions from '@/components/search/useSearchSuggestions';
 import useSearchRingState from '@/components/search/useSearchRingState';
 import { SEARCH_MAX_LENGTH } from '@/lib/search';
+import SearchModePicker, { searchInputLabel, searchActionLabel } from '@/components/search/SearchModePicker';
 
 function isVisible(element: HTMLElement | null) {
   return Boolean(element && element.getClientRects().length > 0);
@@ -90,8 +90,20 @@ function placeForm(form: HTMLFormElement, box: Box, opacity: number) {
 /** 헤더 가운데에서 펼쳐지는 검색창과 그 아래 추천 패널(데스크톱).
  * 활성 탭의 무지개 인디케이터 자리에서 늘어나 검색창이 되고, 닫으면 그 자리로 줄어든다. */
 export function HeaderSearchField() {
-  const { expanded, isSearchRoute, routeKeyword, pending, focusToken, closeEntry, submit } = useSearchEntry();
-  const [value, setValue] = useState(routeKeyword);
+  const {
+    expanded,
+    isSearchRoute,
+    routeKeyword,
+    pending,
+    focusToken,
+    closeEntry,
+    submit,
+    mode,
+    draft: value,
+    setDraft: setValue,
+    ragPending,
+    stop,
+  } = useSearchEntry();
   const [focused, setFocused] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [geometry, setGeometry] = useState<{ origin: Box; final: Box } | null>(null);
@@ -101,6 +113,7 @@ export function HeaderSearchField() {
   const shownExpanded = useRef<boolean | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const seenFocusToken = useRef(focusToken);
+  const composing = useRef(false);
   const panelId = useId();
   const suggestions = useSearchSuggestions(expanded);
   const showPanel = expanded && panelOpen && !pending;
@@ -172,8 +185,6 @@ export function HeaderSearchField() {
     return () => window.removeEventListener('resize', onResize);
   }, [expanded, measure]);
 
-  useEffect(() => setValue(routeKeyword), [routeKeyword]);
-
   useLayoutEffect(() => {
     if (focusToken === seenFocusToken.current) return;
     seenFocusToken.current = focusToken;
@@ -201,11 +212,12 @@ export function HeaderSearchField() {
   }, [expanded, isSearchRoute, pending, closeEntry]);
 
   const search = (keyword: string) => {
+    if (mode !== 'keyword' && !suggestions.ragAvailable) return;
     if (!submit(keyword)) {
       input.current?.focus();
       return;
     }
-    setValue(keyword.trim());
+    if (mode === 'keyword') setValue(keyword.trim());
     setPanelOpen(false);
     input.current?.blur();
   };
@@ -240,6 +252,7 @@ export function HeaderSearchField() {
     else items[current - 1].focus();
   };
 
+  const InputIcon = mode === 'chat' ? MessageCircle : Sparkles;
   let rowIndex = 0;
   const nextRow = () => ({ '--row-index': rowIndex++ }) as CSSProperties;
 
@@ -261,22 +274,37 @@ export function HeaderSearchField() {
             animate={{ opacity: expanded ? 1 : 0 }}
             transition={contentTransition}
             className="flex h-full items-center gap-2.5 pl-4 pr-1.5">
-            <Search aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
+            {mode === 'keyword' ? (
+              <Search aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
+            ) : (
+              <InputIcon aria-hidden="true" className="size-[18px] shrink-0 text-muted-foreground" />
+            )}
             <input
               ref={input}
               value={value}
-              maxLength={SEARCH_MAX_LENGTH}
+              maxLength={mode === 'keyword' ? SEARCH_MAX_LENGTH : 1000}
               onChange={(event) => setValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (!composing.current && !event.nativeEvent.isComposing && event.keyCode !== 229) search(value);
+              }}
+              onCompositionStart={() => {
+                composing.current = true;
+              }}
+              onCompositionEnd={() => {
+                composing.current = false;
+              }}
               onFocus={() => {
                 setFocused(true);
                 setPanelOpen(true);
                 suggestions.refreshRecent();
               }}
               onBlur={() => setFocused(false)}
-              aria-label="법안·의안번호·의원·정당 검색어"
+              aria-label={searchInputLabel(mode)}
               aria-controls={showPanel ? panelId : undefined}
               aria-busy={Boolean(pending)}
-              placeholder="법안·의안번호·의원·정당 검색"
+              placeholder={searchInputLabel(mode)}
               autoComplete="off"
               enterKeyHint="search"
               className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
@@ -294,14 +322,19 @@ export function HeaderSearchField() {
               </button>
             )}
             <button
-              type="submit"
-              aria-label="검색"
+              type={ragPending ? 'button' : 'submit'}
+              onClick={ragPending ? stop : undefined}
+              disabled={
+                !ragPending &&
+                (Boolean(pending) || (mode !== 'keyword' && (!suggestions.ragAvailable || value.trim().length < 2)))
+              }
+              aria-label={searchActionLabel(mode, ragPending)}
               className={`flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
                 focused || value
                   ? 'bg-primary-3 text-white hover:opacity-85 dark:bg-white dark:text-primary-3'
                   : 'bg-accent text-muted-foreground'
               }`}>
-              검색
+              {ragPending ? <Square aria-hidden="true" className="size-4" /> : searchActionLabel(mode, false)}
             </button>
           </motion.div>
         </div>
@@ -310,7 +343,7 @@ export function HeaderSearchField() {
         {pending ? `‘${pending}’ 검색 결과를 불러오는 중입니다.` : ''}
       </span>
 
-      {showPanel && geometry && (suggestions.ragAvailable || recent.length > 0 || trending.length > 0) && (
+      {showPanel && geometry && (
         <section
           id={panelId}
           aria-label="검색 추천"
@@ -324,20 +357,16 @@ export function HeaderSearchField() {
               : undefined
           }
           className="header-search-panel pointer-events-auto absolute rounded-[20px] border border-border bg-background p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.28)]">
-          {suggestions.ragAvailable && (
-            <Link
-              href="/ask"
-              data-suggestion
-              data-suggestion-row
-              style={nextRow()}
-              onClick={() => setPanelOpen(false)}
-              className="flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium hover:bg-accent focus-visible:bg-accent focus-visible:outline-none">
-              <MessageCircle aria-hidden="true" className="size-[18px] text-[#0088FF]" />
-              법안에 질문하기
-            </Link>
+          <SearchModePicker available={suggestions.ragAvailable} pending={Boolean(pending)} />
+          {mode !== 'keyword' && (
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              {mode === 'search'
+                ? '관심 주제를 문장으로 입력하면 관련 법안 원문을 찾습니다.'
+                : '질문에 따라 법안을 검색하고 원문을 추가로 확인해 답합니다.'}
+            </p>
           )}
 
-          {recent.length > 0 && (
+          {mode === 'keyword' && recent.length > 0 && (
             <section aria-labelledby={`${panelId}-recent`} className="pt-1">
               <div data-suggestion-row style={nextRow()} className="flex items-center justify-between px-3 pb-1 pt-2">
                 <h2 id={`${panelId}-recent`} className="text-xs font-semibold text-muted-foreground">
@@ -374,7 +403,7 @@ export function HeaderSearchField() {
             </section>
           )}
 
-          {trending.length > 0 && (
+          {mode === 'keyword' && trending.length > 0 && (
             <section aria-labelledby={`${panelId}-trending`} className="px-3 pb-2 pt-3">
               <h2
                 id={`${panelId}-trending`}

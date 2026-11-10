@@ -109,6 +109,27 @@ def test_changed_evidence_is_removed_before_final_generation(qa):
     assert qa.generator.generate.call_count == 1
 
 
+def test_planner_failure_uses_only_validated_sources_and_reports_limited_lookup(qa):
+    qa.generator.generate.side_effect = [
+        CodexGenerationError("failed", reason="timeout"),
+        qa.generator.return_value,
+    ]
+    result = BillAgent(qa).run(
+        QuestionRequest(question="청년 주거 지원"), lambda _: None
+    )
+    assert result.status == "answered"
+    assert [source.bill_id for source in result.sources] == ["B001"]
+    assert any("추가 조회" in text for text in result.limitations)
+
+
+def test_planner_failure_without_evidence_does_not_generate_an_answer(qa):
+    qa._retrieve = MagicMock(return_value=([], False))
+    qa.generator.generate.side_effect = CodexGenerationError("failed", reason="timeout")
+    with pytest.raises(CodexGenerationError):
+        BillAgent(qa).run(QuestionRequest(question="자료가 없는 질문"), lambda _: None)
+    assert qa.generator.generate.call_count == 1
+
+
 def test_agent_cancellation_prevents_subsequent_model_call(qa):
     cancel = Event()
 

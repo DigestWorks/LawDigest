@@ -1,8 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Provider } from 'jotai';
+import { Provider, createStore } from 'jotai';
+import { StrictMode } from 'react';
+import { HeaderSearchField } from '@/components/Layout/Header/HeaderSearch';
+import { searchModeState } from '@/store/SearchEntryState';
 import { afterEach, expect, it, vi } from 'vitest';
 import AskClient from './AskClient';
 import { unavailableStatus } from '@/lib/rag';
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/ask', useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/components/search/useSearchSuggestions', () => ({
+  default: () => ({ ragAvailable: true, recent: [], trending: [], refreshRecent: vi.fn() }),
+}));
 
 vi.mock('@/hooks/useRagConversation', async (original) => ({
   ...(await original<typeof import('@/hooks/useRagConversation')>()),
@@ -13,7 +21,7 @@ vi.mock('@/hooks/useRagConversation', async (original) => ({
     refetch: vi.fn(),
   }),
 }));
-// 스크롤 기하·브라우저 조작은 실제 화면에서 검증한다. 이 검사는 입력 이벤트에 한정한다.
+// 스크롤 기하는 브라우저에서 확인하고, 여기서는 검색바와 대화 화면의 요청 전달을 검증한다.
 vi.mock('@/components/ui/message-scroller', () => {
   const Part = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
   return {
@@ -44,10 +52,15 @@ it('does not submit Enter during Korean IME composition and submits once after c
     ),
   );
   vi.stubGlobal('fetch', fetcher);
+  const store = createStore();
+  store.set(searchModeState, 'chat');
   render(
-    <Provider>
-      <AskClient />
-    </Provider>,
+    <StrictMode>
+      <Provider store={store}>
+        <HeaderSearchField />
+        <AskClient />
+      </Provider>
+    </StrictMode>,
   );
   const input = screen.getByRole('textbox', { name: '법안에 관한 질문' });
   fireEvent.compositionStart(input);

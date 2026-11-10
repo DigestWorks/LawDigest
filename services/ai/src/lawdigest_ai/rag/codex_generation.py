@@ -12,7 +12,9 @@ from lawdigest_ai.rag.schemas import GeneratedAnswer
 
 
 class CodexGenerationError(RuntimeError):
-    pass
+    def __init__(self, message, *, reason="invalid_output"):
+        super().__init__(message)
+        self.reason = reason
 
 
 class CodexAnswerGenerator:
@@ -93,14 +95,19 @@ class CodexAnswerGenerator:
                     **({"cancel": cancel} if cancel is not None else {}),
                 )
                 if result.returncode != 0 or not output.is_file():
-                    raise CodexGenerationError("Codex 답변 생성에 실패했습니다.")
+                    raise CodexGenerationError(
+                        "Codex 답변 생성에 실패했습니다.", reason="process_exit"
+                    )
                 self._verify_events(result.stdout)
                 return schema_type.model_validate_json(
                     output.read_text(encoding="utf-8")
                 )
             except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
                 raise CodexGenerationError(
-                    "완성된 Codex 답변을 확인할 수 없습니다."
+                    "완성된 Codex 답변을 확인할 수 없습니다.",
+                    reason="timeout"
+                    if isinstance(exc, subprocess.TimeoutExpired)
+                    else type(exc).__name__,
                 ) from exc
 
     @staticmethod

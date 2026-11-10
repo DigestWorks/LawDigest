@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useAtomValue } from 'jotai';
 import { getTrendingKeywords } from '@/app/explore/apis/apis';
 import { readRecentSearches, saveRecentSearches } from '@/lib/search';
 import { useRagStatus } from '@/hooks/useRagConversation';
+import { ragAssemblyState } from '@/store/RagConversationState';
 
 /** 펼친 검색창 아래에 보여 줄 최근 검색어, 인기 키워드, 질의응답 가능 여부 */
 export default function useSearchSuggestions(enabled: boolean, trendingSize = 8) {
@@ -19,7 +21,8 @@ export default function useSearchSuggestions(enabled: boolean, trendingSize = 8)
     enabled,
     staleTime: 5 * 60_000,
   });
-  const rag = useRagStatus(22, enabled);
+  const assembly = useAtomValue(ragAssemblyState);
+  const rag = useRagStatus(assembly, enabled);
 
   const updateRecent = useCallback((values: string[]) => {
     setRecent(values);

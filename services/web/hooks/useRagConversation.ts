@@ -4,12 +4,15 @@ import { useEffect, useRef } from 'react';
 import { useAtom } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
 import { isRagAnswer, unavailableStatus, type Assembly, type RagStatus } from '@/lib/rag';
-import { readRagStream } from '@/lib/ragStream';
+import { readRagStream, RagStreamError } from '@/lib/ragStream';
 import {
   ragAssemblyState,
   ragConversationState,
   ragDraftState,
   ragModeState,
+  ragSubmissionState,
+  ragCancelState,
+  type RagSubmission,
   type RagTurn,
 } from '@/store/RagConversationState';
 
@@ -33,6 +36,10 @@ export function useRagConversation() {
   const [draft, setDraft] = useAtom(ragDraftState);
   const [assembly, setAssembly] = useAtom(ragAssemblyState);
   const [mode, setMode] = useAtom(ragModeState);
+  const [submission, setSubmission] = useAtom(ragSubmissionState);
+  const [cancelVersion] = useAtom(ragCancelState);
+  const consumed = useRef<string | null>(null);
+  const seenCancel = useRef(cancelVersion);
   const active = useRef<{ id: string; controller: AbortController } | null>(null);
   const mounted = useRef(true);
   useEffect(() => {
@@ -48,14 +55,14 @@ export function useRagConversation() {
     };
   }, [setTurns]);
 
-  const ask = async (retry?: RagTurn) => {
-    const question = (retry?.question ?? draft).trim();
+  const ask = async (retry?: RagTurn, incoming?: RagSubmission) => {
+    const question = (retry?.question ?? incoming?.question ?? draft).trim();
     if (active.current || question.length < 2 || question.length > 1000 || (retry?.retryAt ?? 0) > Date.now()) return;
     const turn: RagTurn = {
       id: retry?.id ?? crypto.randomUUID(),
       question,
       assembly: retry?.assembly ?? assembly,
-      mode: retry?.mode ?? mode,
+      mode: retry?.mode ?? incoming?.mode ?? mode,
       steps: [],
       status: 'pending',
     };
@@ -136,7 +143,8 @@ export function useRagConversation() {
               : item,
           ),
         );
-    } catch {
+    } catch (error) {
+      const failureMessage = error instanceof RagStreamError ? error.message : '연결을 확인한 뒤 다시 시도해 주세요.';
       if (mounted.current && active.current === pendingRequest)
         setTurns((current) =>
           current.map((item) =>
@@ -144,7 +152,7 @@ export function useRagConversation() {
               ? {
                   ...item,
                   status: controller.signal.aborted ? 'cancelled' : 'failed',
-                  error: controller.signal.aborted ? undefined : '연결을 확인한 뒤 다시 시도해 주세요.',
+                  error: controller.signal.aborted ? undefined : failureMessage,
                 }
               : item,
           ),
@@ -165,6 +173,24 @@ export function useRagConversation() {
     setTurns([]);
     setDraft('');
   };
+  useEffect(() => {
+    if (!submission || consumed.current === submission.id) return undefined;
+    let live = true;
+    queueMicrotask(() => {
+      if (!live || consumed.current === submission.id) return;
+      consumed.current = submission.id;
+      setSubmission(null);
+      void ask(undefined, submission);
+    });
+    return () => {
+      live = false;
+    };
+  });
+  useEffect(() => {
+    if (seenCancel.current === cancelVersion) return;
+    seenCancel.current = cancelVersion;
+    stop();
+  });
   return {
     turns,
     draft,

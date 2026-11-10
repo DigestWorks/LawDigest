@@ -12,3 +12,7 @@ export interface SearchEntryStateProps {
 const searchEntryState = atom<SearchEntryStateProps>({ open: 'auto', pending: null, focusToken: 0 });
 
 export default searchEntryState;
+
+export type SearchMode = 'keyword' | 'search' | 'chat';
+export const searchModeState = atom<SearchMode>('keyword');
+export const searchDraftState = atom('');

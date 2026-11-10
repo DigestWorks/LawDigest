@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MessageCircle, RotateCcw, Send, Square } from 'lucide-react';
+import { MessageCircle, RotateCcw } from 'lucide-react';
 import { useRagConversation, useRagStatus } from '@/hooks/useRagConversation';
 import type { Assembly } from '@/lib/rag';
 import type { RagTurn } from '@/store/RagConversationState';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { InputGroup, InputGroupAddon, InputGroupTextarea } from '@/components/ui/input-group';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Message, MessageContent, MessageHeader } from '@/components/ui/message';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
@@ -26,6 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import RagAnswer from '@/components/qa/RagAnswer';
+import useSearchEntry from '@/components/search/useSearchEntry';
 
 function Retry({ turn, retry, disabled }: { turn: RagTurn; retry: () => void; disabled: boolean }) {
   const [waiting, setWaiting] = useState((turn.retryAt ?? 0) > Date.now());
@@ -58,16 +57,11 @@ function stepLabel(complete: boolean, pending: boolean) {
 }
 
 export default function AskClient() {
-  const { turns, draft, setDraft, assembly, setAssembly, mode, setMode, ask, stop, reset, pending } =
-    useRagConversation();
+  const { turns, assembly, setAssembly, ask, reset, pending } = useRagConversation();
+  const search = useSearchEntry();
+  const mode = search.mode;
   const status = useRagStatus(assembly);
-  const composing = useRef(false);
-  const input = useRef<HTMLTextAreaElement>(null);
-  const invalid = draft.trim().length === 1 || draft.length > 1000;
   const available = status.data?.available === true;
-  const send = () => {
-    if (!composing.current && available) void ask();
-  };
   let announcement = turns.length ? '질문 처리가 끝났습니다. 대화에서 답변과 근거를 확인하세요.' : '';
   if (pending)
     announcement =
@@ -94,25 +88,12 @@ export default function AskClient() {
               size="sm"
               onClick={() => {
                 reset();
-                input.current?.focus();
+                search.openEntry();
               }}>
               새 대화
             </Button>
           )}
         </div>
-        <ToggleGroup
-          type="single"
-          variant="pill"
-          size="sm"
-          value={mode}
-          disabled={pending}
-          aria-label="법안 검색 또는 채팅 선택"
-          onValueChange={(value) => {
-            if (value === 'chat' || value === 'search') setMode(value);
-          }}>
-          <ToggleGroupItem value="search">법안 검색</ToggleGroupItem>
-          <ToggleGroupItem value="chat">AI 채팅</ToggleGroupItem>
-        </ToggleGroup>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ToggleGroup
             type="single"
@@ -169,8 +150,8 @@ export default function AskClient() {
                         <Button
                           variant="outline"
                           onClick={() => {
-                            setDraft('청년 주거 지원과 관련된 법안은 어떤 내용을 담고 있나요?');
-                            input.current?.focus();
+                            search.setDraft('청년 주거 지원과 관련된 법안은 어떤 내용을 담고 있나요?');
+                            search.openEntry();
                           }}>
                           청년 주거 지원 법안 알아보기
                         </Button>
@@ -255,71 +236,13 @@ export default function AskClient() {
           <MessageScrollerButton />
         </MessageScroller>
       </MessageScrollerProvider>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          send();
-        }}>
-        <FieldGroup>
-          <Field data-invalid={invalid || undefined}>
-            <FieldLabel htmlFor="bill-question" className="sr-only">
-              법안에 관한 질문
-            </FieldLabel>
-            <InputGroup>
-              <InputGroupTextarea
-                id="bill-question"
-                ref={input}
-                rows={2}
-                maxLength={1000}
-                value={draft}
-                aria-invalid={invalid || undefined}
-                aria-describedby="question-help"
-                placeholder="법안명이나 궁금한 내용을 입력하세요"
-                onChange={(event) => setDraft(event.target.value)}
-                onCompositionStart={() => {
-                  composing.current = true;
-                }}
-                onCompositionEnd={() => {
-                  composing.current = false;
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing &&
-                    event.keyCode !== 229 &&
-                    !composing.current
-                  ) {
-                    event.preventDefault();
-                    send();
-                  }
-                }}
-              />
-              <InputGroupAddon align="block-end" className="justify-between">
-                <span className="text-xs text-muted-foreground">{draft.length}/1,000</span>
-                {pending ? (
-                  <Button type="button" size="sm" variant="outline" onClick={stop}>
-                    <Square data-icon="inline-start" />
-                    중지
-                  </Button>
-                ) : (
-                  <Button type="submit" size="sm" disabled={!available || draft.trim().length < 2 || invalid}>
-                    <Send data-icon="inline-start" />
-                    {mode === 'search' ? '검색하기' : '질문하기'}
-                  </Button>
-                )}
-              </InputGroupAddon>
-            </InputGroup>
-            <FieldDescription id="question-help">
-              법안은 제안된 내용이며 현행법과 다를 수 있습니다. 개인정보는 입력하지 마세요. 질문은 답변 생성을 위해
-              OpenAI(미국)로 전송됩니다.{' '}
-              <Link href="/privacy#overseas" className="underline underline-offset-4 hover:text-foreground">
-                국외 이전 안내
-              </Link>
-            </FieldDescription>
-          </Field>
-        </FieldGroup>
-      </form>
+      <p className="text-xs leading-5 text-muted-foreground">
+        검색바에서 다음 질문을 입력하세요. 법안은 제안된 내용이며 현행법과 다를 수 있습니다. 질문은 답변 생성을 위해
+        OpenAI(미국)로 전송됩니다. 개인정보는 입력하지 마세요.{' '}
+        <Link href="/privacy#overseas" className="underline underline-offset-4 hover:text-foreground">
+          국외 이전 안내
+        </Link>
+      </p>
     </div>
   );
 }

@@ -198,7 +198,11 @@ def create_app(*, service=None, settings=None):
             except AgentCancelled:
                 pass
             except Exception as exc:
-                logger.warning("QA agent failed: %s", type(exc).__name__)
+                logger.warning(
+                    "QA agent failed: %s (%s)",
+                    type(exc).__name__,
+                    getattr(exc, "reason", "unknown"),
+                )
                 if not cancel.is_set():
                     events.put_nowait(
                         {
