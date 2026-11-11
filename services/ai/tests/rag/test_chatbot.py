@@ -30,8 +30,24 @@ def bill(bill_id="B001", assembly=22):
 
 
 class Repository:
-    def __init__(self, rows):
+    def __init__(self, rows, members=None, proposals=None):
         self.rows = {row["bill_id"]: row for row in rows}
+        # 의원 프로필과 의원별 대표발의 법안 ID
+        self.members = members or []
+        self.proposals = proposals or {}
+
+    def find_members(self, name, assembly):
+        return [
+            member
+            for member in self.members
+            if member["name"] == name
+            and (not assembly or member["assembly_number"] == assembly)
+        ][:2]
+
+    def member_bills(self, congressman_ids, assembly, limit=6):
+        ids = [i for cid in congressman_ids for i in self.proposals.get(cid, [])]
+        rows = self.hydrate(ids, assembly).values()
+        return sorted(rows, key=lambda row: row["propose_date"], reverse=True)[:limit]
 
     def hydrate(self, ids, assembly):
         return {

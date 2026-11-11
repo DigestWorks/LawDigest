@@ -315,3 +315,77 @@ def test_connection_lost_before_first_frame_still_cancels_worker():
             response({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send)
         )
     assert cancel.is_set()
+
+
+def member(congressman_id="M1", name="김의원", district="서울 동작구갑"):
+    return {
+        "congressman_id": congressman_id,
+        "name": name,
+        "party": "무소속",
+        "district": district,
+        "elect_sort": "지역구",
+        "elected": "3선",
+        "commits": "국방위원회",
+        "assembly_number": 22,
+        "state": 1,
+    }
+
+
+def test_member_name_starts_from_profile_and_representative_bills(qa):
+    qa.repository.members = [member()]
+    qa.repository.proposals = {"M1": ["B001"]}
+    qa._retrieve = MagicMock(side_effect=AssertionError("의미 검색을 하지 않는다"))
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    events = []
+    result = BillAgent(qa).run(QuestionRequest(question="김의원"), events.append)
+    assert result.status == "answered"
+    assert [s.bill_id for s in result.sources] == ["B001"]
+    steps = [e["step"] for e in events if e["type"] == "step"]
+    assert (
+        steps[1]["summary"]
+        == "‘김의원’ 의원의 프로필과 대표발의 법안 1건을 확인했습니다."
+    )
+    assert {step["name"] for step in steps} <= {"search", "read", "answer"}
+    _, context = qa.generator.generate.call_args_list[-1].args
+    assert context["members"] == [
+        {
+            "name": "김의원",
+            "party": "무소속",
+            "district": "서울 동작구갑",
+            "elect_sort": "지역구",
+            "elected": "3선",
+            "committees": "국방위원회",
+            "assembly": 22,
+            "current_member": True,
+            "bill_ids": ["B001"],
+        }
+    ]
+
+
+def test_member_without_bills_falls_back_within_five_steps(qa):
+    qa.repository.members = [member()]
+    qa.generator.generate.side_effect = [
+        decision("search", "국방 법안"),
+        decision("search", "예비군 법안"),
+        qa.generator.return_value,
+    ]
+    events = []
+    result = BillAgent(qa).run(QuestionRequest(question="김의원"), events.append)
+    assert result.status == "answered"
+    ids = {e["step"]["id"] for e in events if e["type"] == "step"}
+    assert ids <= {"1", "2", "3", "4", "5"}
+
+
+def test_planner_can_look_up_a_member_named_in_the_question(qa):
+    qa.repository.members = [member()]
+    qa.repository.proposals = {"M1": ["B001"]}
+    qa._retrieve = MagicMock(return_value=([], False))
+    qa.generator.generate.side_effect = [
+        decision("member", "김의원"),
+        decision(),
+        qa.generator.return_value,
+    ]
+    result = BillAgent(qa).run(
+        QuestionRequest(question="김의원이 낸 주거 법안은?"), lambda _: None
+    )
+    assert [s.bill_id for s in result.sources] == ["B001"]
