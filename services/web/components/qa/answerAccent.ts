@@ -16,8 +16,23 @@ export function answerAccent(sources: RagSource[]) {
   return { party: shared, color: getPartyColor(shared) };
 }
 
-/** 근거가 모두 한 의원이면 의원 카드, 모두 한 정당이면 정당 카드를 둔다. */
-export function answerFocus(sources: RagSource[]): AnswerFocus | null {
+const PARTY_ALIASES: Record<string, string[]> = { 더불어민주당: ['민주당'], 국민의힘: ['국힘'] };
+
+/**
+ * 근거가 모두 한 의원이면 의원 카드, 모두 한 정당이면 정당 카드를 둔다.
+ * 질문이 그 의원이나 정당을 직접 부를 때만 둔다. 근거가 우연히 한 정당뿐인 주제 검색에 정당 카드를 띄우지 않는다.
+ */
+export function answerFocus(sources: RagSource[], question = ''): AnswerFocus | null {
+  const focus = sharedFocus(sources);
+  if (!focus) return null;
+  const text = question.replace(/\s+/g, '');
+  const { name, party } = focus.representative;
+  if (focus.kind === 'member') return text.includes(name) ? focus : null;
+  const names = party ? [party, ...(PARTY_ALIASES[party] ?? [])] : [];
+  return names.some((item) => text.includes(item)) ? focus : null;
+}
+
+function sharedFocus(sources: RagSource[]): AnswerFocus | null {
   const people = sources.map((source) => source.representative);
   if (!people.length || people.some((item) => !item)) return null;
   const [first] = people as RagRepresentative[];

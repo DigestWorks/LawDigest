@@ -60,7 +60,7 @@ export default function AgentTurn({
 }) {
   const sources = turn.status === 'answered' ? turn.answer?.sources ?? [] : [];
   const accent = answerAccent(sources);
-  const focus = answerFocus(sources);
+  const focus = answerFocus(sources, turn.question);
   return (
     <div className="flex flex-col gap-5" style={{ '--lawdigest-summary-accent': accent.color } as CSSProperties}>
       <AiLabel as={labelAs} id={labelId} spinning={turn.status === 'pending'} />

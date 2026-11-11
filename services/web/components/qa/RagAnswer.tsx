@@ -74,6 +74,56 @@ function SourceRow({ source, turnId }: { source: RagSource; turnId: string }) {
   );
 }
 
+/** 한 문단에 보이는 근거 번호 수. 넘치면 "+N"으로 줄이고, 누르면 모두 펼친다. */
+const VISIBLE_CITATIONS = 3;
+
+function Citations({
+  keys,
+  sources,
+  turnId,
+  onReveal,
+}: {
+  keys: string[];
+  sources: RagSource[];
+  turnId: string;
+  onReveal: (key: string) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const found = keys
+    .map((key) => sources.find((item) => item.key === key))
+    .filter((item): item is RagSource => Boolean(item));
+  const shown = all ? found : found.slice(0, VISIBLE_CITATIONS);
+  const hidden = found.length - shown.length;
+  return (
+    <>
+      {shown.map((source) => (
+        <a
+          key={source.key}
+          href={`#${sourceId(turnId, source.key)}`}
+          onClick={(event) => {
+            event.preventDefault();
+            onReveal(source.key);
+          }}
+          title={billHeadline(source.bill_name)}
+          style={partyTint(source)}
+          className="ai-source-number relative -top-px ml-1 size-[18px] align-middle text-[11px] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          {sourceNumber(source.key)}
+          <span className="sr-only">번 근거, {billHeadline(source.bill_name)}</span>
+        </a>
+      ))}
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          aria-label={`근거 ${hidden}건 더 보기`}
+          className="relative -top-px ml-1 inline-flex h-[18px] items-center rounded-full bg-muted px-1.5 align-middle text-[11px] font-bold leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          +{hidden}
+        </button>
+      )}
+    </>
+  );
+}
+
 type RagAnswerProps = {
   answer: Answer;
   turnId: string;
@@ -129,25 +179,12 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
                 <li key={index} className="whitespace-pre-wrap [word-break:keep-all]">
                   {/* 첫 문단은 답의 요지다. 법안 카드의 핵심 문장처럼 형광펜을 긋는다. */}
                   {index === 0 ? <mark className="lawdigest-summary-mark">{paragraph.text}</mark> : paragraph.text}
-                  {paragraph.source_keys.map((key) => {
-                    const source = answer.sources.find((item) => item.key === key);
-                    if (!source) return null;
-                    return (
-                      <a
-                        key={key}
-                        href={`#${sourceId(turnId, key)}`}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          revealSource(key);
-                        }}
-                        title={billHeadline(source.bill_name)}
-                        style={partyTint(source)}
-                        className="ai-source-number relative -top-px ml-1 size-[18px] align-middle text-[11px] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                        {sourceNumber(key)}
-                        <span className="sr-only">번 근거, {billHeadline(source.bill_name)}</span>
-                      </a>
-                    );
-                  })}
+                  <Citations
+                    keys={paragraph.source_keys}
+                    sources={answer.sources}
+                    turnId={turnId}
+                    onReveal={revealSource}
+                  />
                 </li>
               ))}
             </ul>

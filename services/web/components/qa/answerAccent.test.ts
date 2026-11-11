@@ -49,12 +49,15 @@ describe('정당색 포인트와 주인공', () => {
   it('한 의원의 법안이면 그 정당색과 의원 카드', () => {
     const sources = [source('S1', person('M1', '국민의힘')), source('S2', person('M1', '국민의힘'))];
     expect(answerAccent(sources)).toEqual({ party: '국민의힘', color: getPartyColor('국민의힘') });
-    expect(answerFocus(sources)).toMatchObject({ kind: 'member', count: 2 });
+    expect(answerFocus(sources, '의원M1 의원')).toMatchObject({ kind: 'member', count: 2 });
   });
 
   it('같은 정당 여러 의원이면 정당 카드', () => {
     const sources = [source('S1', person('M1', '국민의힘')), source('S2', person('M2', '국민의힘'))];
-    expect(answerFocus(sources)).toMatchObject({ kind: 'party', count: 2 });
+    expect(answerFocus(sources, '국민의힘')).toMatchObject({ kind: 'party', count: 2 });
+    expect(answerFocus(sources, '국힘 법안')).toMatchObject({ kind: 'party' });
+    // 근거가 우연히 한 정당뿐인 주제 검색에는 카드를 두지 않는다.
+    expect(answerFocus(sources, '법률용어')).toBeNull();
   });
 
   it('정당이 섞이거나 공동대표발의가 있으면 중립색이고 카드가 없다', () => {
