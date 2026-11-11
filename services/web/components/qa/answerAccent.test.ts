@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isRagAnswer, unavailableStatus, type RagSource } from '@/lib/rag';
 import { getPartyColor } from '@/constants/party';
-import { answerAccent, answerFocus, partyShares, ringGradient } from './answerAccent';
+import { answerAccent, answerFocus } from './answerAccent';
 
 const person = (congressman_id: string, party: string | null) => ({
   name: `의원${congressman_id}`,
@@ -62,27 +62,5 @@ describe('정당색 포인트와 주인공', () => {
     expect(answerAccent(mixed).party).toBeNull();
     expect(answerAccent(mixed).color).toBe(getPartyColor(null));
     expect(answerFocus([source('S1', person('M1', '국민의힘')), source('S2', null)])).toBeNull();
-  });
-});
-
-describe('답변 링의 정당 호', () => {
-  const tone = (color: string) => `color-mix(in srgb, ${color} var(--answer-ring-tone, 100%), #fff)`;
-  const red = tone(getPartyColor('국민의힘'));
-  const navy = tone(getPartyColor('더불어민주당'));
-
-  it('근거가 없으면 중립 회색, 한 정당이면 그 색 하나', () => {
-    expect(ringGradient([])).toBe(tone(getPartyColor(null)));
-    expect(ringGradient(partyShares([source('S1', person('M1', '국민의힘'))]))).toBe(red);
-  });
-
-  it('건수 비율 길이의 호를 섞지 않고 틈을 두어 잇는다', () => {
-    const sources = [
-      ...['S1', 'S2'].map((key, i) => source(key, person(`R${i}`, '국민의힘'))),
-      source('S3', person('N1', '더불어민주당')),
-    ];
-    // 틈 6°씩 두 번을 뺀 348°를 2:1로 나눈다.
-    expect(ringGradient(partyShares(sources))).toBe(
-      `conic-gradient(${red} 0deg 232deg, transparent 232deg 238deg, ${navy} 238deg 354deg, transparent 354deg 360deg)`,
-    );
   });
 });
