@@ -1,4 +1,4 @@
-/** AI 답변 표식. 화면의 포인트 색(정당색 또는 중립색)으로 채운 반짝임이며, 답을 만드는 동안 천천히 돈다. */
+/** AI 답변 표식. 화면의 포인트 색(정당색 또는 중립색)으로 채운 반짝임이며, 답을 만드는 동안 제자리에서 천천히 깜박인다. */
 export function AiMark({ active = false, className = 'size-[18px]' }: { active?: boolean; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${active ? 'ai-mark-active' : ''} ${className}`}>
