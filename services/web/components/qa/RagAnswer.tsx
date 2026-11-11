@@ -75,11 +75,12 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
   const showSources = answer.sources.length > 0 && expanded;
 
   // 접었을 때 높이를 넘는 답만 접는다. 짧은 답에 "더 보기"를 두지 않는다.
-  useLayoutEffect(() => {
-    if (expanded || !body.current) return;
+  // 문단이 떠오르는 동안에는 translateY만큼 높이가 늘어 보이므로, 애니메이션이 끝나면 다시 잰다.
+  const fitsWithoutClip = () => {
     const element = body.current;
-    if (element.scrollHeight <= element.clientHeight + 4) setExpanded(true);
-  }, [expanded, answer]);
+    if (!expanded && element && element.scrollHeight <= element.clientHeight + 4) setExpanded(true);
+  };
+  useLayoutEffect(fitsWithoutClip, [expanded, answer]);
 
   const revealSource = (key: string) => {
     setExpanded(true);
@@ -102,6 +103,7 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
         <div
           ref={body}
           id={`answer-${turnId}`}
+          onAnimationEnd={fitsWithoutClip}
           className={`ai-reveal flex flex-col gap-4 text-[16px] leading-[1.8] text-foreground ${clipped ? 'ai-answer-clip' : ''}`}>
           {lead && <p>{lead}</p>}
           {answer.paragraphs.map((paragraph, index) => (
