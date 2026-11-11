@@ -41,8 +41,10 @@ answer: 현재 근거로 답하거나 자료 부족을 알릴 준비가 되면 �
 # 의원·정당 조회는 법안을 여러 건 한꺼번에 넣으므로, 답변 생성 제한 시간 안에 끝나게 발췌를 줄인다.
 LOOKUP_EXCERPT = 1500
 # 모델 호출 한 번의 제한 시간(초). 요청 전체 예산(TIMEOUT=110)과 웹 프록시(120) 안에 든다.
+# 최종 답변은 보통 10초 안팎이지만 가끔 멈춘 듯 길어진다. 30초에서 끊고, 남은 예산이 있으면 한 번 더 시도한다.
 PLAN_TIMEOUT = 25
-ANSWER_TIMEOUT = 45
+ANSWER_TIMEOUT = 30
+ANSWER_RETRY_MIN = 15
 
 
 def latest(groups):
@@ -361,6 +363,17 @@ class BillAgent:
 
                 step("read", "검색된 법안의 원문을 더 읽고 있습니다.", read)
 
+        def write_answer(prompt, context, **kwargs):
+            """최종 답변은 근거를 모두 읽고 쓰므로 다음 행동 선택보다 시간을 더 주고, 시간 초과면 한 번 더 시도한다."""
+            try:
+                return generate(prompt, context, limit=ANSWER_TIMEOUT, **kwargs)
+            except CodexGenerationError as exc:
+                remaining = deadline - time.monotonic()
+                if exc.reason != "timeout" or remaining < ANSWER_RETRY_MIN:
+                    raise
+                logger.warning("QA answer timed out; retrying once")
+                return generate(prompt, context, limit=remaining, **kwargs)
+
         def answer():
             # 여러 도구를 실행하는 동안 바뀌거나 삭제된 근거도 마지막에 대조한다.
             rows = self.service.repository.hydrate(list(sources), request.assembly)
@@ -398,10 +411,7 @@ class BillAgent:
                 request,
                 current,
                 metadata,
-                # 최종 답변은 근거를 모두 읽고 쓰므로 다음 행동 선택보다 시간을 더 준다.
-                lambda prompt, context, **kwargs: generate(
-                    prompt, context, limit=ANSWER_TIMEOUT, **kwargs
-                ),
+                write_answer,
                 members=[
                     {**member, "bill_ids": [i for i in member["bill_ids"] if i in kept]}
                     for member in members

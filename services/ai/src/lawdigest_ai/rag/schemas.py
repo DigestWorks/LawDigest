@@ -74,12 +74,20 @@ class Source(StrictModel):
 
 class AnswerParagraph(StrictModel):
     text: str = Field(min_length=1, max_length=2000)
-    source_keys: list[str] = Field(min_length=1, max_length=5)
+    source_keys: list[str] = Field(min_length=1, max_length=8)
+    # 나란한 항목(법안별 변화 등)을 나열하는 문단이면 True. 화면은 연속한 항목만 점 목록으로 묶는다.
+    list_item: bool = False
+
+
+class GeneratedParagraph(AnswerParagraph):
+    """모델 출력용. 구조화 출력은 모든 필드를 요구하므로 list_item을 필수로 둔다."""
+
+    list_item: bool
 
 
 class GeneratedAnswer(StrictModel):
     answerable: bool
-    paragraphs: list[AnswerParagraph] = Field(max_length=8)
+    paragraphs: list[GeneratedParagraph] = Field(max_length=8)
     limitations: list[str] = Field(max_length=3)
 
 

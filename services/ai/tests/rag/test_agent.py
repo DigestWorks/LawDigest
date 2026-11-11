@@ -86,7 +86,7 @@ def test_agent_stops_at_tool_budget_and_rejects_invented_citation(qa):
         decision("search", "주택 지원"),
         {
             "answerable": True,
-            "paragraphs": [{"text": "주장", "source_keys": ["S8"]}],
+            "paragraphs": [{"text": "주장", "source_keys": ["S8"], "list_item": False}],
             "limitations": [],
         },
     ]
@@ -472,7 +472,7 @@ def test_final_answer_gets_more_time_than_planning(qa):
     BillAgent(qa).run(QuestionRequest(question="청년 주거 지원"), lambda _: None)
     plan, final = qa.generator.generate.call_args_list
     assert plan.kwargs["timeout"] <= 25
-    assert 25 < final.kwargs["timeout"] <= 45
+    assert 25 < final.kwargs["timeout"] <= 30
 
 
 def test_final_answer_reads_plain_ai_summary_without_markup(qa):
@@ -487,3 +487,16 @@ def test_final_answer_reads_plain_ai_summary_without_markup(qa):
         context["evidence"][0]["ai_summary"]
         == "쉬운 요약\n- 임차료 지원을 넓혀요.\n- 청년 기준을 34세로 올려요."
     )
+
+
+def test_final_answer_retries_once_after_a_timeout(qa):
+    qa.generator.generate.side_effect = [
+        decision(),
+        CodexGenerationError("slow", reason="timeout"),
+        qa.generator.return_value,
+    ]
+    result = BillAgent(qa).run(
+        QuestionRequest(question="청년 주거 지원"), lambda _: None
+    )
+    assert result.status == "answered"
+    assert qa.generator.generate.call_count == 3

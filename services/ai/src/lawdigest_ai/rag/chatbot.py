@@ -11,6 +11,7 @@ from lawdigest_ai.rag.embedding import build_embedding_generator
 from lawdigest_ai.rag.indexing import chunk_filter, read_manifest
 from lawdigest_ai.rag.repository import BillRepository, content_hash
 from lawdigest_ai.rag.schemas import (
+    AnswerParagraph,
     AnswerResponse,
     GeneratedAnswer,
     IndexStatus,
@@ -102,6 +103,7 @@ evidence의 ai_summary는 서비스가 법안 원문으로 만든 쉬운 요약�
 질문이 검색어처럼 짧은 단어나 구이면, 그 검색어로 살펴본 법안을 소개한다. 첫 문단은 '‘검색어’와 관련해 살펴본 법안 N건은 …' 형식으로 공통 주제와 그 의미를 쓴다. N은 evidence의 법안 수이며, 검색 결과 전체인 것처럼 쓰지 않는다.
 내용이 비슷한 법안은 한 문단으로 묶고, 무엇을 무엇으로 바꾸는지·누가 무엇을 할 수 있게 되는지 같은 구체적인 변화를 예로 든다. 법안 이름만 바꾼 같은 문장을 되풀이하지 않는다. 법안끼리 다른 점이 있으면 그것만 따로 쓴다.
 처리 단계가 모두 같으면 마지막 문단에 한 번만 쓴다.
+문단은 기본적으로 이어지는 글(list_item=false)로 쓴다. 같은 형식의 나란한 항목이 셋 이상 이어질 때(법안별·의원안별 변화처럼)만 그 문단들의 list_item을 true로 한다. 요지·해석·처리 단계·마무리 문단은 항상 false다.
 같은 의원이 같은 날 여러 법안을 냈거나(proposer_label, propose_date), 용어·표현만 고치는 법안이면 그 사실과, 생활에 직접 달라지는 것은 적다는 의미를 짚는다. 근거에 있는 사실만 쓴다.
 limitations에는 사용자가 다음에 무엇을 확인하면 되는지 알려 주는 한계만 쓴다(예: '구체적인 조문은 국회 원문에서 확인할 수 있습니다'). 답변 근거의 범위나 발췌 길이를 설명하는 문장은 쓰지 않는다. 쓸 것이 없으면 비운다.
 members가 있으면 질문은 그 의원의 입법 활동에 관한 것이다. 첫 문단에 정당·지역구·당선 횟수·소속 위원회를 한 문장으로 쓰고 그 의원이 대표발의한 법안의 근거를 붙인다.
@@ -335,17 +337,23 @@ class LawdigestionChatbot:
             raise InvalidGrounding("답변 문단이 비었습니다.")
         allowed = {source.key for source in sources}
         used = set()
+        kept = []
+        # 없는 근거 번호는 버린다. 확인된 근거가 하나도 없는 문단은 싣지 않는다.
         for paragraph in generated.paragraphs:
-            if (
-                not set(paragraph.source_keys).issubset(allowed)
-                or not paragraph.text.strip()
-            ):
-                raise InvalidGrounding("답변의 출처를 확인할 수 없습니다.")
-            paragraph.source_keys = list(dict.fromkeys(paragraph.source_keys))
-            used.update(paragraph.source_keys)
+            keys = [
+                key for key in dict.fromkeys(paragraph.source_keys) if key in allowed
+            ]
+            if not keys or not paragraph.text.strip():
+                continue
+            used.update(keys)
+            kept.append(
+                AnswerParagraph(**{**paragraph.model_dump(), "source_keys": keys})
+            )
+        if not kept:
+            raise InvalidGrounding("답변의 출처를 확인할 수 없습니다.")
         return AnswerResponse(
             status="answered",
-            paragraphs=generated.paragraphs,
+            paragraphs=[paragraph for paragraph in kept],
             sources=[source for source in sources if source.key in used],
             limitations=generated.limitations,
             metadata=metadata,

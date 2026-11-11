@@ -108,6 +108,7 @@ def qa():
                 {
                     "text": "임차료 지원 대상을 확대하는 법안입니다.",
                     "source_keys": ["S1"],
+                    "list_item": False,
                 }
             ],
             limitations=[],
@@ -245,12 +246,14 @@ def test_follow_up_reads_current_original_instead_of_previous_answer(qa):
         {"answerable": True, "paragraphs": [], "limitations": []},
         {
             "answerable": True,
-            "paragraphs": [{"text": "주장", "source_keys": ["INVENTED"]}],
+            "paragraphs": [
+                {"text": "주장", "source_keys": ["INVENTED"], "list_item": False}
+            ],
             "limitations": [],
         },
         {
             "answerable": True,
-            "paragraphs": [{"text": "   ", "source_keys": ["S1"]}],
+            "paragraphs": [{"text": "   ", "source_keys": ["S1"], "list_item": False}],
             "limitations": [],
         },
     ],
@@ -287,3 +290,24 @@ def test_answer_prompt_asks_for_friendly_formal_endings(qa):
     assert "'제공된', '발췌문'" in prompt
     assert "그 검색어로 살펴본 법안을 소개한다" in prompt
     assert "내용이 비슷한 법안은 한 문단으로 묶고" in prompt
+
+
+def test_unknown_citation_is_dropped_but_grounded_paragraphs_remain(qa):
+    qa.generator.return_value = GeneratedAnswer.model_validate(
+        {
+            "answerable": True,
+            "paragraphs": [
+                {
+                    "text": "근거 있는 문단",
+                    "source_keys": ["S1", "S9"],
+                    "list_item": False,
+                },
+                {"text": "근거 없는 문단", "source_keys": ["S9"], "list_item": False},
+            ],
+            "limitations": [],
+        }
+    )
+    result = qa.answer("주거 지원 내용은?")
+    assert [(p.text, p.source_keys) for p in result.paragraphs] == [
+        ("근거 있는 문단", ["S1"])
+    ]
