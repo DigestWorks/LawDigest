@@ -79,7 +79,7 @@ class AnswerResponse(StrictModel):
 
 
 class AgentDecision(StrictModel):
-    action: Literal["search", "read", "member", "answer"]
+    action: Literal["search", "read", "answer"]
     query: str = Field(max_length=1000)
     bill_ids: list[str] = Field(max_length=3)
 

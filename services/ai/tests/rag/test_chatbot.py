@@ -30,11 +30,29 @@ def bill(bill_id="B001", assembly=22):
 
 
 class Repository:
-    def __init__(self, rows, members=None, proposals=None):
+    def __init__(self, rows, members=None, proposals=None, parties=None):
         self.rows = {row["bill_id"]: row for row in rows}
-        # 의원 프로필과 의원별 대표발의 법안 ID
+        # 의원 프로필, 의원·정당별 대표발의 법안 ID({id: [bill_id]}, 정당은 {party_id: [(bill_id, 발의 의원)]})
         self.members = members or []
         self.proposals = proposals or {}
+        self.parties = parties or []
+        self.party_proposals = {}
+
+    def directory(self):
+        return {
+            "members": [member["name"] for member in self.members],
+            "parties": [party["name"] for party in self.parties],
+        }
+
+    def find_parties(self, names):
+        return [party for party in self.parties if party["name"] in names][:2]
+
+    def party_bills(self, party_ids, assembly, limit=8):
+        pairs = [p for pid in party_ids for p in self.party_proposals.get(pid, [])]
+        rows = self.hydrate([bill_id for bill_id, _ in pairs], assembly)
+        proposers = dict(pairs)
+        found = [{**rows[i], "proposers": [proposers[i]]} for i in rows]
+        return sorted(found, key=lambda row: row["propose_date"], reverse=True)[:limit]
 
     def find_members(self, name, assembly):
         return [

@@ -88,7 +88,10 @@ SYSTEM_PROMPT = """대한민국 국회 법안 자료에 관한 질문에 한국�
 limitations에는 질문에 직접 영향을 주는 자료의 한계만 짧게 쓴다.
 members가 있으면 질문은 그 의원의 입법 활동에 관한 것이다. 첫 문단에 정당·지역구·당선 횟수·소속 위원회를 한 문장으로 쓰고 그 의원이 대표발의한 법안의 근거를 붙인다.
 이어서 members의 bill_ids에 해당하는 대표발의 법안을 최근 발의 순으로 묶어 무엇을 바꾸려는지 설명한다. 다른 법안은 질문에 직접 필요할 때만 쓴다.
-같은 이름의 의원이 둘이면 지역구로 구분해 각자의 법안을 따로 설명한다. members의 정보는 수집 시점 기준이며 평가·추측을 덧붙이지 않는다."""
+같은 이름의 의원이 둘이면 지역구로 구분해 각자의 법안을 따로 설명한다. members의 정보는 수집 시점 기준이며 평가·추측을 덧붙이지 않는다.
+parties가 있으면 질문은 그 정당의 입법 활동에 관한 것이다. 첫 문단에 지역구·비례 의석 수와 당대표·원내대표를 한 문장으로 쓰고 소속 의원 대표발의 법안의 근거를 붙인다.
+이어서 parties의 bills에 해당하는 법안을 주제별로 묶어 무엇을 바꾸려는지 설명하고, 문장마다 발의 의원 이름(proposers)을 함께 적는다.
+정당이 둘이면 정당별로 나눠 설명한다. 정당을 평가하거나 비교해 우열을 매기지 않는다."""
 
 
 class LawdigestionChatbot:
@@ -227,7 +230,7 @@ class LawdigestionChatbot:
                 break
         return sources, stale
 
-    def _call_llm(self, request, sources, generator=None, members=None):
+    def _call_llm(self, request, sources, generator=None, members=None, parties=None):
         context = {
             "question": request.question,
             "previous_questions": [turn.question for turn in request.history[-3:]],
@@ -235,6 +238,8 @@ class LawdigestionChatbot:
         }
         if members:
             context["members"] = members
+        if parties:
+            context["parties"] = parties
         return GeneratedAnswer.model_validate(
             (generator or self.generator)(SYSTEM_PROMPT, context)
         )
@@ -260,7 +265,7 @@ class LawdigestionChatbot:
         return self.answer_from_sources(request, result.sources, result.metadata)
 
     def answer_from_sources(
-        self, request, sources, metadata, generator=None, members=None
+        self, request, sources, metadata, generator=None, members=None, parties=None
     ):
         if not sources:
             return AnswerResponse(
@@ -272,7 +277,7 @@ class LawdigestionChatbot:
                 ],
                 metadata=metadata,
             )
-        generated = self._call_llm(request, sources, generator, members)
+        generated = self._call_llm(request, sources, generator, members, parties)
         if not generated.answerable:
             return AnswerResponse(
                 status="insufficient_evidence",

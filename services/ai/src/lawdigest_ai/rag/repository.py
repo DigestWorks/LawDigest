@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import time
 
 import pymysql
 
@@ -14,6 +15,8 @@ READY = "ingest_status = 'READY' AND summary IS NOT NULL AND TRIM(summary) <> ''
 READY_JOINED = "b.ingest_status = 'READY' AND b.summary IS NOT NULL AND TRIM(b.summary) <> '' AND b.assembly_number IN (21, 22)"
 # 처리 상태·AI 요약은 매번 DB에서 읽는다. 검색 임베딩에 사용한 원문만 대조한다.
 HASH_FIELDS = ("bill_id", "bill_name", "summary", "assembly_number", "propose_date")
+# 질문 속 이름 대조에 쓰는 의원·정당 이름 목록의 캐시 시간(초)
+DIRECTORY_TTL = 600
 
 
 def content_hash(row):
@@ -27,6 +30,8 @@ class BillRepository:
     def __init__(self, mode="prod", connection_factory=None):
         self.mode = mode
         self.connection_factory = connection_factory or self._connect
+        self._directory = None
+        self._directory_at = 0.0
 
     def _connect(self):
         config = get_prod_db_config() if self.mode == "prod" else get_test_db_config()
@@ -92,6 +97,70 @@ class BillRepository:
             params.append(assembly)
         sql += " ORDER BY c.state DESC, c.assembly_number DESC LIMIT 2"
         return self._read(sql, params)
+
+    def directory(self):
+        """질문 속 이름 대조용 의원·정당 이름 목록. 무소속은 정당이 아니므로 뺀다."""
+        if self._directory and time.monotonic() - self._directory_at < DIRECTORY_TTL:
+            return self._directory
+        members = [
+            row["name"]
+            for row in self._read("SELECT DISTINCT name FROM Congressman")
+            if row["name"]
+        ]
+        parties = [
+            row["name"]
+            for row in self._read("SELECT name FROM Party WHERE name <> '무소속'")
+            if row["name"]
+        ]
+        self._directory = {"members": members, "parties": parties}
+        self._directory_at = time.monotonic()
+        return self._directory
+
+    def find_parties(self, names):
+        """정당 정보(의석 수, 지도부)를 돌려준다."""
+        names = list(dict.fromkeys(name.strip() for name in names if name))[:2]
+        if not names:
+            return []
+        placeholders = ",".join(["%s"] * len(names))
+        return self._read(
+            "SELECT party_id, name, district_congressman_count, proportional_congressman_count,"
+            " party_leader, parliamentary_leader"
+            f" FROM Party WHERE name IN ({placeholders})",
+            names,
+        )
+
+    def party_bills(self, party_ids, assembly=22, limit=8):
+        """발의 당시 그 정당 소속 의원이 대표발의한 법안을 최근 발의 순으로, 발의 의원 이름과 함께 돌려준다."""
+        ids = [int(value) for value in dict.fromkeys(party_ids)][:2]
+        if not ids:
+            return []
+        if assembly not in (0, 21, 22):
+            raise ValueError("대수 범위가 올바르지 않습니다.")
+        columns = ", ".join(f"b.{field.strip()}" for field in FIELDS.split(","))
+        placeholders = ",".join(["%s"] * len(ids))
+        sql = (
+            f"SELECT {columns}, rp.party_id, c.name AS proposer_name"
+            " FROM RepresentativeProposer rp"
+            " JOIN Bill b ON b.bill_id = rp.bill_id"
+            " LEFT JOIN Congressman c ON c.congressman_id = rp.congressman_id"
+            f" WHERE rp.party_id IN ({placeholders}) AND {READY_JOINED}"
+        )
+        params = list(ids)
+        if assembly:
+            sql += " AND b.assembly_number = %s"
+            params.append(assembly)
+        sql += " ORDER BY b.propose_date DESC, b.bill_id DESC LIMIT %s"
+        # 공동대표발의는 행이 여럿이므로 넉넉히 읽은 뒤 법안 단위로 합친다.
+        params.append(max(1, min(int(limit), 8)) * 3)
+        bills = {}
+        for row in self._read(sql, params):
+            bill = bills.setdefault(row["bill_id"], {**row, "proposers": []})
+            if (
+                row.get("proposer_name")
+                and row["proposer_name"] not in bill["proposers"]
+            ):
+                bill["proposers"].append(row["proposer_name"])
+        return list(bills.values())[: max(1, min(int(limit), 8))]
 
     def member_bills(self, congressman_ids, assembly=22, limit=6):
         """의원이 대표발의한 법안을 최근 발의 순으로 돌려준다."""

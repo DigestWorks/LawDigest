@@ -376,16 +376,50 @@ def test_member_without_bills_falls_back_within_five_steps(qa):
     assert ids <= {"1", "2", "3", "4", "5"}
 
 
-def test_planner_can_look_up_a_member_named_in_the_question(qa):
+def test_member_named_inside_a_question_is_found_without_the_model(qa):
     qa.repository.members = [member()]
     qa.repository.proposals = {"M1": ["B001"]}
-    qa._retrieve = MagicMock(return_value=([], False))
-    qa.generator.generate.side_effect = [
-        decision("member", "김의원"),
-        decision(),
-        qa.generator.return_value,
-    ]
+    qa._retrieve = MagicMock(side_effect=AssertionError("의미 검색을 하지 않는다"))
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    events = []
     result = BillAgent(qa).run(
-        QuestionRequest(question="김의원이 낸 주거 법안은?"), lambda _: None
+        QuestionRequest(question="김의원 의원이 낸 주거 법안은?"), events.append
     )
     assert [s.bill_id for s in result.sources] == ["B001"]
+    first = next(e["step"] for e in events if e["type"] == "step")
+    assert first["summary"] == "‘김의원’ 의원의 프로필과 대표발의 법안을 찾고 있습니다."
+
+
+def test_party_name_uses_party_profile_and_member_bills(qa):
+    qa.repository.parties = [
+        {
+            "party_id": 2,
+            "name": "국민의힘",
+            "district_congressman_count": 90,
+            "proportional_congressman_count": 18,
+            "party_leader": "대표",
+            "parliamentary_leader": "원내대표",
+        }
+    ]
+    qa.repository.party_proposals = {2: [("B001", "김의원")]}
+    qa._retrieve = MagicMock(side_effect=AssertionError("의미 검색을 하지 않는다"))
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    events = []
+    result = BillAgent(qa).run(QuestionRequest(question="국민의힘"), events.append)
+    assert [s.bill_id for s in result.sources] == ["B001"]
+    steps = [e["step"] for e in events if e["type"] == "step"]
+    assert (
+        steps[1]["summary"]
+        == "‘국민의힘’ 정보와 소속 의원 대표발의 법안 1건을 확인했습니다."
+    )
+    _, context = qa.generator.generate.call_args_list[-1].args
+    assert context["parties"] == [
+        {
+            "name": "국민의힘",
+            "district_seats": 90,
+            "proportional_seats": 18,
+            "party_leader": "대표",
+            "parliamentary_leader": "원내대표",
+            "bills": [{"bill_id": "B001", "proposers": ["김의원"]}],
+        }
+    ]
