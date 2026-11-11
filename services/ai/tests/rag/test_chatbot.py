@@ -283,3 +283,6 @@ def test_answer_prompt_asks_for_friendly_formal_endings(qa):
     prompt, _ = qa.generator.call_args.args
     assert "'-입니다', '-습니다'로 끝내는 합니다체" in prompt
     assert "친절하고 쉬운 말" in prompt
+    # 답변을 만드는 과정이 아니라 찾은 법안을 사용자에게 소개한다.
+    assert "'제공된', '발췌문'" in prompt
+    assert "그 검색어로 찾은 법안을 소개한다" in prompt
