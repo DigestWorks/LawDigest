@@ -8,13 +8,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.requests import ClientDisconnect
+
 from lawdigest_ai.rag.agent import AgentCancelled, BillAgent
 from lawdigest_ai.rag.api import AgentStream, create_app
 from lawdigest_ai.rag.chatbot import InvalidGrounding
 from lawdigest_ai.rag.codex_generation import CodexAnswerGenerator, CodexGenerationError
 from lawdigest_ai.rag.schemas import QuestionRequest
-from starlette.requests import ClientDisconnect
-
 from tests.rag.test_chatbot import qa as qa  # noqa: PLC0414 -- pytest fixture 재사용
 from tests.rag.test_release_boundaries import HEADERS, TOKEN
 

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import List, Optional
+
 from openai import OpenAI
+
 from lawdigest_ai import config
 
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ class EmbeddingGenerator:
     def __init__(
         self,
         model_type: str = "openai",
-        model_name: Optional[str] = None,
+        model_name: str | None = None,
         *,
         client=None,
     ):
@@ -27,7 +28,8 @@ class EmbeddingGenerator:
         if model_type == "openai":
             try:
                 self.client = client or OpenAI(api_key=config.get_openai_api_key())
-            except Exception as e:
+            # 초기화 실패는 임베딩 없음(None)으로 처리한다. 원인 종류만 기록한다.
+            except Exception as e:  # noqa: BLE001
                 logger.error("OpenAI 초기화 실패: %s", type(e).__name__)
         elif model_type == "huggingface":
             if not model_name:
@@ -38,10 +40,10 @@ class EmbeddingGenerator:
                 from sentence_transformers import SentenceTransformer
 
                 self.huggingface_model = SentenceTransformer(model_name)
-            except Exception as e:
-                logger.error(f"HuggingFace 모델 로드 실패: {e}")
+            except Exception as e:  # noqa: BLE001 - 로드 실패는 임베딩 없음으로 처리한다.
+                logger.error("HuggingFace 모델 로드 실패: %s", type(e).__name__)
 
-    def generate(self, text: str) -> Optional[List[float]]:
+    def generate(self, text: str) -> list[float] | None:
         """텍스트에 대한 임베딩 벡터를 반환합니다."""
         if not text or not isinstance(text, str):
             return None
@@ -55,7 +57,7 @@ class EmbeddingGenerator:
                     model=self.model_name,
                 )
                 return response.data[0].embedding
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - 호출자는 None을 실패로 다룬다.
                 logger.error("임베딩 생성 실패: %s", type(e).__name__)
                 return None
 
@@ -64,14 +66,14 @@ class EmbeddingGenerator:
                 return None
             try:
                 return self.huggingface_model.encode(text).tolist()
-            except Exception as e:
-                logger.exception(f"HuggingFace 임베딩 생성 실패: {e}")
+            except Exception:
+                logger.exception("HuggingFace 임베딩 생성 실패")
                 return None
         return None
 
     def generate_many(
-        self, texts: List[str], *, input_type="passage"
-    ) -> List[List[float]]:
+        self, texts: list[str], *, input_type="passage"
+    ) -> list[list[float]]:
         """출시 경로에서는 실패·누락 벡터를 성공으로 숨기지 않는다."""
         if (
             input_type not in {"passage", "query"}

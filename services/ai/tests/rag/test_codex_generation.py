@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+
 from lawdigest_ai.rag.codex_generation import CodexAnswerGenerator, CodexGenerationError
 from lawdigest_ai.rag.settings import RagSettings
 

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+
 import pymysql
 
 from lawdigest_ai.db import get_prod_db_config, get_test_db_config

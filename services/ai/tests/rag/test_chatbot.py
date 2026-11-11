@@ -16,17 +16,17 @@ from lawdigest_ai.rag.vector_store import VectorStore
 
 
 def bill(bill_id="B001", assembly=22):
-    return dict(
-        bill_id=bill_id,
-        bill_name="주거 지원법 일부개정법률안",
-        title="청년 주거 지원",
-        summary="청년의 주거 안정을 위해 임차료 지원 대상을 확대하려는 것임.",
-        gpt_summary=None,
-        assembly_number=assembly,
-        propose_date=date(2026, 7, 10),
-        stage="위원회 심사",
-        bill_result=None,
-    )
+    return {
+        "bill_id": bill_id,
+        "bill_name": "주거 지원법 일부개정법률안",
+        "title": "청년 주거 지원",
+        "summary": "청년의 주거 안정을 위해 임차료 지원 대상을 확대하려는 것임.",
+        "gpt_summary": None,
+        "assembly_number": assembly,
+        "propose_date": date(2026, 7, 10),
+        "stage": "위원회 심사",
+        "bill_result": None,
+    }
 
 
 class Repository:

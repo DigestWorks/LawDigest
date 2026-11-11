@@ -1,11 +1,11 @@
 """검증된 스냅샷으로 새 버전의 인덱스를 만들고 마지막에 활성화한다."""
 
-from collections import Counter
-from datetime import datetime, timezone
 import hashlib
 import json
 import re
 import uuid
+from collections import Counter
+from datetime import datetime, timezone
 
 import tiktoken
 from qdrant_client import models

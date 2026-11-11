@@ -4,8 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from qdrant_client import QdrantClient
 
 from lawdigest_ai.rag.api import create_app
@@ -22,7 +22,6 @@ from lawdigest_ai.rag.schemas import IndexStatus
 from lawdigest_ai.rag.settings import RagSettings
 from tests.rag.test_chatbot import bill
 
-
 TOKEN = "test-private-proxy-token-123456789"
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "x-rag-client": "a" * 64}
 
@@ -33,13 +32,13 @@ def api():
     service.status.return_value = IndexStatus(
         available=True, indexed_bills=1, available_bills=1
     )
-    service.answer.return_value = dict(
-        status="insufficient_evidence",
-        paragraphs=[],
-        sources=[],
-        limitations=["근거 부족"],
-        metadata=service.status.return_value,
-    )
+    service.answer.return_value = {
+        "status": "insufficient_evidence",
+        "paragraphs": [],
+        "sources": [],
+        "limitations": ["근거 부족"],
+        "metadata": service.status.return_value,
+    }
     settings = replace(RagSettings(), internal_token=TOKEN, requests_per_window=2)
     with TestClient(create_app(service=service, settings=settings)) as client:
         yield client, service
@@ -117,13 +116,17 @@ def test_limits_release_concurrency_and_roll_over_at_korean_midnight():
         monotonic=lambda: clock[0],
         now=lambda: now[0],
     )
-    with limits.lease("one"):
-        with pytest.raises(RequestLimited, match="QA_BUSY"):
-            with limits.lease("two"):
-                pass
-    with pytest.raises(RequestLimited, match="QA_DAILY_LIMIT") as error:
-        with limits.lease("two"):
-            pass
+    with (
+        limits.lease("one"),
+        pytest.raises(RequestLimited, match="QA_BUSY"),
+        limits.lease("two"),
+    ):
+        pass
+    with (
+        pytest.raises(RequestLimited, match="QA_DAILY_LIMIT") as error,
+        limits.lease("two"),
+    ):
+        pass
     assert error.value.retry_after == 60
     now[0] = datetime(2026, 11, 4, tzinfo=ZoneInfo("Asia/Seoul"))
     with limits.lease("two"):

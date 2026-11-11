@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+
 from lawdigest_ai import config
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ class VectorStore:
                     https=config.QDRANT_USE_HTTPS,
                     timeout=10,
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - 연결 실패는 client=None으로 두고 상태 조회에서 드러낸다.
             logger.error("Qdrant 초기화 실패: %s", type(e).__name__)
             self.client = None
 
@@ -65,15 +67,15 @@ class VectorStore:
     def search(
         self,
         collection_name: str,
-        query_vector: List[float],
+        query_vector: list[float],
         limit: int = 5,
-        score_threshold: Optional[float] = None,
+        score_threshold: float | None = None,
         query_filter=None,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """벡터 유사도 검색을 수행하고 결과를 반환합니다."""
         if not self.client:
             return []
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "collection_name": collection_name,
             "query": query_vector,
             "limit": limit,
