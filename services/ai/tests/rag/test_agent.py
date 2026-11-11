@@ -473,3 +473,17 @@ def test_final_answer_gets_more_time_than_planning(qa):
     plan, final = qa.generator.generate.call_args_list
     assert plan.kwargs["timeout"] <= 25
     assert 25 < final.kwargs["timeout"] <= 45
+
+
+def test_final_answer_reads_plain_ai_summary_without_markup(qa):
+    qa.repository.rows["B001"] = {
+        **qa.repository.rows["B001"],
+        "gpt_summary": "## 쉬운 요약\n- **임차료 지원**을 넓혀요.\n- <mark>청년 기준을 34세로 올려요.</mark>",
+    }
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    BillAgent(qa).run(QuestionRequest(question="청년 주거 지원"), lambda _: None)
+    _, context = qa.generator.generate.call_args_list[-1].args
+    assert (
+        context["evidence"][0]["ai_summary"]
+        == "쉬운 요약\n- 임차료 지원을 넓혀요.\n- 청년 기준을 34세로 올려요."
+    )

@@ -54,6 +54,18 @@ def proposal_date_in_question(question: str) -> str | None:
         return None
 
 
+AI_SUMMARY_LIMIT = 1200
+
+
+def plain_summary(text):
+    """서비스의 쉬운 AI 요약에서 강조 표시를 지우고 앞부분(쉬운 요약·주요 내용)만 남긴다."""
+    if not text or not text.strip():
+        return ""
+    text = re.sub(r"</?mark>", "", text)
+    text = re.sub(r"\*\*|^#+\s*", "", text, flags=re.MULTILINE)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()[:AI_SUMMARY_LIMIT]
+
+
 def source_from_row(row, key, excerpt):
     """현재 DB 행으로 공개 근거를 만든다. 합쳐진 가결 결과는 판단을 미루고 비운다."""
     result = row.get("bill_result")
@@ -86,7 +98,11 @@ SYSTEM_PROMPT = """대한민국 국회 법안 자료에 관한 질문에 한국�
 모든 문장은 '-입니다', '-습니다'로 끝내는 합니다체로 쓴다. '-다', '-함', '-임' 같은 평서·개조식 종결과 반말은 쓰지 않는다. paragraphs와 limitations 모두 같다.
 법안을 처음 접하는 시민에게 설명하듯 친절하고 쉬운 말로 쓴다. 어려운 법률 용어는 풀어 쓴다. 감탄·과한 존칭·이모지는 쓰지 않는다.
 답변은 사용자에게 직접 말하는 글이다. '제공된', '발췌문', '자료', 'evidence', '원문에 따르면'처럼 답변을 만드는 과정을 가리키는 말을 쓰지 않는다. 법안을 주어로 쓴다(예: '주택법 개정안은 …를 제안했습니다').
-질문이 검색어처럼 짧은 단어나 구이면, 그 검색어로 찾은 법안을 소개한다. 첫 문단은 '‘검색어’와 관련해 찾은 법안은 N건이며 …' 형식으로 건수와 공통 주제를 쓰고, 이어서 법안마다 한 문단씩 무엇을 바꾸려는지와 처리 단계를 쓴다. 여러 법안을 한 문단에 뭉뚱그리지 않는다.
+evidence의 ai_summary는 서비스가 법안 원문으로 만든 쉬운 요약이다. 구체적인 변화를 설명할 때 쓰되, 원문 발췌와 어긋나면 원문을 따른다.
+질문이 검색어처럼 짧은 단어나 구이면, 그 검색어로 살펴본 법안을 소개한다. 첫 문단은 '‘검색어’와 관련해 살펴본 법안 N건은 …' 형식으로 공통 주제와 그 의미를 쓴다. N은 evidence의 법안 수이며, 검색 결과 전체인 것처럼 쓰지 않는다.
+내용이 비슷한 법안은 한 문단으로 묶고, 무엇을 무엇으로 바꾸는지·누가 무엇을 할 수 있게 되는지 같은 구체적인 변화를 예로 든다. 법안 이름만 바꾼 같은 문장을 되풀이하지 않는다. 법안끼리 다른 점이 있으면 그것만 따로 쓴다.
+처리 단계가 모두 같으면 마지막 문단에 한 번만 쓴다.
+같은 의원이 같은 날 여러 법안을 냈거나(proposer_label, propose_date), 용어·표현만 고치는 법안이면 그 사실과, 생활에 직접 달라지는 것은 적다는 의미를 짚는다. 근거에 있는 사실만 쓴다.
 limitations에는 사용자가 다음에 무엇을 확인하면 되는지 알려 주는 한계만 쓴다(예: '구체적인 조문은 국회 원문에서 확인할 수 있습니다'). 답변 근거의 범위나 발췌 길이를 설명하는 문장은 쓰지 않는다. 쓸 것이 없으면 비운다.
 members가 있으면 질문은 그 의원의 입법 활동에 관한 것이다. 첫 문단에 정당·지역구·당선 횟수·소속 위원회를 한 문장으로 쓰고 그 의원이 대표발의한 법안의 근거를 붙인다.
 이어서 members의 bill_ids에 해당하는 대표발의 법안을 최근 발의 순으로 묶어 무엇을 바꾸려는지 설명한다. 다른 법안은 질문에 직접 필요할 때만 쓴다.
@@ -232,11 +248,26 @@ class LawdigestionChatbot:
                 break
         return sources, stale
 
-    def _call_llm(self, request, sources, generator=None, members=None, parties=None):
+    def _call_llm(
+        self,
+        request,
+        sources,
+        generator=None,
+        members=None,
+        parties=None,
+        summaries=None,
+    ):
+        summaries = summaries or {}
+        evidence = []
+        for source in sources:
+            item = source.model_dump(mode="json")
+            if summaries.get(source.bill_id):
+                item["ai_summary"] = summaries[source.bill_id]
+            evidence.append(item)
         context = {
             "question": request.question,
             "previous_questions": [turn.question for turn in request.history[-3:]],
-            "evidence": [source.model_dump(mode="json") for source in sources],
+            "evidence": evidence,
         }
         if members:
             context["members"] = members
@@ -267,7 +298,14 @@ class LawdigestionChatbot:
         return self.answer_from_sources(request, result.sources, result.metadata)
 
     def answer_from_sources(
-        self, request, sources, metadata, generator=None, members=None, parties=None
+        self,
+        request,
+        sources,
+        metadata,
+        generator=None,
+        members=None,
+        parties=None,
+        summaries=None,
     ):
         if not sources:
             return AnswerResponse(
@@ -279,7 +317,9 @@ class LawdigestionChatbot:
                 ],
                 metadata=metadata,
             )
-        generated = self._call_llm(request, sources, generator, members, parties)
+        generated = self._call_llm(
+            request, sources, generator, members, parties, summaries
+        )
         if not generated.answerable:
             return AnswerResponse(
                 status="insufficient_evidence",

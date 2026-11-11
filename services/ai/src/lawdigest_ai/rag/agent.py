@@ -12,6 +12,7 @@ from lawdigest_ai.rag.chatbot import (
     COMBINED_PASS_RESULTS,
     InvalidGrounding,
     RagUnavailable,
+    plain_summary,
     source_from_row,
 )
 from lawdigest_ai.rag.codex_generation import CodexGenerationError
@@ -388,6 +389,10 @@ class BillAgent:
             current = with_proposers(
                 current, self.service.repository.proposer_info(list(sources))
             )
+            summaries = {
+                bill_id: plain_summary(row.get("gpt_summary"))
+                for bill_id, row in rows.items()
+            }
             kept = {source.bill_id for source in current}
             response = self.service.answer_from_sources(
                 request,
@@ -408,6 +413,7 @@ class BillAgent:
                     }
                     for party in parties
                 ],
+                summaries=summaries,
             )
             if planning_interrupted:
                 response.limitations = [

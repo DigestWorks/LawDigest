@@ -285,4 +285,5 @@ def test_answer_prompt_asks_for_friendly_formal_endings(qa):
     assert "친절하고 쉬운 말" in prompt
     # 답변을 만드는 과정이 아니라 찾은 법안을 사용자에게 소개한다.
     assert "'제공된', '발췌문'" in prompt
-    assert "그 검색어로 찾은 법안을 소개한다" in prompt
+    assert "그 검색어로 살펴본 법안을 소개한다" in prompt
+    assert "내용이 비슷한 법안은 한 문단으로 묶고" in prompt
