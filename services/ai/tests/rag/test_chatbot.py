@@ -251,3 +251,10 @@ def test_metadata_warns_when_database_has_newer_unindexed_bills(qa):
     assert status.available_bills == 2
     assert status.indexed_bills == 1
     assert status.lagging is True
+
+
+def test_answer_prompt_asks_for_friendly_formal_endings(qa):
+    qa.answer("청년 주거 지원은 무엇인가요?")
+    prompt, _ = qa.generator.call_args.args
+    assert "'-입니다', '-습니다'로 끝내는 합니다체" in prompt
+    assert "친절하고 쉬운 말" in prompt
