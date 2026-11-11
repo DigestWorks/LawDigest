@@ -16,7 +16,12 @@ from lawdigest_ai.rag.chatbot import (
 )
 from lawdigest_ai.rag.codex_generation import CodexGenerationError
 from lawdigest_ai.rag.entities import display_name, match_entities
-from lawdigest_ai.rag.schemas import AgentDecision, AgentStep, QuestionRequest
+from lawdigest_ai.rag.schemas import (
+    AgentDecision,
+    AgentStep,
+    QuestionRequest,
+    Representative,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +44,33 @@ def latest(groups):
         key=lambda row: (row["propose_date"], row["bill_id"]),
         reverse=True,
     )
+
+
+def with_proposers(sources, proposers):
+    """근거마다 대표발의자 표시 문구와, 단독 대표발의면 의원·정당 정보를 붙인다."""
+    result = []
+    for source in sources:
+        rows = proposers.get(source.bill_id, [])
+        update = {}
+        if rows:
+            first = display_name(rows[0]["name"])
+            update["proposer_label"] = (
+                f"{first} 의원"
+                if len(rows) == 1
+                else f"{first} 의원 외 {len(rows) - 1}인"
+            )
+        if len(rows) == 1:
+            row = rows[0]
+            update["representative"] = Representative(
+                name=display_name(row["name"]),
+                congressman_id=row["congressman_id"],
+                image_url=row.get("congressman_image_url") or None,
+                party=row.get("party") or None,
+                party_id=row.get("party_id"),
+                party_image_url=row.get("party_image_url") or None,
+            )
+        result.append(source.model_copy(update=update))
+    return result
 
 
 class AgentCancelled(RuntimeError):
@@ -344,6 +376,9 @@ class BillAgent:
                         }
                     )
                 )
+            current = with_proposers(
+                current, self.service.repository.proposer_info(list(sources))
+            )
             kept = {source.bill_id for source in current}
             response = self.service.answer_from_sources(
                 request,

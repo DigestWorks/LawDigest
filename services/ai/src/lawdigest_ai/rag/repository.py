@@ -162,6 +162,31 @@ class BillRepository:
                 bill["proposers"].append(row["proposer_name"])
         return list(bills.values())[: max(1, min(int(limit), 8))]
 
+    def proposer_info(self, bill_ids):
+        """법안별 대표발의자(이름, 의원 ID, 사진, 발의 당시 정당과 로고) 목록"""
+        ids = list(dict.fromkeys(bill_ids))
+        if not ids:
+            return {}
+        if len(ids) > 40 or any(
+            not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", value) for value in ids
+        ):
+            raise ValueError("근거 법안 식별자가 올바르지 않습니다.")
+        placeholders = ",".join(["%s"] * len(ids))
+        rows = self._read(
+            "SELECT rp.bill_id, c.congressman_id, c.name, c.congressman_image_url,"
+            " p.party_id, p.name AS party, p.party_image_url"
+            " FROM RepresentativeProposer rp"
+            " JOIN Congressman c ON c.congressman_id = rp.congressman_id"
+            " LEFT JOIN Party p ON p.party_id = rp.party_id"
+            f" WHERE rp.bill_id IN ({placeholders})"
+            " ORDER BY rp.representative_proposer_id",
+            ids,
+        )
+        found = {}
+        for row in rows:
+            found.setdefault(row["bill_id"], []).append(row)
+        return found
+
     def member_bills(self, congressman_ids, assembly=22, limit=6):
         """의원이 대표발의한 법안을 최근 발의 순으로 돌려준다."""
         ids = list(dict.fromkeys(congressman_ids))

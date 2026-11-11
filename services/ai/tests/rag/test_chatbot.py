@@ -37,6 +37,13 @@ class Repository:
         self.proposals = proposals or {}
         self.parties = parties or []
         self.party_proposals = {}
+        # 법안별 대표발의자 행 {bill_id: [row]}
+        self.representatives = {}
+
+    def proposer_info(self, bill_ids):
+        return {
+            i: self.representatives[i] for i in bill_ids if i in self.representatives
+        }
 
     def directory(self):
         return {

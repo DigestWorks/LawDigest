@@ -423,3 +423,45 @@ def test_party_name_uses_party_profile_and_member_bills(qa):
             "bills": [{"bill_id": "B001", "proposers": ["김의원"]}],
         }
     ]
+
+
+def test_sources_carry_representative_proposer_and_party(qa):
+    qa.repository.representatives = {
+        "B001": [
+            {
+                "congressman_id": "M1",
+                "name": "김의원(국민)",
+                "congressman_image_url": "/img/m1.jpg",
+                "party_id": 2,
+                "party": "국민의힘",
+                "party_image_url": "/party/wide/2.png",
+            }
+        ]
+    }
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    result = BillAgent(qa).run(
+        QuestionRequest(question="청년 주거 지원"), lambda _: None
+    )
+    source = result.sources[0]
+    assert source.proposer_label == "김의원 의원"
+    assert source.representative.model_dump() == {
+        "name": "김의원",
+        "congressman_id": "M1",
+        "image_url": "/img/m1.jpg",
+        "party": "국민의힘",
+        "party_id": 2,
+        "party_image_url": "/party/wide/2.png",
+    }
+
+
+def test_joint_representatives_have_label_without_single_party(qa):
+    row = {"congressman_id": "M1", "name": "김의원", "party_id": 2, "party": "국민의힘"}
+    qa.repository.representatives = {
+        "B001": [row, {**row, "congressman_id": "M2", "name": "박의원"}]
+    }
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    result = BillAgent(qa).run(
+        QuestionRequest(question="청년 주거 지원"), lambda _: None
+    )
+    assert result.sources[0].proposer_label == "김의원 의원 외 1인"
+    assert result.sources[0].representative is None

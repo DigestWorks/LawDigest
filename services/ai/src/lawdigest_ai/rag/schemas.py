@@ -46,6 +46,17 @@ class IndexStatus(StrictModel):
     lagging: bool = False
 
 
+class Representative(StrictModel):
+    """단독 대표발의자. 화면이 정당색 포인트와 발의자 카드에 쓴다."""
+
+    name: str
+    congressman_id: str
+    image_url: str | None = None
+    party: str | None = None
+    party_id: int | None = None
+    party_image_url: str | None = None
+
+
 class Source(StrictModel):
     key: str
     bill_id: str
@@ -57,6 +68,8 @@ class Source(StrictModel):
     excerpt: str
     detail_url: str
     official_url: str
+    proposer_label: str | None = None
+    representative: Representative | None = None
 
 
 class AnswerParagraph(StrictModel):
