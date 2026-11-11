@@ -34,7 +34,8 @@ export type RagRepresentative = {
 };
 export type RagAnswer = {
   status: 'answered' | 'insufficient_evidence' | 'searched';
-  paragraphs: { text: string; source_keys: string[] }[];
+  /** list_item: 나란한 항목을 나열하는 문단. 화면은 연속한 항목만 점 목록으로 묶는다. */
+  paragraphs: { text: string; source_keys: string[]; list_item?: boolean }[];
   sources: RagSource[];
   limitations: string[];
   metadata: RagStatus;
@@ -165,7 +166,8 @@ export function isRagAnswer(value: unknown): value is RagAnswer {
         p.text.length <= 2000 &&
         Array.isArray(p.source_keys) &&
         p.source_keys.length > 0 &&
-        p.source_keys.every((key) => keys.has(key)),
+        p.source_keys.every((key) => keys.has(key)) &&
+        (p.list_item === undefined || typeof p.list_item === 'boolean'),
     ) &&
     (answer.status === 'answered'
       ? answer.paragraphs.length > 0 && answer.sources.length > 0

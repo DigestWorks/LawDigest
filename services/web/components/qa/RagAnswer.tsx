@@ -74,6 +74,21 @@ function SourceRow({ source, turnId }: { source: RagSource; turnId: string }) {
   );
 }
 
+/**
+ * 문단을 화면 덩어리로 나눈다. 이어지는 글은 문단 하나씩, 나란한 항목(list_item)이 둘 이상 이어지면 점 목록 하나로 묶는다.
+ * 홀로 떨어진 항목은 목록이 필요 없으므로 문단으로 둔다.
+ */
+export function answerBlocks(paragraphs: Answer['paragraphs']) {
+  const blocks: { start: number; items: Answer['paragraphs'] }[] = [];
+  paragraphs.forEach((paragraph, index) => {
+    const last = blocks.at(-1);
+    const continues = paragraph.list_item && last && last.items.at(-1)?.list_item;
+    if (continues) last.items.push(paragraph);
+    else blocks.push({ start: index, items: [paragraph] });
+  });
+  return blocks;
+}
+
 /** 한 문단에 보이는 근거 번호 수. 넘치면 "+N"으로 줄이고, 누르면 모두 펼친다. */
 const VISIBLE_CITATIONS = 3;
 
@@ -174,20 +189,37 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
           className={`flex flex-col gap-4 text-[16px] leading-[1.8] text-foreground ${clipped ? 'ai-answer-clip' : ''}`}>
           {lead && <p>{lead}</p>}
           {answer.paragraphs.length > 0 && (
-            <ul className="ai-reveal lawdigest-summary-list ai-points">
-              {answer.paragraphs.map((paragraph, index) => (
-                <li key={index} className="whitespace-pre-wrap [word-break:keep-all]">
-                  {/* 첫 문단은 답의 요지다. 법안 카드의 핵심 문장처럼 형광펜을 긋는다. */}
-                  {index === 0 ? <mark className="lawdigest-summary-mark">{paragraph.text}</mark> : paragraph.text}
-                  <Citations
-                    keys={paragraph.source_keys}
-                    sources={answer.sources}
-                    turnId={turnId}
-                    onReveal={revealSource}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div className="ai-reveal flex flex-col gap-4">
+              {answerBlocks(answer.paragraphs).map((block) => {
+                const render = (paragraph: Answer['paragraphs'][number], index: number) => (
+                  <>
+                    {/* 첫 문단은 답의 요지다. 법안 카드의 핵심 문장처럼 형광펜을 긋는다. */}
+                    {index === 0 ? <mark className="lawdigest-summary-mark">{paragraph.text}</mark> : paragraph.text}
+                    <Citations
+                      keys={paragraph.source_keys}
+                      sources={answer.sources}
+                      turnId={turnId}
+                      onReveal={revealSource}
+                    />
+                  </>
+                );
+                if (block.items.length === 1)
+                  return (
+                    <p key={block.start} className="whitespace-pre-wrap [word-break:keep-all]">
+                      {render(block.items[0], block.start)}
+                    </p>
+                  );
+                return (
+                  <ul key={block.start} className="lawdigest-summary-list ai-points">
+                    {block.items.map((paragraph, offset) => (
+                      <li key={block.start + offset} className="whitespace-pre-wrap [word-break:keep-all]">
+                        {render(paragraph, block.start + offset)}
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })}
+            </div>
           )}
           {answer.limitations.length > 0 && (
             <ul className="flex flex-col gap-1.5 text-sm leading-6 text-muted-foreground">
