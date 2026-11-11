@@ -590,18 +590,180 @@ li {
   z-index: 1;
 }
 
-/* AI 표식: 답을 만드는 동안 제자리에서 천천히 밝아졌다 흐려진다. */
-.ai-mark-active {
-  animation: ai-mark-pulse 1.6s ease-in-out infinite;
+/* ── AI 답변 구체 ──
+   SmoothUI Siri Orb(MIT, (c) 2024 Eduardo Calvo)의 다층 conic-gradient 메시를 옮겨 응용했다. 출처와 고지는 AnswerOrb.tsx.
+   겹마다 한 색(--orb-c1..7)을 맡겨 색을 섞지 않고 덩어리로 공존시킨다. 색은 1.2초에 걸쳐 바뀐다. */
+@property --orb-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
-@keyframes ai-mark-pulse {
+@property --orb-c1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c4 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c5 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c6 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+@property --orb-c7 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #797c85;
+}
+
+.answer-orb {
+  --orb-bg: #ffffff;
+  --orb-speed: 24s;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  transition:
+    --orb-c1 1.2s ease,
+    --orb-c2 1.2s ease 0.05s,
+    --orb-c3 1.2s ease 0.1s,
+    --orb-c4 1.2s ease 0.15s,
+    --orb-c5 1.2s ease 0.2s,
+    --orb-c6 1.2s ease 0.25s,
+    --orb-c7 1.2s ease 0.3s;
+}
+
+.dark .answer-orb {
+  --orb-bg: #2a2a2e;
+}
+
+.answer-orb[data-state='working'] {
+  --orb-speed: 5s;
+}
+
+/* 바깥 번짐: 가장 넓은 두 겹의 색으로 은은하게 빛난다. */
+.answer-orb__glow {
+  position: absolute;
+  inset: -30%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 40%, var(--orb-c1) 0%, transparent 58%),
+    radial-gradient(circle at 64% 62%, var(--orb-c2) 0%, transparent 58%);
+  filter: blur(6px);
+  opacity: 0.45;
+  transition: opacity 0.6s ease;
+}
+
+.answer-orb[data-state='working'] .answer-orb__glow {
+  opacity: 0.7;
+  animation: answer-orb-breathe 2.4s ease-in-out infinite;
+}
+
+.answer-orb__mesh {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  isolation: isolate;
+  background: var(--orb-bg);
+}
+
+.answer-orb__mesh::before,
+.answer-orb__sheen,
+.answer-orb__rim {
+  content: '';
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* 투명 구간이 좁은 겹일수록 넓게 보인다. --orb-c1(80%)부터 c7(20%) 순으로 넓게 놓아, orbLayers가 앞에 둔 많은 정당이 더 넓게 보인다. */
+.answer-orb__mesh::before {
+  background:
+    conic-gradient(from calc(var(--orb-angle) * 2) at 25% 70%, var(--orb-c4), transparent 20% 80%, var(--orb-c4)),
+    conic-gradient(from calc(var(--orb-angle) * 2) at 45% 75%, var(--orb-c2), transparent 30% 60%, var(--orb-c2)),
+    conic-gradient(from calc(var(--orb-angle) * -3) at 80% 20%, var(--orb-c1), transparent 40% 60%, var(--orb-c1)),
+    conic-gradient(from calc(var(--orb-angle) * 1.5) at 60% 35%, var(--orb-c3), transparent 25% 75%, var(--orb-c3)),
+    conic-gradient(from calc(var(--orb-angle) * 2) at 15% 5%, var(--orb-c6), transparent 10% 90%, var(--orb-c6)),
+    conic-gradient(from calc(var(--orb-angle) * 1) at 20% 80%, var(--orb-c7), transparent 10% 90%, var(--orb-c7)),
+    conic-gradient(from calc(var(--orb-angle) * -2) at 85% 10%, var(--orb-c5), transparent 20% 80%, var(--orb-c5));
+  box-shadow: inset var(--orb-bg) 0 0 2px 0.4px;
+  filter: blur(1px) contrast(1.2) saturate(1.3);
+  animation: answer-orb-rotate var(--orb-speed) linear infinite;
+}
+
+/* 떠다니는 광택(react-ai-orb의 유리 하이라이트 겹침 응용). */
+.answer-orb__sheen {
+  background:
+    radial-gradient(circle at 30% 24%, hsl(0 0% 100% / 0.55), transparent 34%),
+    radial-gradient(circle at 72% 80%, hsl(0 0% 100% / 0.12), transparent 48%);
+  mix-blend-mode: screen;
+  animation: answer-orb-drift 9s ease-in-out infinite alternate;
+}
+
+/* 위는 밝고 아래는 어두운 테두리로 평평한 원이 아니라 구로 보이게 한다. */
+.answer-orb__rim {
+  box-shadow:
+    inset 0 0 0 1px hsl(0 0% 100% / 0.22),
+    inset 0 1.5px 3px hsl(0 0% 100% / 0.3),
+    inset 0 -1.8px 3.6px hsl(0 0% 0% / 0.28);
+  pointer-events: none;
+}
+
+.answer-orb[data-state='still'] .answer-orb__mesh::before,
+.answer-orb[data-state='still'] .answer-orb__sheen {
+  animation: none;
+}
+
+@keyframes answer-orb-rotate {
+  to {
+    --orb-angle: 360deg;
+  }
+}
+
+@keyframes answer-orb-drift {
+  from {
+    transform: translate(-6%, -4%) scale(1.05);
+  }
+  to {
+    transform: translate(7%, 6%) scale(1.12);
+  }
+}
+
+@keyframes answer-orb-breathe {
   0%,
   100% {
-    opacity: 1;
+    transform: scale(0.92);
   }
   50% {
-    opacity: 0.35;
+    transform: scale(1.08);
   }
 }
 
@@ -697,8 +859,10 @@ a.ai-source-number:hover {
   }
 
   .ai-reveal > *,
-  .ai-mark-active {
-    animation: none;
+  .answer-orb__mesh::before,
+  .answer-orb__sheen,
+  .answer-orb__glow {
+    animation: none !important;
   }
 }
 

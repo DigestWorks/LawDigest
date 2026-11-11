@@ -79,7 +79,7 @@ export default function SearchAiOverview({ keyword }: { keyword: string }) {
         />
       ) : (
         <div className="flex flex-col gap-5">
-          <AiLabel as="h2" id="ai-answer-heading" active />
+          <AiLabel as="h2" id="ai-answer-heading" />
           <AgentSteps status="pending" />
         </div>
       )}

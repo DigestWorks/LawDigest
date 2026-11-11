@@ -1,33 +1,35 @@
-/** AI 답변 표식. 화면의 포인트 색(정당색 또는 중립색)으로 채운 반짝임이며, 답을 만드는 동안 제자리에서 천천히 깜박인다. */
-export function AiMark({ active = false, className = 'size-[18px]' }: { active?: boolean; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={`shrink-0 ${active ? 'ai-mark-active' : ''} ${className}`}>
-      <path
-        fill="currentColor"
-        d="M10 2.5c.5 4.1 3.4 7 7.5 7.5-4.1.5-7 3.4-7.5 7.5-.5-4.1-3.4-7-7.5-7.5 4.1-.5 7-3.4 7.5-7.5Z"
-      />
-      <path
-        fill="currentColor"
-        d="M18.5 14c.25 2 1.5 3.25 3.5 3.5-2 .25-3.25 1.5-3.5 3.5-.25-2-1.5-3.25-3.5-3.5 2-.25 3.25-1.5 3.5-3.5Z"
-      />
-    </svg>
-  );
-}
+import AnswerOrb, { type OrbState } from './AnswerOrb';
+import { RAINBOW, type PartyShare } from './answerAccent';
 
-/** "AI 답변" 머리말. 검색 결과의 답변 패널과 에이전트 채팅의 턴이 같은 표식을 쓴다. */
+const RAINBOW_LAYERS = Array.from({ length: 7 }, (_, index) => RAINBOW[index % RAINBOW.length]);
+
+/**
+ * "AI 답변" 머리말. 앞의 구체는 답을 만드는 동안 무지개로 돌고,
+ * 답이 끝나면 근거 법안의 정당 분포대로 물든다(layers). 검색 결과 패널과 에이전트 채팅의 턴이 함께 쓴다.
+ */
 export default function AiLabel({
-  active = false,
+  layers = RAINBOW_LAYERS,
+  state = 'working',
+  shares = [],
   as: Tag = 'p',
   id,
 }: {
-  active?: boolean;
+  layers?: string[];
+  state?: OrbState;
+  shares?: PartyShare[];
   as?: 'p' | 'h2';
   id?: string;
 }) {
   return (
-    <Tag id={id} className="flex items-center gap-1.5 text-[15px] font-bold text-foreground">
-      <AiMark active={active} className="size-[18px] text-[var(--lawdigest-summary-accent,#797C85)]" />
+    <Tag id={id} className="flex items-center gap-2 text-[15px] font-bold text-foreground">
+      <AnswerOrb layers={layers} state={state} />
       <span className="lawdigest-summary-heading">AI 답변</span>
+      {shares.length > 0 && (
+        <span className="sr-only">
+          , 근거 법안 정당 분포{' '}
+          {shares.map(({ party, count }) => `${party ?? '공동·위원회 발의'} ${count}건`).join(', ')}
+        </span>
+      )}
     </Tag>
   );
 }

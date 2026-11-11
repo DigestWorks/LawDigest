@@ -8,7 +8,7 @@ import AgentSteps from './AgentSteps';
 import RagAnswer from './RagAnswer';
 import AiLabel from './AiMark';
 import ProposerCard from './ProposerCard';
-import { answerAccent, answerFocus } from './answerAccent';
+import { answerAccent, answerFocus, orbLayers, partyShares } from './answerAccent';
 
 function RetryButton({ turn, onRetry, disabled }: { turn: RagTurn; onRetry: () => void; disabled: boolean }) {
   const [waiting, setWaiting] = useState((turn.retryAt ?? 0) > Date.now());
@@ -39,6 +39,11 @@ function RetryButton({ turn, onRetry, disabled }: { turn: RagTurn; onRetry: () =
   );
 }
 
+function orbState(status: RagTurn['status']) {
+  if (status === 'pending') return 'working';
+  return status === 'answered' ? 'settled' : 'still';
+}
+
 /**
  * 질문 하나에 대한 에이전트의 진행 상태와 답변.
  * 근거 법안이 한 정당의 단독 대표발의면 그 정당색을 이 턴의 포인트 색으로 쓴다(법안 카드와 같은 규칙).
@@ -63,7 +68,13 @@ export default function AgentTurn({
   const focus = answerFocus(sources);
   return (
     <div className="flex flex-col gap-5" style={{ '--lawdigest-summary-accent': accent.color } as CSSProperties}>
-      <AiLabel as={labelAs} id={labelId} active={turn.status === 'pending'} />
+      <AiLabel
+        as={labelAs}
+        id={labelId}
+        layers={orbLayers(sources)}
+        shares={partyShares(sources)}
+        state={orbState(turn.status)}
+      />
       {focus && <ProposerCard focus={focus} color={accent.color} />}
       <AgentSteps steps={turn.steps} status={turn.status} />
       {turn.status === 'pending' && (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isRagAnswer, unavailableStatus, type RagSource } from '@/lib/rag';
 import { getPartyColor } from '@/constants/party';
-import { answerAccent, answerFocus } from './answerAccent';
+import { answerAccent, answerFocus, orbLayers } from './answerAccent';
 
 const person = (congressman_id: string, party: string | null) => ({
   name: `의원${congressman_id}`,
@@ -62,5 +62,40 @@ describe('정당색 포인트와 주인공', () => {
     expect(answerAccent(mixed).party).toBeNull();
     expect(answerAccent(mixed).color).toBe(getPartyColor(null));
     expect(answerFocus([source('S1', person('M1', '국민의힘')), source('S2', null)])).toBeNull();
+  });
+});
+
+describe('구체 7겹 색', () => {
+  const red = getPartyColor('국민의힘');
+  const navy = getPartyColor('더불어민주당');
+  const gray = getPartyColor(null);
+
+  it('근거가 없으면 무지개 네 색을 돌려 쓴다', () => {
+    expect(orbLayers([])).toEqual(['#FC56D8', '#10D9EF', '#FBEB59', '#6CF880', '#FC56D8', '#10D9EF', '#FBEB59']);
+  });
+
+  it('정당 분포 비율로 겹을 나누고 같은 색을 번갈아 놓는다', () => {
+    const sources = [
+      ...['S1', 'S2', 'S3', 'S4'].map((key, i) => source(key, person(`R${i}`, '국민의힘'))),
+      ...['S5', 'S6'].map((key, i) => source(key, person(`N${i}`, '더불어민주당'))),
+      source('S7', null),
+    ];
+    const layers = orbLayers(sources);
+    expect(layers).toEqual([red, navy, red, gray, red, navy, red]);
+  });
+
+  it('한 정당이면 그 정당색과 같은 색의 밝은·짙은 톤만 쓴다', () => {
+    const layers = orbLayers([source('S1', person('M1', '국민의힘'))]);
+    expect(layers[0]).toBe(red);
+    expect(new Set(layers).size).toBe(3);
+    expect(layers.filter((color) => color === red)).toHaveLength(3);
+  });
+
+  it('적은 정당도 최소 한 겹을 받는다', () => {
+    const sources = [
+      ...['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].map((key, i) => source(key, person(`R${i}`, '국민의힘'))),
+      source('S8', person('N1', '더불어민주당')),
+    ];
+    expect(orbLayers(sources).filter((color) => color === navy)).toHaveLength(1);
   });
 });
