@@ -19,6 +19,18 @@ export type RagSource = {
   excerpt: string;
   detail_url: string;
   official_url: string;
+  /** "김종양 의원", "김종양 의원 외 1인" */
+  proposer_label?: string | null;
+  /** 단독 대표발의일 때만 있다. 정당색 포인트와 발의자 카드에 쓴다. */
+  representative?: RagRepresentative | null;
+};
+export type RagRepresentative = {
+  name: string;
+  congressman_id: string;
+  image_url: string | null;
+  party: string | null;
+  party_id: number | null;
+  party_image_url: string | null;
 };
 export type RagAnswer = {
   status: 'answered' | 'insufficient_evidence' | 'searched';
@@ -72,6 +84,29 @@ export function isRagRequest(value: unknown): value is RagRequest {
   );
 }
 
+const optionalText = (value: unknown, max: number) =>
+  value === undefined || value === null || (typeof value === 'string' && value.length <= max);
+// 의원 사진·정당 로고는 이미지 서버의 상대 경로만 받는다.
+const optionalImagePath = (value: unknown) =>
+  value === undefined || value === null || (typeof value === 'string' && /^\/[A-Za-z0-9/_.-]{1,200}$/.test(value));
+
+function isRepresentative(value: unknown) {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'object') return false;
+  const item = value as RagRepresentative;
+  return (
+    typeof item.name === 'string' &&
+    item.name.length > 0 &&
+    item.name.length <= 40 &&
+    typeof item.congressman_id === 'string' &&
+    /^[A-Za-z0-9_-]{1,40}$/.test(item.congressman_id) &&
+    optionalText(item.party, 40) &&
+    (item.party_id === undefined || item.party_id === null || Number.isSafeInteger(item.party_id)) &&
+    optionalImagePath(item.image_url) &&
+    optionalImagePath(item.party_image_url)
+  );
+}
+
 export function isRagAnswer(value: unknown): value is RagAnswer {
   if (!value || typeof value !== 'object') return false;
   const answer = value as RagAnswer;
@@ -112,7 +147,9 @@ export function isRagAnswer(value: unknown): value is RagAnswer {
           (key) =>
             typeof source[key as keyof RagSource] === 'string' &&
             String(source[key as keyof RagSource]).length <= 12000,
-        ),
+        ) &&
+        optionalText(source.proposer_label, 80) &&
+        isRepresentative(source.representative),
     )
   )
     return false;

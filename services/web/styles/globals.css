@@ -590,6 +590,57 @@ li {
   z-index: 1;
 }
 
+/* AI 표식: 답을 만드는 동안 천천히 돌며 숨을 쉰다. */
+.ai-mark-active {
+  animation: ai-mark-spin 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform-origin: 42% 42%;
+}
+
+@keyframes ai-mark-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(0.86);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+/* AI 답변 점 목록: 법안 카드의 .lawdigest-summary-list와 같은 정당색 점을 쓰고 패널 여백에 맞춘다. */
+.ai-points {
+  gap: 0.85em;
+  margin: 0;
+  padding-left: 0.1em;
+}
+
+/* 근거 번호: 그 법안 대표발의 정당색(--source-party)을 옅게 깔고, 누르면 진하게 채운다. */
+.ai-source-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: hsl(var(--foreground));
+  background: color-mix(in srgb, var(--source-party, hsl(var(--muted-foreground))) 16%, transparent);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+a.ai-source-number:hover {
+  color: #fff;
+  background: var(--source-party, hsl(var(--muted-foreground)));
+}
+
+.dark .ai-source-number {
+  background: color-mix(in srgb, var(--source-party, hsl(var(--muted-foreground))) 32%, transparent);
+}
+
 /* 접힌 AI 답변: 아래쪽을 흐려 이어지는 내용이 있음을 보인다. */
 .ai-answer-clip {
   max-height: 13.5rem;
@@ -648,7 +699,8 @@ li {
     color: hsl(var(--muted-foreground));
   }
 
-  .ai-reveal > * {
+  .ai-reveal > *,
+  .ai-mark-active {
     animation: none;
   }
 }

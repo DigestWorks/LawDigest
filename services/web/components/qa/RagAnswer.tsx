@@ -1,25 +1,30 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import type { RagAnswer as Answer, RagSource } from '@/lib/rag';
 import { billHeadline } from '@/lib/billHeadline';
 import { billResultLabel } from '@/lib/billStage';
 import { proposalDateLabel } from '@/lib/dataFreshness';
+import { getPartyColor } from '@/constants/party';
 
 const sourceId = (turnId: string, key: string) => `source-${turnId}-${key}`;
 const sourceNumber = (key: string) => key.replace(/^S/, '');
 
+/** 근거 번호의 바탕은 그 법안 단독 대표발의자의 정당색이다. 공동·위원회·정부 법안은 중립색이다. */
+const partyTint = (source: RagSource | undefined) =>
+  ({ '--source-party': getPartyColor(source?.representative?.party ?? null) }) as CSSProperties;
+
 function SourceRow({ source, turnId }: { source: RagSource; turnId: string }) {
   const status = billResultLabel(source.result) || source.stage;
+  const party = source.representative?.party;
   return (
     <li
       id={sourceId(turnId, source.key)}
+      style={partyTint(source)}
       className="flex scroll-mt-32 gap-3.5 border-t border-border py-4 first:border-t-0">
-      <span
-        aria-hidden="true"
-        className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-full bg-foreground/[0.07] text-xs font-semibold tabular-nums text-foreground/80 dark:bg-white/10">
+      <span aria-hidden="true" className="ai-source-number mt-0.5 size-[22px] text-xs">
         {sourceNumber(source.key)}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -36,6 +41,15 @@ function SourceRow({ source, turnId }: { source: RagSource; turnId: string }) {
           )}
           <span className="font-semibold">제{source.assembly}대</span>
           <span>{proposalDateLabel(source.propose_date)}</span>
+          {source.proposer_label && (
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              {party && <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-[var(--source-party)]" />}
+              <span className="truncate">
+                {source.proposer_label}
+                {party && <span className="sr-only">, {party}</span>}
+              </span>
+            </span>
+          )}
           <a
             href={`https://likms.assembly.go.kr/bill/billDetail.do?billId=${encodeURIComponent(source.bill_id)}`}
             target="_blank"
@@ -67,7 +81,10 @@ type RagAnswerProps = {
   collapsible?: boolean;
 };
 
-/** 근거 번호가 붙은 답변 문단과, 같은 번호의 근거 법안 목록 */
+/**
+ * 근거 번호가 붙은 답변과, 같은 번호의 근거 법안 목록.
+ * 법안 카드의 '쉬운 요약'처럼 포인트 색(--lawdigest-summary-accent)의 점 목록으로 쓰고 첫 문장에 형광펜을 긋는다.
+ */
 export default function RagAnswer({ answer, turnId, collapsible = false }: RagAnswerProps) {
   const body = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(!collapsible);
@@ -98,37 +115,43 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
       : '관련 법안을 찾지 못했습니다. 법안 이름이나 다른 표현으로 다시 물어보세요.';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-7">
       <div className="relative">
         <div
           ref={body}
           id={`answer-${turnId}`}
           onAnimationEnd={fitsWithoutClip}
-          className={`ai-reveal flex flex-col gap-4 text-[16px] leading-[1.8] text-foreground ${clipped ? 'ai-answer-clip' : ''}`}>
+          className={`flex flex-col gap-4 text-[16px] leading-[1.8] text-foreground ${clipped ? 'ai-answer-clip' : ''}`}>
           {lead && <p>{lead}</p>}
-          {answer.paragraphs.map((paragraph, index) => (
-            <p key={index} className="whitespace-pre-wrap [word-break:keep-all]">
-              {paragraph.text}
-              {paragraph.source_keys.map((key) => {
-                const source = answer.sources.find((item) => item.key === key);
-                if (!source) return null;
-                return (
-                  <a
-                    key={key}
-                    href={`#${sourceId(turnId, key)}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      revealSource(key);
-                    }}
-                    title={billHeadline(source.bill_name)}
-                    className="relative -top-px ml-1 inline-flex size-[18px] items-center justify-center rounded-full bg-foreground/[0.07] align-middle text-[11px] font-semibold tabular-nums leading-none text-foreground/75 no-underline transition-colors hover:bg-foreground hover:text-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring dark:bg-white/10">
-                    {sourceNumber(key)}
-                    <span className="sr-only">번 근거, {billHeadline(source.bill_name)}</span>
-                  </a>
-                );
-              })}
-            </p>
-          ))}
+          {answer.paragraphs.length > 0 && (
+            <ul className="ai-reveal lawdigest-summary-list ai-points">
+              {answer.paragraphs.map((paragraph, index) => (
+                <li key={index} className="whitespace-pre-wrap [word-break:keep-all]">
+                  {/* 첫 문단은 답의 요지다. 법안 카드의 핵심 문장처럼 형광펜을 긋는다. */}
+                  {index === 0 ? <mark className="lawdigest-summary-mark">{paragraph.text}</mark> : paragraph.text}
+                  {paragraph.source_keys.map((key) => {
+                    const source = answer.sources.find((item) => item.key === key);
+                    if (!source) return null;
+                    return (
+                      <a
+                        key={key}
+                        href={`#${sourceId(turnId, key)}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          revealSource(key);
+                        }}
+                        title={billHeadline(source.bill_name)}
+                        style={partyTint(source)}
+                        className="ai-source-number relative -top-px ml-1 size-[18px] align-middle text-[11px] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                        {sourceNumber(key)}
+                        <span className="sr-only">번 근거, {billHeadline(source.bill_name)}</span>
+                      </a>
+                    );
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
           {answer.limitations.length > 0 && (
             <ul className="flex flex-col gap-1.5 text-sm leading-6 text-muted-foreground">
               {answer.limitations.map((text, index) => (
@@ -151,10 +174,10 @@ export default function RagAnswer({ answer, turnId, collapsible = false }: RagAn
       </div>
       {showSources && (
         <section aria-labelledby={`sources-${turnId}`}>
-          <h3 id={`sources-${turnId}`} className="text-[13px] font-semibold text-muted-foreground">
+          <h3 id={`sources-${turnId}`} className="lawdigest-summary-heading text-[15px] font-bold text-foreground">
             {answer.status === 'searched' ? '찾은 법안' : '근거 법안'}
           </h3>
-          <ol className="mt-1">
+          <ol className="mt-2">
             {answer.sources.map((source) => (
               <SourceRow key={source.key} source={source} turnId={turnId} />
             ))}

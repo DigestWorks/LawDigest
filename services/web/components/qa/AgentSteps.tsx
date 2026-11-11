@@ -11,8 +11,8 @@ export default function AgentSteps({ steps = [], status }: { steps?: RagStep[]; 
     return (
       <p className="flex items-center gap-2.5 text-[15px]" aria-live="polite">
         <span aria-hidden="true" className="relative flex size-2">
-          <span className="absolute inset-0 animate-ping rounded-full bg-foreground/30 motion-reduce:animate-none" />
-          <span className="relative size-2 rounded-full bg-foreground" />
+          <span className="absolute inset-0 animate-ping rounded-full bg-[var(--lawdigest-summary-accent,#797C85)] opacity-40 motion-reduce:animate-none" />
+          <span className="relative size-2 rounded-full bg-[var(--lawdigest-summary-accent,#797C85)]" />
         </span>
         <span className="ai-shimmer font-medium">{current}</span>
       </p>
@@ -34,7 +34,9 @@ export default function AgentSteps({ steps = [], status }: { steps?: RagStep[]; 
             <span
               aria-hidden="true"
               className={`relative mt-[7px] size-2 shrink-0 rounded-full ${
-                step.status === 'complete' ? 'bg-foreground/70' : 'border border-muted-foreground bg-background'
+                step.status === 'complete'
+                  ? 'bg-[var(--lawdigest-summary-accent,#797C85)]'
+                  : 'border border-muted-foreground bg-background'
               }`}
             />
             <span className="text-sm leading-[22px] text-muted-foreground">

@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { CSSProperties, useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import type { RagTurn } from '@/store/RagConversationState';
 import { Skeleton } from '@/components/ui/skeleton';
 import AgentSteps from './AgentSteps';
 import RagAnswer from './RagAnswer';
+import AiLabel from './AiMark';
+import ProposerCard from './ProposerCard';
+import { answerAccent, answerFocus } from './answerAccent';
 
 function RetryButton({ turn, onRetry, disabled }: { turn: RagTurn; onRetry: () => void; disabled: boolean }) {
   const [waiting, setWaiting] = useState((turn.retryAt ?? 0) > Date.now());
@@ -36,20 +39,32 @@ function RetryButton({ turn, onRetry, disabled }: { turn: RagTurn; onRetry: () =
   );
 }
 
-/** 질문 하나에 대한 에이전트의 진행 상태와 답변 */
+/**
+ * 질문 하나에 대한 에이전트의 진행 상태와 답변.
+ * 근거 법안이 한 정당의 단독 대표발의면 그 정당색을 이 턴의 포인트 색으로 쓴다(법안 카드와 같은 규칙).
+ */
 export default function AgentTurn({
   turn,
   onRetry,
   retryDisabled,
   collapsible = false,
+  labelAs = 'p',
+  labelId,
 }: {
   turn: RagTurn;
   onRetry: () => void;
   retryDisabled: boolean;
   collapsible?: boolean;
+  labelAs?: 'p' | 'h2';
+  labelId?: string;
 }) {
+  const sources = turn.status === 'answered' ? turn.answer?.sources ?? [] : [];
+  const accent = answerAccent(sources);
+  const focus = answerFocus(sources);
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5" style={{ '--lawdigest-summary-accent': accent.color } as CSSProperties}>
+      <AiLabel as={labelAs} id={labelId} active={turn.status === 'pending'} />
+      {focus && <ProposerCard focus={focus} color={accent.color} />}
       <AgentSteps steps={turn.steps} status={turn.status} />
       {turn.status === 'pending' && (
         <div className="flex flex-col gap-3" aria-busy="true" aria-label="답변을 만드는 중">

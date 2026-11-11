@@ -9,6 +9,7 @@ import { ragConversationState, ragSubmissionState } from '@/store/RagConversatio
 import ChatBar from '@/components/qa/ChatBar';
 import AgentTurn from '@/components/qa/AgentTurn';
 import AgentSteps from '@/components/qa/AgentSteps';
+import AiLabel from '@/components/qa/AiMark';
 
 /** 질문이 국외로 전송된다는 안내. 채팅 바가 있는 곳마다 한 줄로 둔다. */
 export function OverseasNotice({ className = '' }: { className?: string }) {
@@ -67,13 +68,20 @@ export default function SearchAiOverview({ keyword }: { keyword: string }) {
     <section
       aria-labelledby="ai-answer-heading"
       className="mx-4 mt-5 rounded-[20px] bg-[#F5F7FD] px-5 pb-5 pt-5 dark:bg-[#1E1E1E] md:mx-3 md:px-6 md:pt-6">
-      <h2 id="ai-answer-heading" className="mb-4 text-[13px] font-semibold text-muted-foreground">
-        AI 답변
-      </h2>
       {first ? (
-        <AgentTurn turn={first} collapsible onRetry={() => void ask(first)} retryDisabled={pending} />
+        <AgentTurn
+          turn={first}
+          collapsible
+          onRetry={() => void ask(first)}
+          retryDisabled={pending}
+          labelAs="h2"
+          labelId="ai-answer-heading"
+        />
       ) : (
-        <AgentSteps status="pending" />
+        <div className="flex flex-col gap-5">
+          <AiLabel as="h2" id="ai-answer-heading" active />
+          <AgentSteps status="pending" />
+        </div>
       )}
       <div className="mt-6">
         <ChatBar
