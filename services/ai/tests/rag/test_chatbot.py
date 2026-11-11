@@ -288,8 +288,9 @@ def test_answer_prompt_asks_for_friendly_formal_endings(qa):
     assert "친절하고 쉬운 말" in prompt
     # 답변을 만드는 과정이 아니라 찾은 법안을 사용자에게 소개한다.
     assert "'제공된', '발췌문'" in prompt
-    assert "그 검색어로 살펴본 법안을 소개한다" in prompt
-    assert "내용이 비슷한 법안은 한 문단으로 묶고" in prompt
+    # 목록을 옮겨 적지 않고 흐름·주제·맥락으로 종합한다.
+    assert "법안들을 읽고 종합해 흐름과 맥락을 알려 주는 글" in prompt
+    assert "'○월 ○일에는 …를 발의했습니다'처럼 나열하지 않는다" in prompt
 
 
 def test_unknown_citation_is_dropped_but_grounded_paragraphs_remain(qa):
