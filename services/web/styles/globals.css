@@ -590,181 +590,74 @@ li {
   z-index: 1;
 }
 
-/* ── AI 답변 구체 ──
-   SmoothUI Siri Orb(MIT, (c) 2024 Eduardo Calvo)의 다층 conic-gradient 메시를 옮겨 응용했다. 출처와 고지는 AnswerOrb.tsx.
-   겹마다 한 색(--orb-c1..7)을 맡겨 색을 섞지 않고 덩어리로 공존시킨다. 색은 1.2초에 걸쳐 바뀐다. */
-@property --orb-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@property --orb-c1 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c2 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c3 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c4 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c5 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c6 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-@property --orb-c7 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #797c85;
-}
-
-.answer-orb {
-  --orb-bg: #ffffff;
-  --orb-speed: 24s;
+/* ── AI 답변 링 ──
+   생성 중에는 검색창과 같은 무지개 원뿔형 링이 같은 속도(1.1초)로 돈다(--search-ring-angle, search-ring-spin 재사용).
+   끝나면 무지개가 돌며 0.6초에 걸쳐 흐려지고, 정당 분포 호가 -90°에서 감속하며 제자리에 멈춘다. */
+.answer-ring {
+  --answer-ring-width: 3px;
   position: relative;
   display: inline-block;
   flex-shrink: 0;
-  transition:
-    --orb-c1 1.2s ease,
-    --orb-c2 1.2s ease 0.05s,
-    --orb-c3 1.2s ease 0.1s,
-    --orb-c4 1.2s ease 0.15s,
-    --orb-c5 1.2s ease 0.2s,
-    --orb-c6 1.2s ease 0.25s,
-    --orb-c7 1.2s ease 0.3s;
+  width: 22px;
+  height: 22px;
 }
 
-.dark .answer-orb {
-  --orb-bg: #2a2a2e;
+.dark .answer-ring {
+  --answer-ring-tone: 70%;
 }
 
-.answer-orb[data-state='working'] {
-  --orb-speed: 5s;
-}
-
-/* 바깥 번짐: 가장 넓은 두 겹의 색으로 은은하게 빛난다. */
-.answer-orb__glow {
+.answer-ring__arcs,
+.answer-ring__spin {
   position: absolute;
-  inset: -30%;
+  inset: 0;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 38% 40%, var(--orb-c1) 0%, transparent 58%),
-    radial-gradient(circle at 64% 62%, var(--orb-c2) 0%, transparent 58%);
-  filter: blur(6px);
-  opacity: 0.45;
-  transition: opacity 0.6s ease;
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--answer-ring-width)),
+    #000 calc(100% - var(--answer-ring-width) + 0.5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - var(--answer-ring-width)),
+    #000 calc(100% - var(--answer-ring-width) + 0.5px)
+  );
 }
 
-.answer-orb[data-state='working'] .answer-orb__glow {
-  opacity: 0.7;
-  animation: answer-orb-breathe 2.4s ease-in-out infinite;
+.answer-ring__spin {
+  background: conic-gradient(
+    from var(--search-ring-angle) at 50% 50%,
+    #fbeb59 0%,
+    #fc56d8 31%,
+    #10d9ef 65%,
+    #6cf880 100%
+  );
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+  animation: search-ring-spin 1.1s linear infinite;
 }
 
-.answer-orb__mesh {
-  position: relative;
-  display: grid;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  border-radius: 999px;
-  isolation: isolate;
-  background: var(--orb-bg);
+.answer-ring[data-state='working'] .answer-ring__spin {
+  opacity: 1;
+  transition-duration: 0.2s;
 }
 
-.answer-orb__mesh::before,
-.answer-orb__sheen,
-.answer-orb__rim {
-  content: '';
-  grid-area: 1 / 1;
-  width: 100%;
-  height: 100%;
-  border-radius: 999px;
+.answer-ring__arcs {
+  opacity: 0;
+  transform: rotate(-90deg);
+  transition:
+    opacity 0.5s ease-out 0.15s,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s;
 }
 
-/* 투명 구간이 좁은 겹일수록 넓게 보인다. --orb-c1(80%)부터 c7(20%) 순으로 넓게 놓아, orbLayers가 앞에 둔 많은 정당이 더 넓게 보인다. */
-.answer-orb__mesh::before {
-  background:
-    conic-gradient(from calc(var(--orb-angle) * 2) at 25% 70%, var(--orb-c4), transparent 20% 80%, var(--orb-c4)),
-    conic-gradient(from calc(var(--orb-angle) * 2) at 45% 75%, var(--orb-c2), transparent 30% 60%, var(--orb-c2)),
-    conic-gradient(from calc(var(--orb-angle) * -3) at 80% 20%, var(--orb-c1), transparent 40% 60%, var(--orb-c1)),
-    conic-gradient(from calc(var(--orb-angle) * 1.5) at 60% 35%, var(--orb-c3), transparent 25% 75%, var(--orb-c3)),
-    conic-gradient(from calc(var(--orb-angle) * 2) at 15% 5%, var(--orb-c6), transparent 10% 90%, var(--orb-c6)),
-    conic-gradient(from calc(var(--orb-angle) * 1) at 20% 80%, var(--orb-c7), transparent 10% 90%, var(--orb-c7)),
-    conic-gradient(from calc(var(--orb-angle) * -2) at 85% 10%, var(--orb-c5), transparent 20% 80%, var(--orb-c5));
-  box-shadow: inset var(--orb-bg) 0 0 2px 0.4px;
-  filter: blur(1px) contrast(1.2) saturate(1.3);
-  animation: answer-orb-rotate var(--orb-speed) linear infinite;
+.answer-ring[data-state='settled'] .answer-ring__arcs,
+.answer-ring[data-state='still'] .answer-ring__arcs {
+  opacity: 1;
+  transform: rotate(0deg);
 }
 
-/* 떠다니는 광택(react-ai-orb의 유리 하이라이트 겹침 응용). */
-.answer-orb__sheen {
-  background:
-    radial-gradient(circle at 30% 24%, hsl(0 0% 100% / 0.55), transparent 34%),
-    radial-gradient(circle at 72% 80%, hsl(0 0% 100% / 0.12), transparent 48%);
-  mix-blend-mode: screen;
-  animation: answer-orb-drift 9s ease-in-out infinite alternate;
-}
-
-/* 위는 밝고 아래는 어두운 테두리로 평평한 원이 아니라 구로 보이게 한다. */
-.answer-orb__rim {
-  box-shadow:
-    inset 0 0 0 1px hsl(0 0% 100% / 0.22),
-    inset 0 1.5px 3px hsl(0 0% 100% / 0.3),
-    inset 0 -1.8px 3.6px hsl(0 0% 0% / 0.28);
-  pointer-events: none;
-}
-
-.answer-orb[data-state='still'] .answer-orb__mesh::before,
-.answer-orb[data-state='still'] .answer-orb__sheen {
+/* 끝난 뒤에는 무지개 층을 멈춰 쓸데없이 그리지 않는다(흐려지는 0.6초 뒤). */
+.answer-ring[data-state='still'] .answer-ring__spin {
   animation: none;
-}
-
-@keyframes answer-orb-rotate {
-  to {
-    --orb-angle: 360deg;
-  }
-}
-
-@keyframes answer-orb-drift {
-  from {
-    transform: translate(-6%, -4%) scale(1.05);
-  }
-  to {
-    transform: translate(7%, 6%) scale(1.12);
-  }
-}
-
-@keyframes answer-orb-breathe {
-  0%,
-  100% {
-    transform: scale(0.92);
-  }
-  50% {
-    transform: scale(1.08);
-  }
 }
 
 /* AI 답변 점 목록: 법안 카드의 .lawdigest-summary-list와 같은 정당색 점을 쓰고 패널 여백에 맞춘다. */
@@ -859,10 +752,12 @@ a.ai-source-number:hover {
   }
 
   .ai-reveal > *,
-  .answer-orb__mesh::before,
-  .answer-orb__sheen,
-  .answer-orb__glow {
+  .answer-ring__spin {
     animation: none !important;
+  }
+
+  .answer-ring__arcs {
+    transform: none !important;
   }
 }
 

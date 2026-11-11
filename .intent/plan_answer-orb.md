@@ -10,6 +10,8 @@ date: 2026-11-11
 
 # AI 답변 구체 — 구현 계획
 
+> 2026-11-11 변경: 회전 링. 바뀌는 파일: `answerAccent.ts`(`ringGradient`, `orbLayers` 제거), `answerAccent.test.ts`, 새 `AnswerRing.tsx`, `AnswerOrb.tsx` 삭제, `AiMark.tsx`, `AgentTurn.tsx`, `globals.css`(링 CSS, 구체 CSS 제거).
+
 ## 바뀌는 파일
 
 | 파일 | 무엇을 |

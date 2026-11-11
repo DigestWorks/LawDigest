@@ -28,23 +28,8 @@ export function answerFocus(sources: RagSource[]): AnswerFocus | null {
   return null;
 }
 
-/** 두 hex 색을 ratio(0~1)만큼 target 쪽으로 섞는다. 같은 정당색의 톤을 만들 때만 쓴다. */
-function mixHex(color: string, target: string, ratio: number) {
-  const channels = (hex: string) => [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
-  const from = channels(color);
-  const to = channels(target);
-  return `#${from
-    .map((value, index) =>
-      Math.round(value + (to[index] - value) * ratio)
-        .toString(16)
-        .padStart(2, '0'),
-    )
-    .join('')}`;
-}
-
 /** 모두의입법 무지개 시그니처. 검색 입구 테두리와 같은 네 색이다. */
 export const RAINBOW = ['#FC56D8', '#10D9EF', '#FBEB59', '#6CF880'] as const;
-export const ORB_LAYER_COUNT = 7;
 
 export type PartyShare = { party: string | null; color: string; count: number };
 
@@ -60,44 +45,26 @@ export function partyShares(sources: RagSource[]): PartyShare[] {
     .sort((a, b) => b.count - a.count || (a.party === null ? 1 : 0) - (b.party === null ? 1 : 0));
 }
 
+const RING_GAP = 6;
+/** 다크 모드에서 남색처럼 짙은 정당색이 배경에 묻히지 않게 흰색과 섞는다(--answer-ring-tone, 라이트는 100%). */
+const tone = (color: string) => `color-mix(in srgb, ${color} var(--answer-ring-tone, 100%), #fff)`;
+
 /**
- * 구체의 7겹 색. 섞지 않고 겹마다 한 정당색을 맡겨 색 덩어리가 공존하게 한다.
- * 겹 수는 건수 비율로 나누고(있는 정당은 최소 1겹), 같은 색이 몰리지 않게 가중 라운드로빈으로 번갈아 놓는다.
- * 근거가 없으면(답을 만드는 중) 무지개 네 색을 돌려 쓴다.
+ * 답변 링의 정당 호. 건수 비율이 호의 길이이고, 색은 섞지 않고 호마다 한 정당색을 쓴다.
+ * 정당이 둘 이상이면 호 사이에 틈을 둔다. 근거가 없으면 중립 회색 링이다.
  */
-export function orbLayers(sources: RagSource[]): string[] {
-  const shares = partyShares(sources).slice(0, ORB_LAYER_COUNT);
-  if (!shares.length) return Array.from({ length: ORB_LAYER_COUNT }, (_, index) => RAINBOW[index % RAINBOW.length]);
-  // 한 정당뿐이면 일곱 겹이 같은 색이라 평평한 원판이 된다. 같은 정당색의 밝은·짙은 톤을 번갈아 써서 덩어리가 보이게 한다.
-  if (shares.length === 1) {
-    const [{ color }] = shares;
-    const light = mixHex(color, '#ffffff', 0.42);
-    const deep = mixHex(color, '#000000', 0.22);
-    return [color, light, color, deep, light, color, deep];
-  }
+export function ringGradient(shares: PartyShare[]) {
+  if (!shares.length) return tone(getPartyColor(null));
+  if (shares.length === 1) return tone(shares[0].color);
   const total = shares.reduce((sum, share) => sum + share.count, 0);
-  // 최대잉여 배분: 7겹을 비율대로 나누고 남는 겹은 소수점이 큰 정당부터 준다.
-  const exact = shares.map((share) => (share.count / total) * ORB_LAYER_COUNT);
-  const layers = exact.map(Math.floor);
-  const order = exact
-    .map((value, index) => ({ index, rest: value - Math.floor(value) }))
-    .sort((a, b) => b.rest - a.rest);
-  for (let left = ORB_LAYER_COUNT - layers.reduce((sum, n) => sum + n, 0), i = 0; left > 0; left -= 1, i += 1)
-    layers[order[i % order.length].index] += 1;
-  // 0겹이 된 정당은 가장 많은 정당에게서 한 겹을 받는다.
-  layers.forEach((count, index) => {
-    if (count > 0) return;
-    layers[layers.indexOf(Math.max(...layers))] -= 1;
-    layers[index] = 1;
+  const usable = 360 - RING_GAP * shares.length;
+  let at = 0;
+  const stops = shares.flatMap(({ color, count }) => {
+    const start = at;
+    const end = start + (count / total) * usable;
+    at = end + RING_GAP;
+    const deg = (value: number) => `${Number(value.toFixed(2))}deg`;
+    return [`${tone(color)} ${deg(start)} ${deg(end)}`, `transparent ${deg(end)} ${deg(at)}`];
   });
-  // 가중 라운드로빈: 많은 정당이 먼저 오되 같은 색이 연달아 놓이지 않는다.
-  const current = layers.map(() => 0);
-  return Array.from({ length: ORB_LAYER_COUNT }, () => {
-    layers.forEach((weight, index) => {
-      current[index] += weight;
-    });
-    const pick = current.indexOf(Math.max(...current));
-    current[pick] -= ORB_LAYER_COUNT;
-    return shares[pick].color;
-  });
+  return `conic-gradient(${stops.join(', ')})`;
 }

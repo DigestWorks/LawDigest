@@ -8,7 +8,7 @@ import AgentSteps from './AgentSteps';
 import RagAnswer from './RagAnswer';
 import AiLabel from './AiMark';
 import ProposerCard from './ProposerCard';
-import { answerAccent, answerFocus, orbLayers, partyShares } from './answerAccent';
+import { answerAccent, answerFocus, partyShares } from './answerAccent';
 
 function RetryButton({ turn, onRetry, disabled }: { turn: RagTurn; onRetry: () => void; disabled: boolean }) {
   const [waiting, setWaiting] = useState((turn.retryAt ?? 0) > Date.now());
@@ -68,13 +68,7 @@ export default function AgentTurn({
   const focus = answerFocus(sources);
   return (
     <div className="flex flex-col gap-5" style={{ '--lawdigest-summary-accent': accent.color } as CSSProperties}>
-      <AiLabel
-        as={labelAs}
-        id={labelId}
-        layers={orbLayers(sources)}
-        shares={partyShares(sources)}
-        state={orbState(turn.status)}
-      />
+      <AiLabel as={labelAs} id={labelId} shares={partyShares(sources)} state={orbState(turn.status)} />
       {focus && <ProposerCard focus={focus} color={accent.color} />}
       <AgentSteps steps={turn.steps} status={turn.status} />
       {turn.status === 'pending' && (
