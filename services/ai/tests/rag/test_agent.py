@@ -465,3 +465,11 @@ def test_joint_representatives_have_label_without_single_party(qa):
     )
     assert result.sources[0].proposer_label == "김의원 의원 외 1인"
     assert result.sources[0].representative is None
+
+
+def test_final_answer_gets_more_time_than_planning(qa):
+    qa.generator.generate.side_effect = [decision(), qa.generator.return_value]
+    BillAgent(qa).run(QuestionRequest(question="청년 주거 지원"), lambda _: None)
+    plan, final = qa.generator.generate.call_args_list
+    assert plan.kwargs["timeout"] <= 25
+    assert 25 < final.kwargs["timeout"] <= 45

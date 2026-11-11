@@ -37,6 +37,13 @@ answer: 현재 근거로 답하거나 자료 부족을 알릴 준비가 되면 �
 출력은 action, query, bill_ids만 포함한다."""
 
 
+# 의원·정당 조회는 법안을 여러 건 한꺼번에 넣으므로, 답변 생성 제한 시간 안에 끝나게 발췌를 줄인다.
+LOOKUP_EXCERPT = 1500
+# 모델 호출 한 번의 제한 시간(초). 요청 전체 예산(TIMEOUT=110)과 웹 프록시(120) 안에 든다.
+PLAN_TIMEOUT = 25
+ANSWER_TIMEOUT = 45
+
+
 def latest(groups):
     """여러 묶음의 법안 행을 최근 발의 순으로 합친다."""
     return sorted(
@@ -103,13 +110,13 @@ class BillAgent:
             if time.monotonic() >= deadline:
                 raise TimeoutError("질문 처리 시간이 초과되었습니다.")
 
-        def generate(prompt, context, **kwargs):
+        def generate(prompt, context, limit=PLAN_TIMEOUT, **kwargs):
             check()
             result = self.service.generator.generate(
                 prompt,
                 context,
                 cancel=cancel,
-                timeout=min(25, deadline - time.monotonic()),
+                timeout=min(limit, deadline - time.monotonic()),
                 **kwargs,
             )
             check()
@@ -153,7 +160,8 @@ class BillAgent:
             }
             before = len(sources)
             merge(
-                source_from_row(row, "S0", row["summary"][:3000]) for row in latest(own)
+                source_from_row(row, "S0", row["summary"][:LOOKUP_EXCERPT])
+                for row in latest(own)
             )
             for profile in profiles:
                 members.append(
@@ -182,7 +190,7 @@ class BillAgent:
         def lookup_party(label, found_parties):
             """정당 정보와 소속 의원의 최근 대표발의 법안을 근거에 더한다."""
             repository = self.service.repository
-            limit = 8 if len(found_parties) == 1 else 4
+            limit = 6 if len(found_parties) == 1 else 3
             own = {
                 party["party_id"]: repository.party_bills(
                     [party["party_id"]], request.assembly, limit
@@ -191,7 +199,8 @@ class BillAgent:
             }
             before = len(sources)
             merge(
-                source_from_row(row, "S0", row["summary"][:3000]) for row in latest(own)
+                source_from_row(row, "S0", row["summary"][:LOOKUP_EXCERPT])
+                for row in latest(own)
             )
             for party in found_parties:
                 parties.append(
@@ -384,7 +393,10 @@ class BillAgent:
                 request,
                 current,
                 metadata,
-                generate,
+                # 최종 답변은 근거를 모두 읽고 쓰므로 다음 행동 선택보다 시간을 더 준다.
+                lambda prompt, context, **kwargs: generate(
+                    prompt, context, limit=ANSWER_TIMEOUT, **kwargs
+                ),
                 members=[
                     {**member, "bill_ids": [i for i in member["bill_ids"] if i in kept]}
                     for member in members

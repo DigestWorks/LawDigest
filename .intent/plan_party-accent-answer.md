@@ -26,6 +26,7 @@ date: 2026-11-11
 | `services/web/app/search/[id]/components/SearchAiOverview.tsx`, `app/ask/AskClient.tsx` | 표식·카드 배치 |
 | `services/web/styles/globals.css` | 표식 회전, 점 목록 |
 | 웹 테스트: `lib/rag` 검증, `answerAccent` | 새 동작 |
+| `services/ai/src/lawdigest_ai/rag/agent.py`, `chatbot.py`, `README.md` | 구현 중 추가: 정당 답변이 45초를 넘겨 실패해 조회 발췌 1,500자, 정당 근거 6건, 정당 규칙 단순화, 최종 답변 호출 45초 |
 
 ## 작업 순서
 
