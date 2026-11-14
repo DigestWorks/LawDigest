@@ -51,5 +51,5 @@ git worktree remove .worktrees/staging-<topic>
 
 ## 주의
 
-- 운영 DB를 쓰므로 staging에서 북마크·좋아요·알림 설정을 바꾸면 운영 데이터에 기록된다. 검증은 조회 위주로 한다.
+- 운영 DB를 쓰므로 staging에서 북마크·좋아요·알림 설정을 바꾸면 운영 데이터에 기록된다. 법안 상세를 열면 조회수(`PATCH /v1/bill/view_count`)도 1 올라간다. 검증은 목록·집계 조회 위주로 한다.
 - 백엔드에 예약 작업(`@Scheduled`)이 생기면 staging에서도 돈다. 그때는 staging용 비활성 설정을 먼저 추가한다.

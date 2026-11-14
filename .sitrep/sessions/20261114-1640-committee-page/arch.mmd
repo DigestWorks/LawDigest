@@ -1,0 +1,18 @@
+flowchart TD
+  U[사용자] --> IDX["/committee 목록"]:::done
+  U --> DET["/committee/이름 상세"]:::done
+  LINK["법안·의원·통계·탐색 링크"]:::done --> DET
+  IDX --> API1["committee/list"]:::done
+  DET --> API2["committee/detail"]:::done
+  DET --> API3["committee/bill"]:::done
+  STAT["statistics/by-committee"]:::done --> SVC
+  API1 --> SVC["CommitteeNames 합산"]:::done
+  API2 --> SVC
+  API3 --> SVC
+  SVC --> DB[(운영 MySQL)]:::done
+  STG["staging :8090"]:::done --> DB
+  KEEP{"staging 유지?"}:::decide
+  classDef done fill:#d1fae5,stroke:#059669
+  classDef doing fill:#fef3c7,stroke:#d97706
+  classDef decide fill:#fee2e2,stroke:#dc2626
+  classDef todo fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:4
