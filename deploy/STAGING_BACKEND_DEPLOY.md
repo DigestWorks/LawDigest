@@ -11,7 +11,7 @@
 | 스크립트 | [`deploy-staging-backend.sh`](./deploy-staging-backend.sh) |
 | 컨테이너 | `lawdigest-backend-staging` |
 | 이미지 | `lawdigest-backend-staging` |
-| 포트 | `127.0.0.1:8090` (외부 도메인·nginx 없음) |
+| 포트 | `8090` (외부 도메인·nginx 없음), 배포 중 사전 헬스체크 `28090` |
 | Spring profile | `prod` |
 | DB | 운영 DB(`services/backend/.env`)를 함께 쓴다 |
 | 로그 | `.runtime/staging-backend/logs` |

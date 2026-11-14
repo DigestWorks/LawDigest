@@ -14,6 +14,8 @@ PROD_PORT="808"
 export PORT="${STAGING_BACKEND_PORT:-8090}"
 export CONTAINER_NAME="${STAGING_BACKEND_CONTAINER:-lawdigest-backend-staging}"
 export IMAGE_NAME="${STAGING_BACKEND_IMAGE:-lawdigest-backend-staging}"
+# 본체 기본값(PORT+10000 = 18090)은 서버의 다른 서비스가 쓰고 있다.
+export STAGING_PORT="${STAGING_BACKEND_PRECHECK_PORT:-28090}"
 export ACTIVE="${STAGING_BACKEND_ACTIVE:-prod}"
 export BACKEND_DEPLOY_LABEL="테스트(staging)"
 
