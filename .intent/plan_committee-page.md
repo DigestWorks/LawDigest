@@ -19,19 +19,19 @@ date: 2026-11-14
 | `services/backend/.../repository/BillRepositoryCustom.java`, `BillRepositoryImpl.java` | `findBillByCommitteeAndPage` 추가 |
 | `services/backend/.../repository/CongressmanRepository.java` | `findActiveWithParty` 추가 |
 | `services/backend/.../common/dto/committee/*` (새) | `CommitteeSummaryDto`, `CommitteeDetailResponse`, `CommitteeMemberDto`, `CommitteeBillStatsDto` |
-| `services/backend/.../global/error/CommitteeException.java` (새), `ErrorCode.java` | 404 예외 |
+| `services/backend/.../global/error/CommitteeException.java` (새), `ErrorCode.java`, `GlobalExceptionHandler.java` | 404 예외와 404 응답 등록 |
 | `services/backend/.../service/CommitteeService.java` (새) | 합산·위원 판별 |
 | `services/backend/.../controller/CommitteeController.java` (새) | `/v1/committee` 3개 엔드포인트 |
-| `services/backend/src/test/.../CommitteeServiceTest.java`, `CommitteeNamesTest.java` (새) | 합산·정확 일치 테스트 |
+| `services/backend/src/test/.../CommitteeServiceTest.java`, `CommitteeControllerTest.java` (새) | 합산·정확 일치·404·페이지 크기 테스트 |
 | `services/web/types/type/committee/*` (새), `types` index | 응답 타입 |
-| `services/web/lib/committee.ts` (새), `lib/publicDetail.ts` | 링크·디코드, 서버 조회 |
+| `services/web/lib/committee.ts`, `lib/committee.test.ts` (새), `lib/publicDetail.ts` | 링크·디코드, 서버 조회 |
 | `services/web/app/committee/**` (새) | 목록·상세 화면 |
-| `services/web/app/bill/[id]/components/BillDetail/BillDetail.tsx` | 소관 위원회 링크 |
+| `services/web/components/Bill/BillList/Bill/Bill.tsx` | 법안 상세의 소관 위원회 링크(상세 메타가 이 컴포넌트에 있다) |
 | `services/web/app/congressman/[id]/components/Congressman/CongressmanDetail.tsx` | 소속 위원회 링크 |
 | `services/web/app/explore/components/StatsCommitteeBars.tsx`, `AssemblyPanel.tsx` | 진입 링크 |
 | `services/web/lib/sitemap.ts` | `/committee` 정적 경로 |
 | `deploy/deploy-test-backend.sh` | `LOG_DIR` 변수 |
-| `deploy/deploy-staging-backend.sh` (새), `deploy/STAGING_BACKEND_DEPLOY.md` (새) | 테스트 백엔드 |
+| `deploy/deploy-staging-backend.sh` (새), `deploy/STAGING_BACKEND_DEPLOY.md` (새) | 테스트 백엔드. 사전 헬스체크 포트는 서버에서 18090이 사용 중이라 28090 |
 
 ## 작업 순서
 

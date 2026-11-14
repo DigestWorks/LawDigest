@@ -6,6 +6,8 @@ import { IconWeb } from '@/public/svgs';
 import FollowBoard from './FollowBoard';
 import { useGetCongressmanDetail } from '../../apis';
 import PartyLogo from './PartyLogo';
+import Link from 'next/link';
+import { committeeHref } from '@/lib/committee';
 
 export default function CongressmanDetail({ congressmanId }: { congressmanId: string }) {
   const query = useGetCongressmanDetail(congressmanId);
@@ -80,7 +82,13 @@ export default function CongressmanDetail({ congressmanId }: { congressmanId: st
       {committees.length > 0 && (
         <ul className="flex flex-col gap-1.5 border-t border-border pt-4 text-sm text-muted-foreground">
           {committees.map((committee) => (
-            <li key={committee}>{committee}</li>
+            <li key={committee}>
+              <Link
+                href={committeeHref(committee)}
+                className="underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2">
+                {committee}
+              </Link>
+            </li>
           ))}
         </ul>
       )}

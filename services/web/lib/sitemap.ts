@@ -20,6 +20,7 @@ export const sitemapPaths = [
   '/',
   '/explore',
   '/timeline',
+  '/committee',
   '/about',
   '/terms',
   '/privacy',

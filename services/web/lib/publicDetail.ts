@@ -1,7 +1,14 @@
 import { cache } from 'react';
 import { SERVER_API_TIMEOUT_MS } from '@/lib/apiTiming';
 import { notFound } from 'next/navigation';
-import type { BaseResponse, BillResponse, CongressmanDetailResponse, PartyDetailResponse } from '@/types';
+import type {
+  BaseResponse,
+  BillResponse,
+  CommitteeDetailResponse,
+  CommitteeSummary,
+  CongressmanDetailResponse,
+  PartyDetailResponse,
+} from '@/types';
 
 export const publicDetailError = '자료를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
 
@@ -47,6 +54,10 @@ export const getPublicCongressman = cache((id: string) => {
   if (!validPublicId(id)) notFound();
   return fetchPublicDetail<CongressmanDetailResponse>(`/congressman/detail?congressman_id=${encodeURIComponent(id)}`);
 });
+export const getPublicCommitteeList = cache(() => fetchPublicDetail<CommitteeSummary[]>('/committee/list'));
+export const getPublicCommittee = cache((name: string) =>
+  fetchPublicDetail<CommitteeDetailResponse>(`/committee/detail?name=${encodeURIComponent(name)}`),
+);
 export const getPublicParty = cache((id: string) => {
   const partyId = Number(id);
   if (!/^\d+$/.test(id) || !Number.isSafeInteger(partyId) || partyId <= 0) notFound();

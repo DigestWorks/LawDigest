@@ -1,6 +1,9 @@
 'use client';
 
 import { Landmark } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { committeeHref } from '@/lib/committee';
 import { SectionEmpty, SectionError } from '@/components/common/SectionState';
 
 import { Bar, BarChart, LabelList, XAxis, YAxis } from 'recharts';
@@ -17,6 +20,7 @@ const chartConfig = {
 
 /** 소관 위원회별 법안 수 상위 N — 가로 막대. */
 export default function StatsCommitteeBars() {
+  const router = useRouter();
   const query = useGetStatisticsByCommittee();
   const { data, isLoading } = query;
   const committees = data?.data ?? [];
@@ -54,7 +58,17 @@ export default function StatsCommitteeBars() {
   }));
 
   return (
-    <StatsCard title="위원회별 접수 현황" icon={Landmark} subtitle={`상위 ${rows.length}개`} delay={0.15}>
+    <StatsCard
+      title="위원회별 접수 현황"
+      icon={Landmark}
+      subtitle={
+        <Link
+          href="/committee"
+          className="underline-offset-2 hover:text-primary-3 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 dark:hover:text-gray-0.5">
+          전체 위원회
+        </Link>
+      }
+      delay={0.15}>
       <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: rows.length * 30 + 8 }}>
         <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 42, top: 0, bottom: 0 }}>
           <XAxis type="number" hide />
@@ -92,7 +106,16 @@ export default function StatsCommitteeBars() {
               />
             }
           />
-          <Bar dataKey="count" fill="var(--color-count)" radius={[3, 6, 6, 3]} barSize={16}>
+          <Bar
+            dataKey="count"
+            fill="var(--color-count)"
+            radius={[3, 6, 6, 3]}
+            barSize={16}
+            className="cursor-pointer"
+            onClick={(entry) => {
+              const fullName = (entry as { payload?: { fullName?: string } }).payload?.fullName;
+              if (fullName) router.push(committeeHref(fullName));
+            }}>
             <LabelList
               dataKey="count"
               position="right"

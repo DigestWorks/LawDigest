@@ -21,6 +21,7 @@ import {
 } from '@heroui/react';
 import Link, { useLinkStatus } from 'next/link';
 import type { BaseResponse, BillListItem, ViewCountResponse } from '@/types';
+import { committeeHref, isCommitteeName } from '@/lib/committee';
 import { IconExport, IconScrabSmall } from '@/public/svgs';
 import { billDetailQueryOptions, usePatchBookmark } from '@/app/bill/[id]/apis';
 import {
@@ -423,7 +424,17 @@ export default function Bill({
               {committee && (
                 <div className="flex gap-1">
                   <dt>소관위원회</dt>
-                  <dd>{committee}</dd>
+                  <dd>
+                    {isCommitteeName(committee) ? (
+                      <Link
+                        href={committeeHref(committee)}
+                        className="underline underline-offset-2 hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2">
+                        {committee}
+                      </Link>
+                    ) : (
+                      committee
+                    )}
+                  </dd>
                 </div>
               )}
             </dl>
