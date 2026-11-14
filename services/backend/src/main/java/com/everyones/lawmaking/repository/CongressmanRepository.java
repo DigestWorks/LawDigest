@@ -47,4 +47,9 @@ public interface CongressmanRepository extends JpaRepository<Congressman, String
 
     Integer countByState(boolean state);
 
+    @Query("SELECT c FROM Congressman c LEFT JOIN FETCH c.party " +
+            "WHERE c.state = true AND c.commits IS NOT NULL " +
+            "ORDER BY c.name")
+    List<Congressman> findActiveWithParty();
+
 }

@@ -9,6 +9,7 @@ import com.everyones.lawmaking.common.dto.PartyPerformanceDto;
 import com.everyones.lawmaking.common.dto.ResultBreakdownDto;
 import com.everyones.lawmaking.common.dto.StatisticsOverviewDto;
 import com.everyones.lawmaking.common.dto.StatisticsStageDto;
+import com.everyones.lawmaking.common.dto.committee.CommitteeBillStatsDto;
 import com.everyones.lawmaking.domain.entity.Bill;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -120,6 +121,18 @@ public interface StatisticsRepository extends JpaRepository<Bill, String> {
             "GROUP BY b.committee " +
             "ORDER BY COUNT(b) DESC")
     List<CommitteeCountDto> findBillCountByCommittee(@Param("assembly") int assembly);
+
+    /** 위원회 표기별 접수·가결·계류 수. 이전 명칭 합산과 제외 값 처리는 서비스에서 한다. */
+    @Query("SELECT new com.everyones.lawmaking.common.dto.committee.CommitteeBillStatsDto(" +
+            "b.committee, COUNT(b), " +
+            "SUM(CASE WHEN b.billResult IN " + PASSED_RESULTS + " THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN b.billResult IS NULL OR TRIM(b.billResult) = '' THEN 1 ELSE 0 END)) " +
+            "FROM Bill b " +
+            "WHERE b.assemblyNumber = :assembly " +
+            "AND b.ingestStatus = com.everyones.lawmaking.domain.entity.IngestStatusType.READY " +
+            "AND b.committee IS NOT NULL " +
+            "GROUP BY b.committee")
+    List<CommitteeBillStatsDto> findCommitteeBillStats(@Param("assembly") int assembly);
 
     @Query("SELECT new com.everyones.lawmaking.common.dto.CategoryPartyCountDto(" +
             "b.category, rp.party.id, rp.party.name, COUNT(b)) " +

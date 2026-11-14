@@ -33,6 +33,8 @@ public enum ErrorCode {
 
     PARTY_NOT_FOUND(404, "해당 정당을 찾을 수 없습니다."),
 
+    COMMITTEE_NOT_FOUND(404, "해당 위원회를 찾을 수 없습니다."),
+
     NOTIFICATION_NOT_FOUND(404, "해당 알림을 찾을 수 없습니다."),
 
     SOCIAL_TOKEN_NOT_FOUND(404, "해당 소셜 토큰을 찾을 수 없습니다."),

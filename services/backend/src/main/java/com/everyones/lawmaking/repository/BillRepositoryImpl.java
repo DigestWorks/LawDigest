@@ -54,6 +54,18 @@ public class BillRepositoryImpl implements BillRepositoryCustom {
         return buildBillListResponse(pagedBill, pageable, userIdOptional);
     }
 
+    @Override
+    public BillListResponse findBillByCommitteeAndPage(Pageable pageable, Optional<Long> userIdOptional, List<String> committees, int assembly) {
+        var pagedBill = queryFactory.select(new QBillInfoDto(bill))
+                .from(bill)
+                .where(eqReady(), bill.assemblyNumber.eq(assembly), bill.committee.in(committees))
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
+                .orderBy(bill.proposeDate.desc(), bill.id.desc())
+                .fetch();
+        return buildBillListResponse(pagedBill, pageable, userIdOptional);
+    }
+
     private BillListResponse buildBillListResponse(List<BillInfoDto> pagedBill, Pageable pageable, Optional<Long> userIdOptional) {
         var isLastPage = PaginationUtil.hasNextPage(pagedBill, pageable.getPageSize());
         var pagination = PaginationResponse.of(isLastPage, pageable.getPageNumber());
