@@ -77,6 +77,7 @@ STAGING_PORT="${STAGING_PORT:-$((HOST_PORT + 10000))}"
 STAGING_CONTAINER_NAME="${STAGING_CONTAINER_NAME:-${CONTAINER_NAME}.staging}"
 ROLLBACK_CONTAINER_NAME="${ROLLBACK_CONTAINER_NAME:-${CONTAINER_NAME}.rollback}"
 HEALTHCHECK_PATH="${HEALTHCHECK_PATH:-/actuator/health}"
+LOG_DIR="${LOG_DIR:-$SHARED_REPO_ROOT/.runtime/test-backend/logs}"
 
 container_exists() {
   docker container inspect "$1" >/dev/null 2>&1
@@ -100,7 +101,7 @@ start_container() {
     --env-file "$SOURCE_ENV_FILE" \
     -e ACTIVE="$ACTIVE" \
     -p "$host_port:8080" \
-    -v "$SHARED_REPO_ROOT/.runtime/test-backend/logs:/logs" \
+    -v "$LOG_DIR:/logs" \
     -v /usr/share/zoneinfo/Asia/Seoul:/etc/localtime:ro \
     "$IMAGE_NAME" >/dev/null
 }
@@ -130,6 +131,7 @@ echo "  container: $CONTAINER_NAME"
 echo "  image: $IMAGE_NAME"
 echo "  network: $DOCKER_NETWORK"
 echo "  active profile: $ACTIVE"
+echo "  logs: $LOG_DIR"
 
 echo "▶ Gradle 빌드"
 cd "$TARGET_BACKEND_DIR"
