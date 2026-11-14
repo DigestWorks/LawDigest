@@ -12,6 +12,7 @@ import com.everyones.lawmaking.common.dto.ResultBreakdownDto;
 import com.everyones.lawmaking.common.dto.StatisticsOverviewDto;
 import com.everyones.lawmaking.common.dto.StatisticsStageDto;
 import com.everyones.lawmaking.global.constant.BillInfoConstant;
+import com.everyones.lawmaking.global.constant.CommitteeNames;
 import com.everyones.lawmaking.repository.StatisticsRepository;
 import com.everyones.lawmaking.repository.BillTimelineRepository;
 import lombok.RequiredArgsConstructor;
@@ -96,8 +97,22 @@ public class StatisticsService {
         return trend;
     }
 
+    /** 위원회별 법안 수. 이전 명칭은 위원회 화면과 같은 기준으로 현재 명칭에 합산한다. */
     public List<CommitteeCountDto> getBillCountByCommittee() {
-        return statisticsRepository.findBillCountByCommittee(currentAssembly());
+        var merged = new HashMap<String, long[]>();
+        for (CommitteeCountDto row : statisticsRepository.findBillCountByCommittee(currentAssembly())) {
+            if (!CommitteeNames.isCommittee(row.getCommittee())) {
+                continue;
+            }
+            var total = merged.computeIfAbsent(CommitteeNames.canonical(row.getCommittee()), key -> new long[2]);
+            total[0] += row.getCount();
+            total[1] += row.getPassedCount();
+        }
+        return merged.entrySet().stream()
+                .map(entry -> new CommitteeCountDto(entry.getKey(), entry.getValue()[0], entry.getValue()[1]))
+                .sorted(Comparator.comparingLong(CommitteeCountDto::getCount).reversed()
+                        .thenComparing(CommitteeCountDto::getCommittee))
+                .toList();
     }
 
     public List<CategoryPartyCountDto> getCategoryPartyMatrix() {

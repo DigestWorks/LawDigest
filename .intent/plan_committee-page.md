@@ -16,6 +16,7 @@ date: 2026-11-14
 |---|---|
 | `services/backend/.../global/constant/CommitteeNames.java` (새) | 이전 명칭 맵, 유형 판별 |
 | `services/backend/.../repository/StatisticsRepository.java` | `findCommitteeBillStats` 추가 |
+| `services/backend/.../service/StatisticsService.java`, `StatisticsCommitteeTest.java` (새) | 통계 탭 위원회 집계도 이전 명칭 합산 |
 | `services/backend/.../repository/BillRepositoryCustom.java`, `BillRepositoryImpl.java` | `findBillByCommitteeAndPage` 추가 |
 | `services/backend/.../repository/CongressmanRepository.java` | `findActiveWithParty` 추가 |
 | `services/backend/.../common/dto/committee/*` (새) | `CommitteeSummaryDto`, `CommitteeDetailResponse`, `CommitteeMemberDto`, `CommitteeBillStatsDto` |

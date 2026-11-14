@@ -31,7 +31,7 @@ date: 2026-11-14
 
 **새로 만드는 것 (백엔드)**
 - `global/constant/CommitteeNames`: 이전→현재 명칭 맵(출처: 2025-09 국회법 개정), `canonical(name)`, `aliasesOf(current)`, `typeOf(name)`(이름이 `특별위원회`로 끝나면 `special`).
-- `StatisticsRepository.findCommitteeBillStats(assembly)`: committee별 count·passed·pending. `findBillCountByCommittee`는 그대로 둔다.
+- `StatisticsRepository.findCommitteeBillStats(assembly)`: committee별 count·passed·pending. 통계 탭의 `/statistics/by-committee`도 `StatisticsService`에서 같은 기준으로 합산해 위원회 화면과 수치를 맞춘다.
 - `BillRepositoryCustom.findBillByCommitteeAndPage(pageable, userId, names, assembly)`: `bill.committee.in(names)`.
 - `CongressmanRepository.findActiveWithParty()`: `state = true`, party fetch join.
 - `CommitteeService`·`CommitteeController`(`/v1/committee`), DTO `CommitteeSummaryDto`, `CommitteeDetailResponse`, `CommitteeMemberDto`, 예외 `CommitteeException.CommitteeNotFound`(`ErrorCode` 404 추가).

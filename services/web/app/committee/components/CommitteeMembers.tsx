@@ -82,11 +82,19 @@ export default function CommitteeMembers({ members }: { members: CommitteeMember
                 fill={group.color}
                 strokeWidth={0.5}
                 className="stroke-transparent dark:stroke-white/40"
-                initial={reduceMotion ? false : { opacity: 0, scale: 0.4 }}
+                // 서버와 브라우저의 첫 렌더를 같게 두고, 동작 줄이기 설정에서는 시간만 0으로 만든다.
+                initial={{ opacity: 0, scale: 0.4 }}
                 animate={{ opacity: dimmed ? 0.18 : 1, scale: 1 }}
                 transition={{
-                  opacity: { duration: 0.25, delay: reduceMotion || activeParty !== null ? 0 : index * 0.025 },
-                  scale: { duration: 0.35, delay: reduceMotion ? 0 : index * 0.025, ease: [0.22, 1, 0.36, 1] },
+                  opacity: {
+                    duration: reduceMotion ? 0 : 0.25,
+                    delay: reduceMotion || activeParty !== null ? 0 : index * 0.025,
+                  },
+                  scale: {
+                    duration: reduceMotion ? 0 : 0.35,
+                    delay: reduceMotion ? 0 : index * 0.025,
+                    ease: [0.22, 1, 0.36, 1],
+                  },
                 }}
                 style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
               />
